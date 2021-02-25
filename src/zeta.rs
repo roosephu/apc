@@ -47,7 +47,7 @@ fn I0(s: Complex, eps: Float) -> Complex {
         h = (z_2 - z_1) / m; // ???
         z_l = ((2. * h).powi(2).inv() + s / Complex::i() / 2.0 / PI).sqrt() + (2. * h).inv();
         z_r = ((2. * h).powi(2).inv() + s / Complex::i() / 2.0 / PI).sqrt() - (2. * h).inv();
-        let err1 = g(z_l, s) * (-2.0 * (z_l - z_1) / h * Complex::i() * PI).exp();
+        let err1 = g(z_l, s) * (2.0 * (z_1 - z_l) / h * Complex::i() * PI).exp();
         let err2 = g(z_r, s) * (2.0 * (z_r - z_1) / h * Complex::i() * PI).exp();
         if err1.norm() <= eps && err2.norm() <= eps { break }
         m *= 2.0;
@@ -75,10 +75,11 @@ fn I0(s: Complex, eps: Float) -> Complex {
     for i in n as i64 + 1 ..= n_r as i64 {
         s3 += Complex::new(i as Float, 0.0).powc(-s) * H((z_1 - i as Float) / h);
     }
-    // dbg!(s0, s1, s2, s3);
+    dbg!(s0, s1, s2, s3);
+    // dbg!(n, m, n_l, n_r, z_1, z_2, (z_2 - z_1).norm());
+    // dbg!(n_l, n_r, z_l, z_r);
 
     s0 + s1 * h - s2 + s3
-    // dbg!(n, m, n_l, n_r, z_1, z_2, (z_2 - z_1).norm());
     // dbg!(h);
 }
 

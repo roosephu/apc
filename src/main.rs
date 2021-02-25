@@ -34,6 +34,15 @@ impl Context {
     }
 }
 
+use analytic::traits::Alloc;
+
+fn test() {
+    let prec = 53;
+    // let a = rug::Complex::with_val(prec, (1.0, 1.0));
+    let a = rug::Complex::with_val(prec, 1.0);
+    let b = a.sin_ref().alloc::<rug::Complex>(prec);
+}
+
 fn main() {
     let eps = 1e-10;
     let s = Complex::new(1.11, 100.0);
