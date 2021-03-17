@@ -1,6 +1,5 @@
 // scipy defaults: xtol = 2e-12, rtol = 8.881784197001252e-16
-#[allow(dead_code)]
-#[allow(clippy::float_cmp)]
+
 pub fn brentq<F>(f: F, xa: f64, xb: f64, xtol: f64, rtol: f64, iter: i64) -> Option<f64>
 where
     F: Fn(f64) -> f64

@@ -1,4 +1,4 @@
-#![allow(clippy::many_single_char_names)]
+
 #![allow(non_snake_case)]
 
 use std::f64::consts::PI;

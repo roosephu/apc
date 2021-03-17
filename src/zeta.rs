@@ -1,6 +1,7 @@
 use std::f64::consts::PI;
 use crate::gamma::gamma;
 use crate::brentq::brentq;
+use num::Zero;
 
 type Float = f64;
 type Complex = num::Complex<Float>;
@@ -56,22 +57,22 @@ fn I0(s: Complex, eps: Float) -> Complex {
     let n_l = (z_l.re - z_l.im).ceil();
     let n_r = (z_r.re - z_r.im).floor();
 
-    let mut s0 = Complex::new(0.0, 0.0);
+    let mut s0 = Complex::zero();
     for i in 1..=n as i64 {
         s0 += Complex::new(i as Float, 0.0).powc(-s);
     }
 
-    let mut s1 = Complex::new(0.0, 0.0);
+    let mut s1 = Complex::zero();
     for i in 0..=m as i64 {
         s1 += f(z_1 + i as Float * h, s);
     }
 
-    let mut s2 = Complex::new(0.0, 0.0);
+    let mut s2 = Complex::zero();
     for i in n_l as i64..=n as i64 {
         s2 += Complex::new(i as Float, 0.0).powc(-s) * H((i as Float - z_1) / h);
     }
 
-    let mut s3 = Complex::new(0.0, 0.0);
+    let mut s3 = Complex::zero();
     for i in n as i64 + 1 ..= n_r as i64 {
         s3 += Complex::new(i as Float, 0.0).powc(-s) * H((z_1 - i as Float) / h);
     }

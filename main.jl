@@ -333,4 +333,4 @@ function analytic_π(x)
     round(Delta + pi_star)
 end
 
-print(analytic_π(10^5))
+print(analytic_π(10^4))
