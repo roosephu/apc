@@ -4,16 +4,16 @@ use num::traits::{Zero, Pow, FloatConst};
 use num::integer::*;
 use rgsl::error::erfc;
 use rustfft::FftPlanner;
-use crate::{brentq::brentq, zeta::{FnZeta, ZetaGalway}};
+use crate::{brentq::brentq, zeta::FnZeta};
 use log::{debug, info};
 use crate::context::Context;
 
 type Float = f64;
 type Complex = num::Complex<Float>;
 
-pub struct Galway<'a> {
+pub struct Galway<'a, Z: FnZeta> {
     ctx: &'a Context<f64>,
-    fn_zeta: &'a ZetaGalway<'a>,
+    fn_zeta: &'a mut Z,
     lambda: Float,
     sigma: Float,
     integral_limit: Float,
@@ -22,7 +22,7 @@ pub struct Galway<'a> {
     x2: u64,
 }
 
-impl Galway<'_> {
+impl<Z: FnZeta> Galway<'_, Z> {
     const EXP_APPROX: [Complex; 18] = [
         Complex { re: 1.0, im: 1.0812144107799266e-23},
         Complex { re: -4.479610786345225e-21, im: 1.0},
@@ -78,7 +78,7 @@ impl Galway<'_> {
     }
 }
 
-impl Galway<'_> {
+impl<Z: FnZeta> Galway<'_, Z> {
 
     fn Phi(&self, p: Float, eps: f64) -> Float {
         erfc(p / Float::SQRT_2()) / 2.0
@@ -137,8 +137,8 @@ impl Galway<'_> {
         let (x1, x2) = (self.x1, self.x2);
         let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
 
-        let primes = Galway::linear_sieve(x2.sqrt());
-        for p in Galway::sieve(&primes, x1, x2) {
+        let primes = Galway::<Z>::linear_sieve(x2.sqrt());
+        for p in Galway::<Z>::sieve(&primes, x1, x2) {
             ret -= self.phi(p as f64, x as f64, eps);
             if p <= x {
                 ret += 1.0;
@@ -162,7 +162,7 @@ impl Galway<'_> {
     }
 }
 
-impl Galway<'_> {
+impl<Z: FnZeta> Galway<'_, Z> {
     fn init_F_taylor(&mut self, N: usize) {
         let pi = Float::PI();
         let ctx = self.ctx;
@@ -180,31 +180,32 @@ impl Galway<'_> {
     }
 }
 
-impl Galway<'_> {
-    fn calc_pi_star(&self, x: f64, eps: f64) -> Float {
+impl<Z: FnZeta> Galway<'_, Z> {
+    fn Psi(&mut self, s: Complex, ln_x: f64, eps: f64) -> Complex {
+        ((self.lambda * s).powi(2) / 2.0 + s * ln_x).exp() * self.fn_zeta.zeta(s, eps).ln() / s
+    }
+
+    fn calc_pi_star(&mut self, x: f64, eps: f64) -> Float {
         let eps = eps / 4.0 / x.powf(self.sigma) / x.ln();
         let ln_x = (x as f64).ln();
-        let Psi = |s: Complex| {
-            ((self.lambda * s).powi(2) / 2.0 + s * ln_x).exp() * self.fn_zeta.zeta(s, eps).ln() / s
-        };
 
         let mut ans = Complex::zero();
 
         let n_total_evals = (self.integral_limit / self.h).ceil() as u64;
         for t in 1..=n_total_evals {
             let s = Complex::new(self.sigma, self.h * t as f64);
-            ans += Psi(s);
-            if t % (n_total_evals / 100).max(1) == 0 {
-                info!("n total evals = {}, progress = {}, height = {:.6}, ans = {}, Psi = {}", n_total_evals, t, self.h * t as f64, ans, Psi(s));
+            ans += self.Psi(s, ln_x, eps);
+            if t % (n_total_evals / 100).max(1) == 0 || t == n_total_evals {
+                info!("n total evals = {}, progress = {}, height = {:.6}, ans = {}, Psi = {}", n_total_evals, t, self.h * t as f64, ans, self.Psi(s, ln_x, eps));
             }
-            assert!(ans.is_normal(), "ans is not normal! s = {}, Psi = {}, eps = {}", s, Psi(s), eps);
+            assert!(ans.is_normal(), "ans is not normal! s = {}, Psi = {}, eps = {}", s, self.Psi(s, ln_x, eps), eps);
         }
-        self.h / PI * (Psi(Complex::new(self.sigma, 0.0)) / 2.0 + ans).re
+        self.h / PI * (self.Psi(Complex::new(self.sigma, 0.0), ln_x, eps) / 2.0 + ans).re
     }
 }
 
-impl<'a> Galway<'a> {
-    pub fn new(ctx: &'a Context<f64>, fn_zeta: &'a ZetaGalway) -> Self {
+impl<'a, Z: FnZeta> Galway<'a, Z> {
+    pub fn new(ctx: &'a Context<f64>, fn_zeta: &'a mut Z) -> Self {
         Self { ctx, fn_zeta, lambda: 0.0, sigma: 0.0, x1: 0, x2: 0, h: 0.0, integral_limit: 0.0 }
     }
 
@@ -281,13 +282,15 @@ impl<'a> Galway<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::zeta::ZetaGalway;
+
     use super::*;
 
     #[test]
     fn test_sum_trunc_dirichlet() {
         let ctx = Context::new(100);
-        let zeta_galway = ZetaGalway::new(&ctx);
-        let galway = Galway::new(&ctx, &zeta_galway);
+        let mut zeta_galway = ZetaGalway::new(&ctx);
+        let galway = Galway::new(&ctx, &mut zeta_galway);
         let N = 20;
         let s = Complex::new(1.3, 2.6);
         let M = 9;
