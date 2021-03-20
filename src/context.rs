@@ -46,6 +46,7 @@ impl<T: GenericFloat> Context<T> {
 
 impl<T: GenericFloat> Context<T> {
     fn init_binomial(&mut self, n: usize) {
+        info!("initialize binomial numbers up to {}", n);
         let mut binomial = vec![vec![T::zero(); n + 1]; n + 1];
         for i in 0..=n {
             for j in 0..=i {
@@ -78,6 +79,7 @@ impl<T: GenericFloat> Context<T> {
     }
 
     fn init_euler(&mut self, n: usize) {
+        info!("initialize Euler numbers up to {}", n);
         let mut euler = vec![T::zero(); n + 1];
         euler[0] = T::one();
         for i in 1..=n {

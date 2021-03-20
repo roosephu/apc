@@ -181,10 +181,11 @@ impl Galway<'_> {
 }
 
 impl Galway<'_> {
-    fn calc_pi_star(&self, x: u64, eps: f64) -> Float {
-        let eps = eps / 4.0 / (x as Float).powf(self.sigma) / (x as Float).ln();
+    fn calc_pi_star(&self, x: f64, eps: f64) -> Float {
+        let eps = eps / 4.0 / x.powf(self.sigma) / x.ln();
+        let ln_x = (x as f64).ln();
         let Psi = |s: Complex| {
-            ((self.lambda * s).powi(2) / 2.0).exp() * Complex::new(x as f64, 0.0).powc(s) * self.fn_zeta.zeta(s, eps).ln() / s
+            ((self.lambda * s).powi(2) / 2.0 + s * ln_x).exp() * self.fn_zeta.zeta(s, eps).ln() / s
         };
 
         let mut ans = Complex::zero();
@@ -194,8 +195,9 @@ impl Galway<'_> {
             let s = Complex::new(self.sigma, self.h * t as f64);
             ans += Psi(s);
             if t % (n_total_evals / 100).max(1) == 0 {
-                info!("n total evals = {}, progress = {}, height = {:.6}", n_total_evals, t, self.h * t as f64);
+                info!("n total evals = {}, progress = {}, height = {:.6}, ans = {}, Psi = {}", n_total_evals, t, self.h * t as f64, ans, Psi(s));
             }
+            assert!(ans.is_normal(), "ans is not normal! s = {}, Psi = {}, eps = {}", s, Psi(s), eps);
         }
         self.h / PI * (Psi(Complex::new(self.sigma, 0.0)) / 2.0 + ans).re
     }
@@ -206,22 +208,23 @@ impl<'a> Galway<'a> {
         Self { ctx, fn_zeta, lambda: 0.0, sigma: 0.0, x1: 0, x2: 0, h: 0.0, integral_limit: 0.0 }
     }
 
-    pub fn compute(&mut self, x: u64) -> u64 {
-        self.plan(x as Float);
+    pub fn compute(&mut self, x: u64) -> i64 {
+        let x = x as f64;
+        self.plan(x);
 
         let eps = 0.4;
         let pi_star = self.calc_pi_star(x, eps / 2.0);
         debug!("pi^* = {}", pi_star);
-        let delta = self.calc_delta(x, eps / 2.0);
+        let delta = self.calc_delta(x as u64, eps / 2.0);
         debug!("delta = {}", delta);
-        (pi_star + delta).round() as u64
+        (pi_star + delta).round() as i64
     }
 
     fn plan(&mut self, x: Float) {
         self.sigma = 1.5;
         info!("sigma = {:.6}", self.sigma);
 
-        self.lambda = 1.0 / ((x as f64).sqrt() * (x as f64).ln().powf(-0.5));
+        self.lambda = 20.0 / (x as f64).sqrt();
         info!("lambda = {:.6}", self.lambda);
 
         self.plan_delta_bounds(x, 0.24);
