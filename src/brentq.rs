@@ -2,7 +2,7 @@
 
 pub fn brentq<F>(f: F, xa: f64, xb: f64, xtol: f64, rtol: f64, iter: i64) -> Option<f64>
 where
-    F: Fn(f64) -> f64
+    F: Fn(f64) -> f64,
 {
     let mut xpre = xa;
     let mut xcur = xb;
@@ -13,9 +13,15 @@ where
     let mut spre = 0.0;
     let mut scur = 0.0;
 
-    if fpre * fcur > 0.0 { return None }
-    if fpre == 0.0 { return Some(xpre) }
-    if fcur == 0.0 { return Some(xcur) }
+    if fpre * fcur > 0.0 {
+        return None;
+    }
+    if fpre == 0.0 {
+        return Some(xpre);
+    }
+    if fcur == 0.0 {
+        return Some(xcur);
+    }
 
     for _ in 0..iter {
         if fpre * fcur < 0.0 {
@@ -39,7 +45,7 @@ where
         let sbis = (xblk - xcur) / 2.0;
 
         if fcur == 0.0 || sbis.abs() < delta {
-            return Some(xcur)
+            return Some(xcur);
         }
         if spre.abs() > delta && fcur.abs() < fpre.abs() {
             let stry = if xpre == xblk {

@@ -1,6 +1,6 @@
 use crate::traits::GenericFloat;
+use log::{debug, info};
 use num_complex::Complex;
-use log::{info, debug};
 
 #[derive(Default)]
 pub struct Context<T> {
@@ -19,10 +19,22 @@ impl<T: GenericFloat> Context<T> {
         ret
     }
 
-    #[inline] pub fn binom(&self, n: usize, m: usize) -> T { self.binomial[n][m] }
-    #[inline] pub fn bernoulli(&self, n: usize) -> T { self.bernoulli[n] }
-    #[inline] pub fn euler(&self, n: usize) -> T { self.euler[n] }
-    #[inline] pub fn factorial(&self, n: usize) -> T { self.factorial[n] }
+    #[inline]
+    pub fn binom(&self, n: usize, m: usize) -> T {
+        self.binomial[n][m]
+    }
+    #[inline]
+    pub fn bernoulli(&self, n: usize) -> T {
+        self.bernoulli[n]
+    }
+    #[inline]
+    pub fn euler(&self, n: usize) -> T {
+        self.euler[n]
+    }
+    #[inline]
+    pub fn factorial(&self, n: usize) -> T {
+        self.factorial[n]
+    }
 }
 
 impl<T: GenericFloat> Context<T> {
@@ -33,7 +45,8 @@ impl<T: GenericFloat> Context<T> {
             z += T::one();
         }
 
-        result += (z - T::from(0.5).unwrap()) * z.ln() - z + (T::PI() * T::from(2).unwrap()).ln() / T::from(2).unwrap();
+        result += (z - T::from(0.5).unwrap()) * z.ln() - z
+            + (T::PI() * T::from(2).unwrap()).ln() / T::from(2).unwrap();
         let z2 = z * z;
         let mut zpow = z;
         for i in 1..20 {
@@ -85,7 +98,12 @@ impl<T: GenericFloat> Context<T> {
         for i in 1..=n {
             let mut s = T::zero();
             for j in 0..i {
-                s += (if (i + j) % 2 == 0 { T::one() } else { -T::one()}) * euler[j] * self.binom(2 * i, 2 * j);
+                s += (if (i + j) % 2 == 0 {
+                    T::one()
+                } else {
+                    -T::one()
+                }) * euler[j]
+                    * self.binom(2 * i, 2 * j);
             }
             euler[i] = -s;
         }

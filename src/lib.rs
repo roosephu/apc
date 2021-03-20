@@ -7,9 +7,9 @@
 #![allow(unused_variables)]
 #![feature(destructuring_assignment)]
 
-pub mod traits;
-pub mod context;
 pub mod brentq;
-pub mod gamma;
-pub mod zeta;
+pub mod context;
 pub mod galway;
+pub mod gamma;
+pub mod traits;
+pub mod zeta;

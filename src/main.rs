@@ -1,9 +1,11 @@
-
 #![feature(trait_alias)]
 #![allow(non_snake_case)]
 
-use analytic::{context::Context, galway::Galway, zeta::{ZetaGalway, FnZeta}};
-
+use analytic::{
+    context::Context,
+    galway::Galway,
+    zeta::{FnZeta, ZetaGalway},
+};
 
 fn main() {
     env_logger::init();

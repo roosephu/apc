@@ -1,15 +1,23 @@
 use num::{Complex, Signed};
-use num_traits::{Float, FloatConst, NumAssignOps, FromPrimitive};
-use std::{fmt::{Debug, Display}, ops::{Add, Sub, Div, Mul}};
+use num_traits::{Float, FloatConst, FromPrimitive, NumAssignOps};
+use std::{
+    fmt::{Debug, Display},
+    ops::{Add, Div, Mul, Sub},
+};
 
-pub trait GenericFloat = Float + FloatConst + Signed + NumAssignOps + FromPrimitive +
-    Display + Debug + Default +
-    Add<Complex<Self>, Output=Complex<Self>> +
-    Sub<Complex<Self>, Output=Complex<Self>> +
-    Mul<Complex<Self>, Output=Complex<Self>> +
-    Div<Complex<Self>, Output=Complex<Self>> +
-    'static;
-
+pub trait GenericFloat = Float
+    + FloatConst
+    + Signed
+    + NumAssignOps
+    + FromPrimitive
+    + Display
+    + Debug
+    + Default
+    + Add<Complex<Self>, Output = Complex<Self>>
+    + Sub<Complex<Self>, Output = Complex<Self>>
+    + Mul<Complex<Self>, Output = Complex<Self>>
+    + Div<Complex<Self>, Output = Complex<Self>>
+    + 'static;
 
 pub trait Rotate90 {
     fn rotate90(self) -> Self;
@@ -18,6 +26,9 @@ pub trait Rotate90 {
 impl<T: GenericFloat> Rotate90 for Complex<T> {
     #[inline]
     fn rotate90(self) -> Self {
-        Self { re: -self.im, im: self.re }
+        Self {
+            re: -self.im,
+            im: self.re,
+        }
     }
 }

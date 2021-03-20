@@ -1,7 +1,7 @@
-use std::f64::consts::PI;
+use crate::traits::Rotate90;
 use crate::{brentq::brentq, context::Context, traits::GenericFloat};
 use log::{debug, info};
-use crate::traits::Rotate90;
+use std::f64::consts::PI;
 
 type Float = f64;
 type Complex = num::Complex<Float>;
@@ -10,10 +10,14 @@ pub trait FnZeta {
     fn zeta(&mut self, s: Complex, eps: Float) -> Complex;
 }
 
+// essentially the following, but avoid large exponent
+// z.powc(-s) * (z * z * Complex::new(0.0, PI)).exp()
 fn g(z: Complex, s: Complex) -> Complex {
-    // essentially the following, but avoid large exponent
-    // z.powc(-s) * (z * z * Complex::new(0.0, PI)).exp()
     (-s * z.ln() + (z * z * PI).rotate90()).exp()
+}
+
+fn ln_g_norm(z: Complex, s: Complex) -> f64 {
+    -(s * z.ln()).re - 2.0 * z.im * z.re * PI
 }
 
 fn f(z: Complex, s: Complex) -> Complex {
@@ -21,11 +25,6 @@ fn f(z: Complex, s: Complex) -> Complex {
     g(z, s) / (a - a.inv())
 }
 
-fn H(w: Complex) -> Complex {
-    1.0 / (1.0 - w.rotate90().scale(2.0 * PI).exp())
-}
-
-fn ln_g_norm(z: Complex, s: Complex) -> f64 { -(s * z.ln()).re - 2.0 * z.im * z.re * PI }
 fn ln_f_norm(z: Complex, s: Complex) -> f64 {
     if z.im.abs() > 30.0 {
         ln_g_norm(z, s) - PI * z.im.abs()
@@ -35,7 +34,13 @@ fn ln_f_norm(z: Complex, s: Complex) -> f64 {
     }
 }
 
-fn is_close(a: f64, b: f64) -> bool { ((a - b) / a).abs() < 1e-9 }
+fn H(w: Complex) -> Complex {
+    1.0 / (1.0 - w.rotate90().scale(2.0 * PI).exp())
+}
+
+fn is_close(a: f64, b: f64) -> bool {
+    ((a - b) / a).abs() < 1e-9
+}
 
 type Plan = (f64, f64, f64, f64, Complex, Complex);
 
@@ -60,7 +65,13 @@ impl ZetaGalwayPlanner {
         }
     }
 
-    fn test_m(m: f64, z_1: Complex, z_2: Complex, s: Complex, ln_eps: f64) -> Option<(Complex, Complex, Complex)> {
+    fn test_m(
+        m: f64,
+        z_1: Complex,
+        z_2: Complex,
+        s: Complex,
+        ln_eps: f64,
+    ) -> Option<(Complex, Complex, Complex)> {
         let h = (z_2 - z_1) / m;
         let inv_2h = 0.5 / h;
         let z_l = (inv_2h * inv_2h + s / Complex::new(0.0, 2.0 * PI)).sqrt() + inv_2h;
@@ -69,9 +80,9 @@ impl ZetaGalwayPlanner {
         let ln_err2 = ln_g_norm(z_r, s) - ((z_r - z_1) / h).im * 2.0 * PI;
         if ln_err1 <= ln_eps && ln_err2 <= ln_eps {
             Some((h, z_l, z_r))
-         } else {
-             None
-         }
+        } else {
+            None
+        }
     }
 
     fn plan_from_scratch(&mut self, s: Complex, eps: f64) -> Plan {
@@ -82,9 +93,7 @@ impl ZetaGalwayPlanner {
         let delta = ((n.powf(-sigma) / eps).ln() / 2.0 / PI).max(0.0);
         let direction = Complex::new(0.5f64.sqrt(), 0.5f64.sqrt());
 
-        let f_alpha = |alpha: Float| {
-            ln_f_norm(n + 0.5 + direction * alpha * delta, s) - ln_eps
-        };
+        let f_alpha = |alpha: Float| ln_f_norm(n + 0.5 + direction * alpha * delta, s) - ln_eps;
 
         let alpha_1 = brentq(f_alpha, 0.0, 1.0, 1e-6, 1e-6, 10).unwrap();
         let alpha_2 = brentq(f_alpha, 0.0, -1.0, 1e-6, 1e-6, 10).unwrap();
@@ -101,7 +110,9 @@ impl ZetaGalwayPlanner {
             }
 
             result = Self::test_m(m, z_1, z_2, s, ln_eps);
-            if result.is_some() { break }
+            if result.is_some() {
+                break;
+            }
             m = (m * 1.1).ceil();
         }
 
@@ -129,12 +140,27 @@ impl ZetaGalwayPlanner {
         let delta = ((n.powf(-sigma) / eps).ln() / 2.0 / PI).max(0.0);
         let direction = Complex::new(0.5f64.sqrt(), 0.5f64.sqrt());
 
-        let f_alpha = |alpha: Float| {
-            ln_f_norm(n + 0.5 + direction * alpha * delta, s) - ln_eps
-        };
+        let f_alpha = |alpha: Float| ln_f_norm(n + 0.5 + direction * alpha * delta, s) - ln_eps;
 
-        let alpha_1 = brentq(f_alpha, self.alpha_1 - 0.2, self.alpha_1 + 0.2, 1e-6, 1e-6, 5).unwrap();
-        let alpha_2 = brentq(f_alpha, self.alpha_2 - 0.2, self.alpha_2 + 0.2, 1e-6, 1e-6, 5).unwrap();
+        // TODO
+        let alpha_1 = brentq(
+            f_alpha,
+            self.alpha_1 - 0.2,
+            self.alpha_1 + 0.2,
+            1e-6,
+            1e-6,
+            5,
+        )
+        .unwrap();
+        let alpha_2 = brentq(
+            f_alpha,
+            self.alpha_2 - 0.2,
+            self.alpha_2 + 0.2,
+            1e-6,
+            1e-6,
+            5,
+        )
+        .unwrap();
         let z_1 = n + 0.5 + direction * alpha_1 * delta;
         let z_2 = n + 0.5 + direction * alpha_2 * delta;
 
@@ -143,12 +169,16 @@ impl ZetaGalwayPlanner {
 
         loop {
             result = Self::test_m(m, z_1, z_2, s, ln_eps);
-            if result.is_some() { break }
+            if result.is_some() {
+                break;
+            }
             m += 1.0;
         }
         while m > 1.0 {
             let result2 = Self::test_m(m - 1.0, z_1, z_2, s, ln_eps);
-            if result2.is_none() { break }
+            if result2.is_none() {
+                break;
+            }
             m -= 1.0;
             result = result2;
         }
@@ -191,7 +221,7 @@ impl<'a> ZetaGalway<'a> {
         Self {
             ctx,
             planners: [ZetaGalwayPlanner::new(), ZetaGalwayPlanner::new()],
-            complexity: 0
+            complexity: 0,
         }
     }
 }
@@ -217,7 +247,7 @@ impl ZetaGalway<'_> {
         }
 
         let mut s3 = Complex::zero();
-        for i in n as i64 + 1 ..= n_r as i64 {
+        for i in n as i64 + 1..=n_r as i64 {
             s3 += Complex::new(i as Float, 0.0).powc(-s) * H((z_1 - i as Float) / h);
         }
         // info!("s0 = {}, s1 = {}, s2 = {}, s3 = {}", s0, s1, s2, s3);
@@ -229,7 +259,8 @@ impl ZetaGalway<'_> {
 
 impl FnZeta for ZetaGalway<'_> {
     fn zeta(&mut self, s: Complex, eps: f64) -> Complex {
-        let log_chi = (s - 0.5) * PI.ln() + self.ctx.loggamma((1.0 - s) / 2.0, eps) - self.ctx.loggamma(s / 2.0, eps);
+        let log_chi = (s - 0.5) * PI.ln() + self.ctx.loggamma((1.0 - s) / 2.0, eps)
+            - self.ctx.loggamma(s / 2.0, eps);
         let chi = log_chi.exp();
 
         let plan0 = self.planners[0].plan(s, eps);

@@ -11,14 +11,18 @@ pub fn gamma(z: Complex, eps: Float) -> Complex {
     let mut a = (-z.re).max(2.0).floor() + 0.5;
     loop {
         let err = a.sqrt() / (2.0 * PI).powf(a + 0.5) / (z.re + a);
-        if err < eps { break }
+        if err < eps {
+            break;
+        }
         a += 1.0;
     }
     let mut coef = Complex::new(1.0, 0.0);
     let mut k = 1.0;
     let mut fac = 1.0;
     while k < a {
-        let c_k = (a - k).powf(k - 0.5) * (a - k).exp() * (-1.0).pow(k as i32 - 1) / (2.0 * PI).sqrt() / fac;
+        let c_k = (a - k).powf(k - 0.5) * (a - k).exp() * (-1.0).pow(k as i32 - 1)
+            / (2.0 * PI).sqrt()
+            / fac;
         fac *= k;
         coef += c_k / (z + k);
         k += 1.0;
@@ -39,7 +43,11 @@ mod tests {
     }
     #[test]
     fn test_gamma() {
-        _test_gamma(Complex::new(4.0, 10.0), 1e-10, Complex::new(0.0007715342942399662, -0.0010190827990417));
+        _test_gamma(
+            Complex::new(4.0, 10.0),
+            1e-10,
+            Complex::new(0.0007715342942399662, -0.0010190827990417),
+        );
         _test_gamma(Complex::new(4.0, 0.0), 1e-10, Complex::new(6.0, 0.0));
     }
 }
