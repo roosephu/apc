@@ -19,7 +19,7 @@ fn main() {
     // println!("Psi = {}, z = {}", Psi, z);
 
     let mut galway = Galway::new(&ctx, &mut zeta_galway);
-    let ans = galway.compute(1_000_000_000);
+    let ans = galway.compute(10_000_000_000);
     println!("[Galway] ans = {}", ans);
     println!("[ZetaGalway] complexity = {}", zeta_galway.complexity);
 }

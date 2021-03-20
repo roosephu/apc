@@ -5,6 +5,7 @@
 #![feature(trait_alias)]
 #![allow(clippy::needless_range_loop)]
 #![allow(unused_variables)]
+#![feature(destructuring_assignment)]
 
 pub mod traits;
 pub mod context;
