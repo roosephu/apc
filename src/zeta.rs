@@ -11,12 +11,13 @@ pub trait FnZeta<T> {
     fn zeta(&mut self, s: Complex<T>, eps: f64) -> Complex<T>;
 }
 
-// essentially the following, but avoid large exponent
-// z.powc(-s) * (z * z * Complex::new(0.0, PI)).exp()
+/// essentially the following, but avoid large exponent
+/// z.powc(-s) * (z * z * Complex::new(0.0, PI)).exp()
 fn g<T: GenericFloat>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
     (-s * z.ln() + (z * z * T::PI()).rotate90()).exp()
 }
 
+/// TODO: Can we take Complex<f64> instead?
 fn ln_g_norm<T: GenericFloat>(z: Complex<T>, s: Complex<T>) -> f64 {
     (-(s * z.ln()).re - z.im * z.re * T::TAU()).as_()
 }

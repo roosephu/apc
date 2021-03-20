@@ -1,5 +1,5 @@
 use num::{Complex, Signed};
-use num_traits::{AsPrimitive, Float, FloatConst, FromPrimitive, NumAssignOps};
+use num_traits::{AsPrimitive, Float, FloatConst, FromPrimitive, NumAssignOps, Pow};
 use std::{
     fmt::{Debug, Display},
     ops::{Add, Div, Mul, Sub},
@@ -18,6 +18,7 @@ pub trait GenericFloat = Float
     + Sub<Complex<Self>, Output = Complex<Self>>
     + Mul<Complex<Self>, Output = Complex<Self>>
     + Div<Complex<Self>, Output = Complex<Self>>
+    + Pow<i32, Output=Self>
     + 'static;
 
 pub trait Rotate90 {

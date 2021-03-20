@@ -14,6 +14,7 @@ pub struct Context<T> {
 impl<T: GenericFloat> Context<T> {
     pub fn new(n: usize) -> Self {
         let mut ret = Self::default();
+        ret.init_factorial(n * 2 + 1);
         ret.init_binomial(n * 2);
         ret.init_bernoulli(n);
         ret.init_euler(n);
@@ -98,17 +99,32 @@ impl<T: GenericFloat> Context<T> {
         self.binomial = binomial
     }
 
+    fn init_factorial(&mut self, n: usize) {
+        info!("initialize factorial up to {}", n);
+        let mut factorial = vec![T::one(); n + 1];
+        for i in 1..=n {
+            factorial[i] = factorial[i - 1] * T::from(i).unwrap();
+        }
+        self.factorial = factorial;
+    }
+
+    /// initialize Bernoulli numbers
+    /// Use a recurrence from [here](https://maths-people.anu.edu.au/~brent/pd/tangent.pdf) for a more stable recurrence.
     fn init_bernoulli(&mut self, n: usize) {
         info!("initialize Bernoulli numbers up to {}", n);
         let mut bernoulli = vec![T::zero(); n + 1];
-        bernoulli[0] = T::from(1.0).unwrap();
+        bernoulli[0] = T::one();
+        bernoulli[1] = -T::from(2).unwrap().recip();
 
-        for i in 1..=n {
+        for i in 1..=n / 2 {
             let mut b = T::zero();
             for j in 0..i {
-                b += self.binom(i, j) * bernoulli[j] / T::from(i - j + 1).unwrap();
+                b += self.factorial(2 * i) / self.factorial(2 * i + 1 - 2 * j) * bernoulli[2 * j];
             }
-            bernoulli[i] = -b;
+            bernoulli[2 * i] = (T::one() - b) / self.factorial(2 * i);
+        }
+        for i in 1..=n / 2 {
+            bernoulli[i * 2] *= self.factorial(2 * i) / T::from(4).unwrap().pow(i as i32);
         }
 
         debug!("bernoulli numbers = {:?}", &bernoulli[..10]);
