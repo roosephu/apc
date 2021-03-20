@@ -5,6 +5,8 @@ authors = ["Yuping Luo <roosephu@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+debug = true
 
 [dependencies]
 rug = "1.11.0"
@@ -16,4 +18,4 @@ log = "0.4.14"
 env_logger = "0.8.3"
 num-traits = "0.2.14"
 num-complex = "0.3"
-rand = ""
+rand = "0.8.3"

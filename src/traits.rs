@@ -1,5 +1,5 @@
 use num::{Complex, Signed};
-use num_traits::{Float, FloatConst, FromPrimitive, NumAssignOps};
+use num_traits::{AsPrimitive, Float, FloatConst, FromPrimitive, NumAssignOps};
 use std::{
     fmt::{Debug, Display},
     ops::{Add, Div, Mul, Sub},
@@ -10,6 +10,7 @@ pub trait GenericFloat = Float
     + Signed
     + NumAssignOps
     + FromPrimitive
+    + AsPrimitive<f64>
     + Display
     + Debug
     + Default

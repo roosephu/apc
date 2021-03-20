@@ -11,7 +11,7 @@ use rustfft::FftPlanner;
 type Float = f64;
 type Complex = num::Complex<Float>;
 
-pub struct Galway<'a, Z: FnZeta> {
+pub struct Galway<'a, Z: FnZeta<f64>> {
     ctx: &'a Context<f64>,
     fn_zeta: &'a mut Z,
     lambda: Float,
@@ -22,7 +22,7 @@ pub struct Galway<'a, Z: FnZeta> {
     x2: u64,
 }
 
-impl<Z: FnZeta> Galway<'_, Z> {
+impl<Z: FnZeta<f64>> Galway<'_, Z> {
     const EXP_APPROX: [Complex; 18] = [
         Complex {
             re: 1.0,
@@ -146,7 +146,7 @@ impl<Z: FnZeta> Galway<'_, Z> {
     }
 }
 
-impl<Z: FnZeta> Galway<'_, Z> {
+impl<Z: FnZeta<f64>> Galway<'_, Z> {
     fn Phi(&self, p: Float, eps: f64) -> Float {
         erfc(p / Float::SQRT_2()) / 2.0
     }
@@ -228,7 +228,7 @@ impl<Z: FnZeta> Galway<'_, Z> {
     }
 }
 
-impl<Z: FnZeta> Galway<'_, Z> {
+impl<Z: FnZeta<f64>> Galway<'_, Z> {
     fn init_F_taylor(&mut self, N: usize) {
         let pi = Float::PI();
         let ctx = self.ctx;
@@ -252,7 +252,7 @@ impl<Z: FnZeta> Galway<'_, Z> {
     }
 }
 
-impl<Z: FnZeta> Galway<'_, Z> {
+impl<Z: FnZeta<f64>> Galway<'_, Z> {
     fn Psi(&mut self, s: Complex, ln_x: f64, eps: f64) -> Complex {
         ((self.lambda * s).powi(2) / 2.0 + s * ln_x).exp() * self.fn_zeta.zeta(s, eps).ln() / s
     }
@@ -289,7 +289,7 @@ impl<Z: FnZeta> Galway<'_, Z> {
     }
 }
 
-impl<'a, Z: FnZeta> Galway<'a, Z> {
+impl<'a, Z: FnZeta<f64>> Galway<'a, Z> {
     pub fn new(ctx: &'a Context<f64>, fn_zeta: &'a mut Z) -> Self {
         Self {
             ctx,
@@ -319,7 +319,7 @@ impl<'a, Z: FnZeta> Galway<'a, Z> {
         self.sigma = 1.5;
         info!("sigma = {:.6}", self.sigma);
 
-        self.lambda = 20.0 / (x as f64).sqrt();
+        self.lambda = 30.0 / (x as f64).sqrt();
         info!("lambda = {:.6}", self.lambda);
 
         self.plan_delta_bounds(x, 0.24);
@@ -328,13 +328,14 @@ impl<'a, Z: FnZeta> Galway<'a, Z> {
     }
 
     fn plan_integral(&mut self, x: f64, eps: f64) {
-        let limit =
-            0.75 * eps / (self.lambda * self.lambda * self.sigma * self.sigma / 2.0) / (2.0 * PI)
-                * rgsl::zeta::riemann::zeta(self.sigma)
-                / x.powf(self.sigma);
+        let sigma = self.sigma;
+        let lambda = self.lambda;
+        let limit = 0.75 * eps / (lambda * lambda * sigma * sigma / 2.0) / (2.0 * PI)
+            * rgsl::zeta::riemann::zeta(sigma)
+            / x.powf(sigma);
         let u = brentq(
             |x| rgsl::exponential_integrals::E1(x) - limit,
-            self.lambda * self.lambda / 2.0,
+            lambda * lambda / 2.0,
             -limit.ln(),
             eps,
             eps,

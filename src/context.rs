@@ -1,5 +1,6 @@
 use crate::traits::GenericFloat;
 use log::{debug, info};
+use num::traits::Pow;
 use num_complex::Complex;
 
 #[derive(Default)]
@@ -38,21 +39,45 @@ impl<T: GenericFloat> Context<T> {
 }
 
 impl<T: GenericFloat> Context<T> {
+    /// error estimation
+    /// See [here](https://www.wikiwand.com/en/Stirling%27s_approximation#Error_bounds) for more details.
+    fn loggamma_err(&self, ln_z: Complex<T>, n: usize) -> f64 {
+        let arg = ln_z.im.as_();
+        let norm = ln_z.re.as_().exp();
+        let err_coef = if arg < std::f64::consts::PI / 4.0 {
+            1.0
+        } else if arg < std::f64::consts::PI / 2.0 {
+            1.0 / arg.sin().abs()
+        } else {
+            1.0 / (arg / 2.0).cos().pow(2 * n as i32)
+        };
+        self.bernoulli(n * 2).as_() / ((2 * n) * (2 * n - 1)) as f64 * err_coef
+    }
+
+    /// log Gamma function by Stirling series
+    ///
     pub fn loggamma(&self, mut z: Complex<T>, eps: f64) -> Complex<T> {
+        const N: usize = 20;
+
         let mut result = Complex::zero();
-        while z.re < T::from(20).unwrap() {
+        while z.re < T::from(N).unwrap() {
             result -= z.ln();
             z += T::one();
         }
 
-        result += (z - T::from(0.5).unwrap()) * z.ln() - z
+        let ln_z = z.ln();
+
+        result += (z - T::from(0.5).unwrap()) * ln_z - z
             + (T::PI() * T::from(2).unwrap()).ln() / T::from(2).unwrap();
         let z2 = z * z;
         let mut zpow = z;
-        for i in 1..20 {
+        for i in 1..N {
             result += self.bernoulli(i * 2) / T::from((2 * i) * (2 * i - 1)).unwrap() / zpow;
             zpow *= z2;
         }
+        let err = self.loggamma_err(ln_z, N);
+        assert!(err <= eps);
+
         result
     }
 }

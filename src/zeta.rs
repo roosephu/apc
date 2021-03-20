@@ -1,48 +1,49 @@
 use crate::traits::Rotate90;
 use crate::{brentq::brentq, context::Context, traits::GenericFloat};
 use log::{debug, info};
+use num::Complex;
 use std::f64::consts::PI;
 
 type Float = f64;
-type Complex = num::Complex<Float>;
+type Complex64 = num::Complex<Float>;
 
-pub trait FnZeta {
-    fn zeta(&mut self, s: Complex, eps: Float) -> Complex;
+pub trait FnZeta<T> {
+    fn zeta(&mut self, s: Complex<T>, eps: f64) -> Complex<T>;
 }
 
 // essentially the following, but avoid large exponent
 // z.powc(-s) * (z * z * Complex::new(0.0, PI)).exp()
-fn g(z: Complex, s: Complex) -> Complex {
-    (-s * z.ln() + (z * z * PI).rotate90()).exp()
+fn g<T: GenericFloat>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
+    (-s * z.ln() + (z * z * T::PI()).rotate90()).exp()
 }
 
-fn ln_g_norm(z: Complex, s: Complex) -> f64 {
-    -(s * z.ln()).re - 2.0 * z.im * z.re * PI
+fn ln_g_norm<T: GenericFloat>(z: Complex<T>, s: Complex<T>) -> f64 {
+    (-(s * z.ln()).re - z.im * z.re * T::TAU()).as_()
 }
 
-fn f(z: Complex, s: Complex) -> Complex {
-    let a = z.scale(PI).rotate90().exp();
+fn f<T: GenericFloat>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
+    let a = z.scale(T::PI()).rotate90().exp();
     g(z, s) / (a - a.inv())
 }
 
-fn ln_f_norm(z: Complex, s: Complex) -> f64 {
-    if z.im.abs() > 30.0 {
-        ln_g_norm(z, s) - PI * z.im.abs()
+fn ln_f_norm<T: GenericFloat>(z: Complex<T>, s: Complex<T>) -> f64 {
+    if z.im.abs().as_() > 30.0 {
+        ln_g_norm(z, s) - std::f64::consts::PI * z.im.as_().abs()
     } else {
         let a = z.rotate90().exp();
-        ln_g_norm(z, s) - (a - a.inv()).norm().ln()
+        ln_g_norm(z, s) - (a - a.inv()).norm().ln().as_()
     }
 }
 
-fn H(w: Complex) -> Complex {
-    1.0 / (1.0 - w.rotate90().scale(2.0 * PI).exp())
+fn H<T: GenericFloat>(w: Complex<T>) -> Complex<T> {
+    T::one() / (T::one() - w.rotate90().scale(T::TAU()).exp())
 }
 
 fn is_close(a: f64, b: f64) -> bool {
     ((a - b) / a).abs() < 1e-9
 }
 
-type Plan = (f64, f64, f64, f64, Complex, Complex);
+type Plan<T> = (T, T, T, T, Complex<T>, Complex<T>);
 
 #[derive(Default)]
 struct ZetaGalwayPlanner {
@@ -65,19 +66,19 @@ impl ZetaGalwayPlanner {
         }
     }
 
-    fn test_m(
-        m: f64,
-        z_1: Complex,
-        z_2: Complex,
-        s: Complex,
+    fn test_m<T: GenericFloat>(
+        m: T,
+        z_1: Complex<T>,
+        z_2: Complex<T>,
+        s: Complex<T>,
         ln_eps: f64,
-    ) -> Option<(Complex, Complex, Complex)> {
+    ) -> Option<(Complex<T>, Complex<T>, Complex<T>)> {
         let h = (z_2 - z_1) / m;
-        let inv_2h = 0.5 / h;
-        let z_l = (inv_2h * inv_2h + s / Complex::new(0.0, 2.0 * PI)).sqrt() + inv_2h;
-        let z_r = (inv_2h * inv_2h + s / Complex::new(0.0, 2.0 * PI)).sqrt() - inv_2h;
-        let ln_err1 = ln_g_norm(z_l, s) - ((z_1 - z_l) / h).im * 2.0 * PI;
-        let ln_err2 = ln_g_norm(z_r, s) - ((z_r - z_1) / h).im * 2.0 * PI;
+        let inv_2h = T::from(2).unwrap().recip() / h;
+        let z_l = (inv_2h * inv_2h - s.rotate90() / T::TAU()).sqrt() + inv_2h;
+        let z_r = (inv_2h * inv_2h - s.rotate90() / T::TAU()).sqrt() - inv_2h;
+        let ln_err1 = ln_g_norm(z_l, s) - ((z_1 - z_l) / h).im.as_() * 2.0 * std::f64::consts::PI;
+        let ln_err2 = ln_g_norm(z_r, s) - ((z_r - z_1) / h).im.as_() * 2.0 * std::f64::consts::PI;
         if ln_err1 <= ln_eps && ln_err2 <= ln_eps {
             Some((h, z_l, z_r))
         } else {
@@ -85,13 +86,13 @@ impl ZetaGalwayPlanner {
         }
     }
 
-    fn plan_from_scratch(&mut self, s: Complex, eps: f64) -> Plan {
+    fn plan_from_scratch(&mut self, s: Complex<f64>, eps: f64) -> Plan<f64> {
         let n = self.n;
         let sigma = s.re;
         let ln_eps = eps.ln();
 
         let delta = ((n.powf(-sigma) / eps).ln() / 2.0 / PI).max(0.0);
-        let direction = Complex::new(0.5f64.sqrt(), 0.5f64.sqrt());
+        let direction = Complex64::new(0.5f64.sqrt(), 0.5f64.sqrt());
 
         let f_alpha = |alpha: Float| ln_f_norm(n + 0.5 + direction * alpha * delta, s) - ln_eps;
 
@@ -131,14 +132,14 @@ impl ZetaGalwayPlanner {
         (n, m, n_l, n_r, h, z_1)
     }
 
-    fn plan_incremental(&mut self, s: Complex) -> Plan {
+    fn plan_incremental(&mut self, s: Complex64) -> Plan<f64> {
         let eps = self.eps;
         let n = self.n;
         let sigma = s.re;
         let ln_eps = self.ln_eps;
 
         let delta = ((n.powf(-sigma) / eps).ln() / 2.0 / PI).max(0.0);
-        let direction = Complex::new(0.5f64.sqrt(), 0.5f64.sqrt());
+        let direction = Complex64::new(0.5f64.sqrt(), 0.5f64.sqrt());
 
         let f_alpha = |alpha: Float| ln_f_norm(n + 0.5 + direction * alpha * delta, s) - ln_eps;
 
@@ -193,10 +194,10 @@ impl ZetaGalwayPlanner {
         (n, m, n_l, n_r, h, z_1)
     }
 
-    pub fn plan(&mut self, s: Complex, eps: f64) -> Plan {
+    pub fn plan(&mut self, s: Complex64, eps: f64) -> Plan<f64> {
         let old_n = self.n;
 
-        let z_s = (s / Complex::new(0.0, PI * 2.0)).sqrt();
+        let z_s = (s / Complex64::new(0.0, PI * 2.0)).sqrt();
         // can simply take sqrt(t).
         // let n = (s.im / PI / 2.0).sqrt().floor().max(1.0);
         self.n = (z_s.re - z_s.im).floor().max(1.0);
@@ -227,28 +228,28 @@ impl<'a> ZetaGalway<'a> {
 }
 
 impl ZetaGalway<'_> {
-    fn I0(&self, s: Complex, plan: Plan) -> Complex {
+    fn I0(&self, s: Complex64, plan: Plan<f64>) -> Complex64 {
         let (n, m, n_l, n_r, h, z_1) = plan;
         // info!("n = {}, m = {}, h = {}, n_l = {}, n_r = {}", n, m, h, n_l, n_r);
 
-        let mut s0 = Complex::zero();
+        let mut s0 = Complex64::zero();
         for i in 1..=n as i64 {
-            s0 += Complex::new(i as Float, 0.0).powc(-s);
+            s0 += Complex64::new(i as Float, 0.0).powc(-s);
         }
 
-        let mut s1 = Complex::zero();
+        let mut s1 = Complex64::zero();
         for i in 0..=m as i64 {
             s1 += f(z_1 + i as Float * h, s);
         }
 
-        let mut s2 = Complex::zero();
+        let mut s2 = Complex64::zero();
         for i in n_l as i64..=n as i64 {
-            s2 += Complex::new(i as Float, 0.0).powc(-s) * H((i as Float - z_1) / h);
+            s2 += Complex64::new(i as Float, 0.0).powc(-s) * H((i as Float - z_1) / h);
         }
 
-        let mut s3 = Complex::zero();
+        let mut s3 = Complex64::zero();
         for i in n as i64 + 1..=n_r as i64 {
-            s3 += Complex::new(i as Float, 0.0).powc(-s) * H((z_1 - i as Float) / h);
+            s3 += Complex64::new(i as Float, 0.0).powc(-s) * H((z_1 - i as Float) / h);
         }
         // info!("s0 = {}, s1 = {}, s2 = {}, s3 = {}", s0, s1, s2, s3);
         // info!("ret = {}", s0 + s1 * h - s2 + s3);
@@ -257,8 +258,8 @@ impl ZetaGalway<'_> {
     }
 }
 
-impl FnZeta for ZetaGalway<'_> {
-    fn zeta(&mut self, s: Complex, eps: f64) -> Complex {
+impl FnZeta<f64> for ZetaGalway<'_> {
+    fn zeta(&mut self, s: Complex64, eps: f64) -> Complex64 {
         let log_chi = (s - 0.5) * PI.ln() + self.ctx.loggamma((1.0 - s) / 2.0, eps)
             - self.ctx.loggamma(s / 2.0, eps);
         let chi = log_chi.exp();
