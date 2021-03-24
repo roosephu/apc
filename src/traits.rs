@@ -18,16 +18,16 @@ pub trait GenericFloat = Float
     + Sub<Complex<Self>, Output = Complex<Self>>
     + Mul<Complex<Self>, Output = Complex<Self>>
     + Div<Complex<Self>, Output = Complex<Self>>
-    + Pow<i32, Output=Self>
+    + Pow<i32, Output = Self>
     + 'static;
 
-pub trait Rotate90 {
-    fn rotate90(self) -> Self;
+pub trait ComplexFunctions {
+    fn mul_i(self) -> Self;
 }
 
-impl<T: GenericFloat> Rotate90 for Complex<T> {
+impl<T: GenericFloat> ComplexFunctions for Complex<T> {
     #[inline]
-    fn rotate90(self) -> Self {
+    fn mul_i(self) -> Self {
         Self {
             re: -self.im,
             im: self.re,

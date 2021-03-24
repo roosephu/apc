@@ -8,6 +8,7 @@
 #![feature(destructuring_assignment)]
 
 pub mod brentq;
+pub mod sum_trunc_dirichlet;
 pub mod context;
 pub mod galway;
 pub mod gamma;
