@@ -1,6 +1,5 @@
-use crate::traits::{GenericFloat, ComplexFunctions};
+use crate::traits::{ComplexFunctions, GenericFloat};
 use log::{debug, info};
-use num::traits::Pow;
 use num_complex::Complex;
 use num_traits::AsPrimitive;
 

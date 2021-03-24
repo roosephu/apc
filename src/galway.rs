@@ -104,7 +104,8 @@ impl<Z: FnZeta<f64>> Galway<'_, Z> {
 }
 
 impl<Z: FnZeta<f64>> Galway<'_, Z> {
-    fn init_F_taylor(&mut self, N: usize) { // [de Reyna]
+    fn init_F_taylor(&mut self, N: usize) {
+        // [de Reyna]
         let pi = Float::PI();
         let ctx = self.ctx;
         for n in 0..=(N / 2) {

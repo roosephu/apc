@@ -1,6 +1,6 @@
 use crate::traits::ComplexFunctions;
 use crate::{brentq::brentq, context::Context, traits::GenericFloat};
-use log::{debug, info};
+use log::debug;
 use num::Complex;
 use num_traits::AsPrimitive;
 use std::f64::consts::PI;
@@ -150,7 +150,7 @@ impl ZetaGalwayPlanner {
             "[Plan from scratch] alpha_1 = {}, alpha_2 = {}",
             self.alpha_1, self.alpha_2
         );
-        assert!(0.2 <= alpha_1 && alpha_1 <= 0.8 && -0.8 <= alpha_2 && alpha_2 <= -0.2);
+        assert!((0.2..=0.8).contains(&alpha_1) && (-0.8..=-0.2).contains(&alpha_2));
 
         (n, m, n_l, n_r, h, z_1)
     }
@@ -212,7 +212,7 @@ impl ZetaGalwayPlanner {
             // debug!("[I] a1 = {:.6}, a2 = {:.6}, delta = {:.6}", alpha_1, alpha_2, delta);
             // debug!("t = {}", s.im);
         }
-        assert!(0.2 <= alpha_1 && alpha_1 <= 0.8 && -0.8 <= alpha_2 && alpha_2 <= -0.2);
+        assert!((0.2..=0.8).contains(&alpha_1) && (-0.8..=-0.2).contains(&alpha_2));
 
         self.m = m;
         self.alpha_1 = alpha_1;

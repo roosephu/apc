@@ -3,8 +3,8 @@ use rustfft::{FftNum, FftPlanner};
 
 use crate::traits::GenericFloat;
 
-trait ExpPolyApprox: Sized {
-    type Output: Iterator<Item=(usize, Complex<Self>)>;
+pub trait ExpPolyApprox: Sized {
+    type Output: Iterator<Item = (usize, Complex<Self>)>;
 
     fn get_poly_approx() -> Self::Output;
 }
@@ -85,65 +85,56 @@ const COEFFS: [Complex<f64>; 18] = [
 ];
 
 impl ExpPolyApprox for f64 {
-    type Output = impl Iterator<Item=(usize, Complex<Self>)>;
+    type Output = impl Iterator<Item = (usize, Complex<Self>)>;
 
     fn get_poly_approx() -> Self::Output {
         COEFFS.iter().enumerate().map(|(idx, &x)| (idx, x))
     }
 }
 
-struct SumTruncDirichlet {}
+// compute \sum_{j=1}^n j^{-(s + i j delta)} for every 0 <= t < m
+pub fn sum_trunc_dirichlet<T: ExpPolyApprox + GenericFloat + FftNum>(
+    s: Complex<T>,
+    n: usize,
+    m: usize,
+    delta: T,
+) -> Vec<Complex<T>> {
+    let M2 = (m + m % 2) / 2;
+    let TM2 = T::from(M2).unwrap();
+    let s = s + Complex::new(T::zero(), TM2 * delta);
+    let a: Vec<_> = (1..=n)
+        .map(|x| Complex::new(T::from(x).unwrap(), T::zero()).powc(-s))
+        .collect();
+    let g: Vec<T> = (1..=n).map(|x| T::from(x).unwrap().ln() * -delta).collect();
+    let R = (m + 1).next_power_of_two() * 2;
+    let div = T::TAU() / T::from(R).unwrap();
+    let w: Vec<i64> = g.iter().map(|&x| ((x / div).round().as_())).collect();
+    let d: Vec<T> = g
+        .iter()
+        .zip(w.iter())
+        .map(|(&x, &y)| x - T::from(y).unwrap() * div)
+        .collect();
 
-impl SumTruncDirichlet {
-    fn ifft<T: ExpPolyApprox + GenericFloat + FftNum>(&self, f: &mut Vec<Complex<T>>) {
-        let mut planner = FftPlanner::new();
-        let fft = planner.plan_fft_inverse(f.len());
-        fft.process(f)
-    }
+    let mut ret = vec![Complex::zero(); m + 1];
+    let mut f = vec![Complex::zero(); R];
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_inverse(f.len());
 
-    // compute \sum_{j=1}^n j^{-(s + i j delta)} for every 0 <= t < m
-    pub fn compute<T: ExpPolyApprox + GenericFloat + FftNum>(
-        &self,
-        s: Complex<T>,
-        n: usize,
-        m: usize,
-        delta: T,
-    ) -> Vec<Complex<T>> {
-        let M2 = (m + m % 2) / 2;
-        let TM2 = T::from(M2).unwrap();
-        let s = s + Complex::new(T::zero(),  TM2 * delta);
-        let a: Vec<_> = (1..=n)
-            .map(|x| Complex::new(T::from(x).unwrap(), T::zero()).powc(-s))
-            .collect();
-        let g: Vec<T> = (1..=n).map(|x| T::from(x).unwrap().ln() * -delta).collect();
-        let R = (m + 1).next_power_of_two() * 2;
-        let div = T::TAU() / T::from(R).unwrap();
-        let w: Vec<i64> = g.iter().map(|&x| ((x / div).round().as_())).collect();
-        let d: Vec<T> = g
-            .iter()
-            .zip(w.iter())
-            .map(|(&x, &y)| x - T::from(y).unwrap() * div)
-            .collect();
-
-        let mut ret = vec![Complex::zero(); m + 1];
-        let mut f = vec![Complex::zero(); R];
-        for (e, c) in T::get_poly_approx() {
-            for x in f.iter_mut() {
-                x.set_zero()
-            }
-            for j in 0..n {
-                f[w[j].rem_euclid(R as i64) as usize] += a[j] * (d[j] * TM2).pow(e as i32);
-            }
-            self.ifft(&mut f);
-            for x in 0..=m {
-                ret[x] += c * f[(x + R - M2) % R] * (T::from(x).unwrap() / TM2 - T::one()).pow(e as i32);
-            }
+    for (e, c) in T::get_poly_approx() {
+        for x in f.iter_mut() {
+            x.set_zero()
         }
-
-        ret
+        for j in 0..n {
+            f[w[j].rem_euclid(R as i64) as usize] += a[j] * (d[j] * TM2).pow(e as i32);
+        }
+        fft.process(&mut f);
+        for x in 0..=m {
+            ret[x] +=
+                c * f[(x + R - M2) % R] * (T::from(x).unwrap() / TM2 - T::one()).pow(e as i32);
+        }
     }
 
-    pub fn new() -> Self { Self {} }
+    ret
 }
 
 #[cfg(test)]
@@ -152,12 +143,11 @@ mod tests {
 
     #[test]
     fn test_sum_trunc_dirichlet() {
-        let fft_dirichlet = SumTruncDirichlet::new();
         let N = 20;
         let s = Complex::new(1.3, 2.6);
         let M = 9;
         let delta = 1.1;
-        let result = fft_dirichlet.compute(s, N, M, delta);
+        let result = sum_trunc_dirichlet(s, N, M, delta);
         for i in 0..=M {
             let mut sum = Complex::<f64>::zero();
             let z = s + Complex::new(0.0, i as f64 * delta);

@@ -1,11 +1,7 @@
 #![feature(trait_alias)]
 #![allow(non_snake_case)]
 
-use analytic::{
-    context::Context,
-    galway::Galway,
-    zeta::{FnZeta, ZetaGalway},
-};
+use analytic::{context::Context, galway::Galway, zeta::ZetaGalway};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
