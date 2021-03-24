@@ -1,3 +1,4 @@
+use log::debug;
 use num::Complex;
 use rustfft::{FftNum, FftPlanner};
 
@@ -99,6 +100,10 @@ pub fn sum_trunc_dirichlet<T: ExpPolyApprox + GenericFloat + FftNum>(
     m: usize,
     delta: T,
 ) -> Vec<Complex<T>> {
+    debug!(
+        "[OS-FKBJ] s = {:.6}, n = {}, m = {}, delta = {:.6}",
+        s, n, m, delta
+    );
     let M2 = (m + m % 2) / 2;
     let TM2 = T::from(M2).unwrap();
     let s = s + Complex::new(T::zero(), TM2 * delta);

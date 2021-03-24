@@ -1,8 +1,13 @@
-use crate::traits::ComplexFunctions;
 use crate::{brentq::brentq, context::Context, traits::GenericFloat};
+use crate::{
+    sum_trunc_dirichlet::{sum_trunc_dirichlet, ExpPolyApprox},
+    traits::ComplexFunctions,
+};
+use core::panic;
 use log::debug;
 use num::Complex;
 use num_traits::AsPrimitive;
+use rustfft::FftNum;
 use std::f64::consts::PI;
 
 type Float = f64;
@@ -10,6 +15,7 @@ type Complex64 = num::Complex<Float>;
 
 pub trait FnZeta<T> {
     fn zeta(&mut self, s: Complex<T>, eps: f64) -> Complex<T>;
+    fn prepare_multi_eval(&mut self, h: T, eps: f64);
 }
 
 /// essentially the following, but avoid large exponent
@@ -59,15 +65,26 @@ fn is_close(a: f64, b: f64) -> bool {
     ((a - b) / a).abs() < 1e-9
 }
 
-type Plan<T> = (T, T, T, T, Complex<T>, Complex<T>);
+type Plan<T> = (
+    i64,
+    i64,
+    i64,
+    i64,
+    Complex<f64>,
+    Complex<f64>,
+    Option<Complex<T>>,
+);
 
 #[derive(Default)]
-struct ZetaGalwayPlanner {
+struct ZetaGalwayPlanner<T: GenericFloat + ExpPolyApprox + FftNum> {
     eps: f64,
     ln_eps: f64,
     replan: bool,
     sigma: f64,
     delta: f64,
+    h: Option<T>,
+    s0: Complex<T>,
+    sum_trunc_dirichlet: Vec<Complex<T>>,
 
     n: f64,
     m: f64,
@@ -75,12 +92,30 @@ struct ZetaGalwayPlanner {
     alpha_2: f64,
 }
 
-impl ZetaGalwayPlanner {
+impl<T: GenericFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
     pub fn new() -> Self {
         Self {
             replan: true,
             ..Default::default()
         }
+    }
+
+    fn plan_sum_trunc_dirichlet(&mut self, s: Complex<T>, n: f64) {
+        let mut m = 0;
+        let h = self.h.unwrap();
+        loop {
+            let s_approx = Complex::new(s.re, s.im + T::from(m).unwrap() * h).approx();
+            let z_s = (s_approx / Complex64::new(0.0, PI * 2.0)).sqrt();
+            let n2 = (z_s.re - z_s.im).floor().max(1.0) as f64;
+            if n2 != n {
+                break;
+            }
+            m += 1;
+        }
+
+        // add m by 1 to avoid offset-by-1 due to limited precision.
+        self.sum_trunc_dirichlet = sum_trunc_dirichlet(s, n as usize, m + 1, h);
+        self.s0 = s;
     }
 
     fn test_m(
@@ -89,7 +124,7 @@ impl ZetaGalwayPlanner {
         z_2: Complex<f64>,
         s: Complex<f64>,
         ln_eps: f64,
-    ) -> Option<(Complex<f64>, f64, f64)> {
+    ) -> Option<(Complex<f64>, i64, i64)> {
         let h = (z_2 - z_1) / m;
         let inv_2h = 0.5 / h;
         let z_l = (inv_2h * inv_2h - s.mul_i() / f64::TAU()).sqrt() + inv_2h;
@@ -97,15 +132,15 @@ impl ZetaGalwayPlanner {
         let ln_err1 = ln_g_norm(z_l, s) - ((z_1 - z_l) / h).im * f64::TAU();
         let ln_err2 = ln_g_norm(z_r, s) - ((z_r - z_1) / h).im * f64::TAU();
         if ln_err1 <= ln_eps && ln_err2 <= ln_eps {
-            let n_l = (z_l.re - z_l.im).ceil().max(1.0);
-            let n_r = (z_r.re - z_r.im).floor();
+            let n_l = (z_l.re - z_l.im).ceil().max(1.0) as i64;
+            let n_r = (z_r.re - z_r.im).floor() as i64;
             Some((h, n_l, n_r))
         } else {
             None
         }
     }
 
-    fn plan_from_scratch(&mut self, s: Complex<f64>, eps: f64) -> Plan<f64> {
+    fn plan_from_scratch(&mut self, s: Complex<f64>, eps: f64) -> Plan<T> {
         let n = self.n;
         let sigma = s.re;
         let ln_eps = eps.ln();
@@ -147,15 +182,15 @@ impl ZetaGalwayPlanner {
         self.alpha_2 = alpha_2;
         self.m = m;
         debug!(
-            "[Plan from scratch] alpha_1 = {}, alpha_2 = {}",
+            "[Zeta plan from scratch] alpha_1 = {:.6}, alpha_2 = {:.6}",
             self.alpha_1, self.alpha_2
         );
         assert!((0.2..=0.8).contains(&alpha_1) && (-0.8..=-0.2).contains(&alpha_2));
 
-        (n, m, n_l, n_r, h, z_1)
+        (n as i64, m as i64, n_l, n_r, h, z_1, None)
     }
 
-    fn plan_incremental(&mut self, s: Complex64) -> Plan<f64> {
+    fn plan_incremental(&mut self, s: Complex64) -> Plan<T> {
         let eps = self.eps;
         let n = self.n;
         let sigma = s.re;
@@ -217,29 +252,43 @@ impl ZetaGalwayPlanner {
         self.m = m;
         self.alpha_1 = alpha_1;
         self.alpha_2 = alpha_2;
-        (n, m, n_l, n_r, h, z_1)
+        (n as i64, m as i64, n_l, n_r, h, z_1, None)
     }
 
-    pub fn plan(&mut self, s: Complex64, eps: f64) -> Plan<f64> {
+    pub fn plan(&mut self, s: Complex<T>, eps: f64) -> Plan<T> {
         let old_n = self.n;
 
-        let z_s = (s / Complex64::new(0.0, PI * 2.0)).sqrt();
+        let s_approx = s.approx();
+        let z_s = (s_approx / Complex64::new(0.0, PI * 2.0)).sqrt();
         // can simply take sqrt(t).
         // let n = (s.im / PI / 2.0).sqrt().floor().max(1.0);
         self.n = (z_s.re - z_s.im).floor().max(1.0);
 
-        if self.replan || old_n != self.n || s.re != self.sigma || eps != self.eps {
-            self.replan = false;
-            self.plan_from_scratch(s, eps)
-        } else {
-            self.plan_incremental(s)
+        let mut plan =
+            if self.replan || old_n != self.n || s_approx.re != self.sigma || eps != self.eps {
+                self.replan = false;
+                if self.h.is_some() {
+                    self.plan_sum_trunc_dirichlet(s, self.n);
+                }
+                self.plan_from_scratch(s_approx, eps)
+            } else {
+                self.plan_incremental(s_approx)
+            };
+        if let Some(h) = self.h {
+            let idx = (s.im - self.s0.im) / h;
+            let round_idx = idx.round();
+            let int_idx = AsPrimitive::<i64>::as_(round_idx) as usize;
+            assert!(AsPrimitive::<f64>::as_((idx - round_idx).abs()) <= 1e-8);
+
+            plan.6 = Some(self.sum_trunc_dirichlet[int_idx]);
         }
+        plan
     }
 }
 
 pub struct ZetaGalway<'a> {
     ctx: &'a Context<f64>,
-    planners: [ZetaGalwayPlanner; 2],
+    planners: [ZetaGalwayPlanner<f64>; 2],
     pub complexity: i64,
 }
 
@@ -255,12 +304,20 @@ impl<'a> ZetaGalway<'a> {
 
 impl ZetaGalway<'_> {
     fn I0(&self, s: Complex64, plan: Plan<f64>) -> Complex64 {
-        let (n, m, n_l, n_r, h, z_1) = plan;
-        // info!("n = {}, m = {}, h = {}, n_l = {}, n_r = {}", n, m, h, n_l, n_r);
+        let (n, m, n_l, n_r, h, z_1, plan_sum_trunc_dirichlet) = plan;
 
-        let mut s0 = Complex64::zero();
-        for i in 1..=n as i64 {
-            s0 += Complex64::new(i as Float, 0.0).powc(-s);
+        let mut s0;
+        match plan_sum_trunc_dirichlet {
+            Some(x) => {
+                s0 = x;
+            }
+            None => {
+                s0 = Complex64::zero();
+                for i in 1..=n as i64 {
+                    s0 += Complex64::new(i as Float, 0.0).powc(-s);
+                }
+                panic!("why don't you use [FKBJ-OS]?");
+            }
         }
 
         let mut s1 = Complex64::zero();
@@ -290,10 +347,13 @@ impl FnZeta<f64> for ZetaGalway<'_> {
             - self.ctx.loggamma(s / 2.0, eps);
         let chi = log_chi.exp();
 
-        let s_approx = s.approx();
-
-        let plan0 = self.planners[0].plan(s_approx, eps);
-        let plan1 = self.planners[1].plan(1.0 - s_approx.conj(), eps);
+        let plan0 = self.planners[0].plan(s, eps);
+        let plan1 = self.planners[1].plan(1.0 - s.conj(), eps);
         self.I0(s, plan0) + chi * self.I0(1.0 - s.conj(), plan1).conj()
+    }
+
+    fn prepare_multi_eval(&mut self, h: f64, eps: f64) {
+        self.planners[0].h = Some(h);
+        self.planners[1].h = Some(h);
     }
 }

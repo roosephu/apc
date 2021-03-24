@@ -129,8 +129,12 @@ impl<Z: FnZeta<f64>> Galway<'_, Z> {
 }
 
 impl<Z: FnZeta<f64>> Galway<'_, Z> {
+    /// a little bit different from Galway's definition
+    /// I divied it by x^sigma.
     fn Psi(&mut self, s: Complex, ln_x: f64, eps: f64) -> Complex {
-        ((self.lambda * s).powi(2) / 2.0 + s * ln_x).exp() * self.fn_zeta.zeta(s, eps).ln() / s
+        ((self.lambda * s).powi(2) / 2.0 + Complex::new(0.0, s.im * ln_x)).exp()
+            * self.fn_zeta.zeta(s, eps).ln()
+            / s
     }
 
     fn calc_pi_star(&mut self, x: f64, eps: f64) -> Float {
@@ -145,7 +149,7 @@ impl<Z: FnZeta<f64>> Galway<'_, Z> {
             ans += self.Psi(s, ln_x, eps);
             if t % (n_total_evals / 100).max(1) == 0 || t == n_total_evals {
                 info!(
-                    "n total evals = {}, progress = {}, height = {:.6}, ans = {}, Psi = {}",
+                    "n total evals = {}, progress = {}, height = {:.6}, ans = {:.16}, Psi = {:.6e}",
                     n_total_evals,
                     t,
                     self.h * t as f64,
@@ -161,7 +165,10 @@ impl<Z: FnZeta<f64>> Galway<'_, Z> {
                 eps
             );
         }
-        self.h / PI * (self.Psi(Complex::new(self.sigma, 0.0), ln_x, eps) / 2.0 + ans).re
+        // multiply the result by x^sigma, as noted in Psi.
+        self.h / PI
+            * (self.Psi(Complex::new(self.sigma, 0.0), ln_x, eps) / 2.0 + ans).re
+            * x.powf(self.sigma)
     }
 }
 
@@ -185,9 +192,9 @@ impl<'a, Z: FnZeta<f64>> Galway<'a, Z> {
 
         let eps = 0.4;
         let pi_star = self.calc_pi_star(x, eps / 2.0);
-        debug!("pi^* = {}", pi_star);
+        debug!("pi^* = {:.6}", pi_star);
         let delta = self.calc_delta(x as u64, eps / 2.0);
-        debug!("delta = {}", delta);
+        debug!("delta = {:.6}", delta);
         (pi_star + delta).round() as i64
     }
 
@@ -241,6 +248,7 @@ impl<'a, Z: FnZeta<f64>> Galway<'a, Z> {
                     .sqrt());
         self.h = if h1 < h2 { h1 } else { h2 };
         info!("h = {:.6}", self.h);
+        self.fn_zeta.prepare_multi_eval(self.h, eps);
     }
 
     fn plan_delta_bounds(&mut self, x: f64, eps: f64) {
