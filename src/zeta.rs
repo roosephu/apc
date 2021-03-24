@@ -2,6 +2,7 @@ use crate::traits::ComplexFunctions;
 use crate::{brentq::brentq, context::Context, traits::GenericFloat};
 use log::{debug, info};
 use num::Complex;
+use num_traits::AsPrimitive;
 use std::f64::consts::PI;
 
 type Float = f64;
@@ -27,10 +28,11 @@ fn ln_g_norm(z: Complex<f64>, s: Complex<f64>) -> f64 {
 
 /// z = O(n) + i O(ln(n)), s = O(1) + i t.
 fn f<T: GenericFloat>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
-    if z.im.as_() > 100.0 {
+    let z_im = AsPrimitive::<f64>::as_(z.im);
+    if z_im > 100.0 {
         let a = z.scale(T::PI()).mul_i().exp();
         g(z, s) / a
-    } else if z.im.as_() < -100.0 {
+    } else if z_im < -100.0 {
         let a = z.scale(-T::PI()).mul_i().exp();
         g(z, s) / (-a)
     } else {
@@ -288,7 +290,7 @@ impl FnZeta<f64> for ZetaGalway<'_> {
             - self.ctx.loggamma(s / 2.0, eps);
         let chi = log_chi.exp();
 
-        let s_approx = Complex::<f64>::new(s.re.as_(), s.im.as_());
+        let s_approx = s.approx();
 
         let plan0 = self.planners[0].plan(s_approx, eps);
         let plan1 = self.planners[1].plan(1.0 - s_approx.conj(), eps);

@@ -11,6 +11,7 @@ pub trait GenericFloat = Float
     + NumAssignOps
     + FromPrimitive
     + AsPrimitive<f64>
+    + AsPrimitive<i64>
     + Display
     + Debug
     + Default
@@ -23,6 +24,7 @@ pub trait GenericFloat = Float
 
 pub trait ComplexFunctions {
     fn mul_i(self) -> Self;
+    fn approx(self) -> Complex<f64>;
 }
 
 impl<T: GenericFloat> ComplexFunctions for Complex<T> {
@@ -31,6 +33,14 @@ impl<T: GenericFloat> ComplexFunctions for Complex<T> {
         Self {
             re: -self.im,
             im: self.re,
+        }
+    }
+
+    #[inline]
+    fn approx(self) -> Complex<f64> {
+        Complex::<f64> {
+            re: AsPrimitive::<f64>::as_(self.re),
+            im: AsPrimitive::<f64>::as_(self.im),
         }
     }
 }

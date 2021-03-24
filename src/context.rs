@@ -1,7 +1,8 @@
-use crate::traits::GenericFloat;
+use crate::traits::{GenericFloat, ComplexFunctions};
 use log::{debug, info};
 use num::traits::Pow;
 use num_complex::Complex;
+use num_traits::AsPrimitive;
 
 #[derive(Default)]
 pub struct Context<T> {
@@ -42,9 +43,9 @@ impl<T: GenericFloat> Context<T> {
 impl<T: GenericFloat> Context<T> {
     /// error estimation
     /// See [here](https://www.wikiwand.com/en/Stirling%27s_approximation#Error_bounds) for more details.
-    fn loggamma_err(&self, ln_z: Complex<T>, n: usize) -> f64 {
-        let arg = ln_z.im.as_();
-        let norm = ln_z.re.as_().exp();
+    fn loggamma_err(&self, ln_z: Complex<f64>, n: usize) -> f64 {
+        let arg = ln_z.im;
+        let norm = ln_z.re.exp();
         let err_coef = if arg < std::f64::consts::PI / 4.0 {
             1.0
         } else if arg < std::f64::consts::PI / 2.0 {
@@ -52,7 +53,7 @@ impl<T: GenericFloat> Context<T> {
         } else {
             1.0 / (arg / 2.0).cos().pow(2 * n as i32)
         };
-        self.bernoulli(n * 2).as_() / ((2 * n) * (2 * n - 1)) as f64 * err_coef
+        AsPrimitive::<f64>::as_(self.bernoulli(n * 2)) / ((2 * n) * (2 * n - 1)) as f64 * err_coef
     }
 
     /// log Gamma function by Stirling series
@@ -76,7 +77,7 @@ impl<T: GenericFloat> Context<T> {
             result += self.bernoulli(i * 2) / T::from((2 * i) * (2 * i - 1)).unwrap() / zpow;
             zpow *= z2;
         }
-        let err = self.loggamma_err(ln_z, N);
+        let err = self.loggamma_err(ln_z.approx(), N);
         assert!(err <= eps);
 
         result
