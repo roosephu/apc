@@ -19,7 +19,9 @@ pub struct Galway<'a, T, Z: FnZeta<T>> {
 }
 
 impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
-    fn Phi(&self, p: T, eps: f64) -> T { (p / T::SQRT_2()).erfc(eps) / 2.0f64.unchecked_cast::<T>() }
+    fn Phi(&self, p: T, eps: f64) -> T {
+        (p / T::SQRT_2()).erfc(eps) / 2.0f64.unchecked_cast::<T>()
+    }
 
     fn phi(&self, u: T, x: T, eps: f64) -> T { self.Phi((u / x).ln() / self.lambda, eps) }
 
@@ -126,8 +128,9 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
     /// a little bit different from Galway's definition
     /// I divied it by x^sigma.
     fn Psi(&mut self, s: Complex<T>, ln_x: T, eps: f64) -> Complex<T> {
-        ((self.lambda * s).powi(2) / 2.0f64.unchecked_cast::<T>() + Complex::new(T::zero(), s.im * ln_x))
-            .exp()
+        ((self.lambda * s).powi(2) / 2.0f64.unchecked_cast::<T>()
+            + Complex::new(T::zero(), s.im * ln_x))
+        .exp()
             * self.fn_zeta.zeta(s, eps).ln()
             / s
     }
@@ -158,7 +161,8 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
         }
         // multiply the result by x^sigma, as noted in Psi.
         self.h / T::PI()
-            * (self.Psi(Complex::new(self.sigma, T::zero()), ln_x, eps) / 2.0f64.unchecked_cast::<T>()
+            * (self.Psi(Complex::new(self.sigma, T::zero()), ln_x, eps)
+                / 2.0f64.unchecked_cast::<T>()
                 + ans)
                 .re
             * x.powf(self.sigma)

@@ -89,7 +89,7 @@ impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
         let mut m = 0;
         let h = self.h.unwrap();
         loop {
-            let s_approx = Complex::new(s.re, s.im + (m as i64).unchecked_cast::<T>()* h).approx();
+            let s_approx = Complex::new(s.re, s.im + (m as i64).unchecked_cast::<T>() * h).approx();
             let z_s = (s_approx / Complex64::new(0.0, PI * 2.0)).sqrt();
             let n2 = (z_s.re - z_s.im).floor().max(1.0) as f64;
             if n2 != n {
