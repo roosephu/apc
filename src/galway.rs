@@ -1,12 +1,11 @@
 use std::f64::consts::PI;
 
-use crate::{brentq::brentq, zeta::FnZeta};
+use crate::{brentq::brentq, unchecked_from::UncheckedCast, zeta::FnZeta};
 use crate::{context::Context, traits::MyFloat};
 use log::{debug, info};
 use num::integer::*;
 use num::Complex;
 use num_traits::AsPrimitive;
-use rgsl::error::erfc;
 
 pub struct Galway<'a, T, Z: FnZeta<T>> {
     ctx: &'a Context<T>,
@@ -20,7 +19,7 @@ pub struct Galway<'a, T, Z: FnZeta<T>> {
 }
 
 impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
-    fn Phi(&self, p: T, eps: f64) -> T { (p / T::SQRT_2()).erfc(eps) / T::from(2.0).unwrap() }
+    fn Phi(&self, p: T, eps: f64) -> T { (p / T::SQRT_2()).erfc(eps) / 2.0f64.unchecked_cast::<T>() }
 
     fn phi(&self, u: T, x: T, eps: f64) -> T { self.Phi((u / x).ln() / self.lambda, eps) }
 
@@ -69,28 +68,28 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
 
     fn calc_delta(&self, x: u64, eps: f64) -> T {
         let mut ret = T::zero();
-        let fx = T::from(x).unwrap();
+        let fx = (x as i64).unchecked_cast::<T>();
         let (x1, x2) = (self.x1, self.x2);
         let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
 
         let primes = Galway::<T, Z>::linear_sieve(x2.sqrt());
         for p in Galway::<T, Z>::sieve(&primes, x1, x2) {
-            ret -= self.phi(T::from(p).unwrap(), fx, eps);
+            ret -= self.phi((p as i64).unchecked_cast(), fx, eps);
             if p <= x {
                 ret += T::one();
             }
         }
 
         for p in primes {
-            let mut m = 1i32;
+            let mut m = 1i64;
             let mut power = p;
             while power < x2 / p {
                 m += 1;
                 power *= p;
                 if power < x1 {
-                    ret -= T::from(m).unwrap().recip();
+                    ret -= m.unchecked_cast::<T>().recip();
                 } else {
-                    ret -= self.phi(T::from(power).unwrap(), fx, eps) / T::from(m).unwrap();
+                    ret -= self.phi(m.unchecked_cast(), fx, eps) / m.unchecked_cast::<T>();
                 }
             }
         }
@@ -106,7 +105,7 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
         for n in 0..=(N / 2) {
             let mut s1 = Complex::zero();
             for k in 0..=n {
-                s1 += T::from(4.0).unwrap().pow((n - k) as i32) * ctx.euler(n - k)
+                s1 += 4.0f64.unchecked_cast::<T>().pow((n - k) as i32) * ctx.euler(n - k)
                     / ctx.factorial(2 * k)
                     / ctx.factorial(2 * (n - k));
             }
@@ -117,7 +116,7 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
                     * Complex::i().powu((n - j) as u32)
                     * pi.pow((n + j) as i32)
                     / ctx.factorial(n - j)
-                    * T::from(2.0).unwrap().pow((n - j + 1) as i32);
+                    * 2.0f64.unchecked_cast::<T>().pow((n - j + 1) as i32);
             }
         }
     }
@@ -127,7 +126,7 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
     /// a little bit different from Galway's definition
     /// I divied it by x^sigma.
     fn Psi(&mut self, s: Complex<T>, ln_x: T, eps: f64) -> Complex<T> {
-        ((self.lambda * s).powi(2) / T::from(2.0).unwrap() + Complex::new(T::zero(), s.im * ln_x))
+        ((self.lambda * s).powi(2) / 2.0f64.unchecked_cast::<T>() + Complex::new(T::zero(), s.im * ln_x))
             .exp()
             * self.fn_zeta.zeta(s, eps).ln()
             / s
@@ -144,14 +143,14 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
 
         let n_total_evals: i64 = (self.integral_limit / self.h).ceil().as_();
         for t in 1..=n_total_evals {
-            let s = Complex::new(self.sigma, self.h * T::from(t).unwrap());
+            let s = Complex::new(self.sigma, self.h * t.unchecked_cast::<T>());
             ans += self.Psi(s, ln_x, eps);
             if t % (n_total_evals / 100).max(1) == 0 || t == n_total_evals {
                 info!(
                     "n total evals = {}, progress = {}, height = {:.6}, ans = {:.16}, Psi = {:.6e}",
                     n_total_evals,
                     t,
-                    self.h * T::from(t).unwrap(),
+                    self.h * t.unchecked_cast::<T>(),
                     ans,
                     self.Psi(s, ln_x, eps)
                 );
@@ -159,7 +158,7 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
         }
         // multiply the result by x^sigma, as noted in Psi.
         self.h / T::PI()
-            * (self.Psi(Complex::new(self.sigma, T::zero()), ln_x, eps) / T::from(2.0).unwrap()
+            * (self.Psi(Complex::new(self.sigma, T::zero()), ln_x, eps) / 2.0f64.unchecked_cast::<T>()
                 + ans)
                 .re
             * x.powf(self.sigma)
@@ -184,7 +183,7 @@ impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
         self.plan(x as f64);
 
         let eps = 0.4;
-        let pi_star = self.calc_pi_star(T::from(x as i64).unwrap(), eps / 2.0);
+        let pi_star = self.calc_pi_star((x as i64).unchecked_cast(), eps / 2.0);
         debug!("pi^* = {:.6}", pi_star);
         let delta = self.calc_delta(x, eps / 2.0);
         debug!("delta = {:.6}", delta);
@@ -211,10 +210,10 @@ impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
             (self.integral_limit / self.h).ceil()
         );
 
-        self.sigma = T::from(sigma).unwrap();
-        self.lambda = T::from(lambda).unwrap();
-        self.h = T::from(h).unwrap();
-        self.integral_limit = T::from(integral_limit).unwrap();
+        self.sigma = sigma.unchecked_cast();
+        self.lambda = lambda.unchecked_cast();
+        self.h = h.unchecked_cast();
+        self.integral_limit = integral_limit.unchecked_cast();
         self.x1 = x1;
         self.x2 = x2;
         self.fn_zeta.prepare_multi_eval(self.h, 0.0);
@@ -256,7 +255,7 @@ impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
 
     fn plan_delta_bounds(&mut self, lambda: f64, x: f64, eps: f64) -> (u64, u64) {
         let eps = eps / 2.0;
-        let Phi = |p| erfc(p / f64::SQRT_2()) / 2.0;
+        let Phi = |p| rgsl::error::erfc(p / f64::SQRT_2()) / 2.0;
         let Ep = |u: f64| {
             x * (lambda * lambda / 2.0).exp() * Phi((u / x).ln() / lambda - lambda)
                 - u * Phi((u / x).ln() / lambda)
@@ -266,19 +265,8 @@ impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
                 - x * (lambda * lambda / 2.0).exp() * Phi(lambda - (u / x).ln() / lambda)
         };
 
-        let x1;
-        if Em(x) > eps {
-            x1 = brentq(|u| Em(u) - 0.75 * eps, 2.0, x, 1e-8, 1e-8, 100).unwrap();
-        } else {
-            x1 = x;
-        }
-
-        let x2;
-        if Ep(x) > eps {
-            x2 = brentq(|u| Ep(u) - 0.75 * eps, x * 2.0, x, 1e-8, 1e-8, 100).unwrap();
-        } else {
-            x2 = x;
-        }
+        let x1 = brentq(|u| Em(u) - 0.75 * eps, 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
+        let x2 = brentq(|u| Ep(u) - 0.75 * eps, x * 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
 
         (x1.floor() as u64, x2.floor() as u64)
     }

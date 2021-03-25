@@ -1,7 +1,6 @@
 use crate::traits::{ComplexFunctions, MyFloat};
 use log::{debug, info};
 use num_complex::Complex;
-use num_traits::AsPrimitive;
 
 #[derive(Default)]
 pub struct Context<T> {
@@ -44,7 +43,9 @@ impl<T: MyFloat> Context<T> {
         } else {
             1.0 / (arg / 2.0).cos().pow(2 * n as i32)
         };
-        AsPrimitive::<f64>::as_(self.bernoulli(n * 2)) / ((2 * n) * (2 * n - 1)) as f64 * err_coef
+        // AsPrimitive::<f64>::as_(self.bernoulli(n * 2))
+        // cast::<T, f64>(self.bernoulli(n * 2)).unwrap()
+        self.bernoulli(n * 2).unchecked_cast::<f64>() / ((2 * n) * (2 * n - 1)) as f64 * err_coef
     }
 
     /// log Gamma function by Stirling series
@@ -60,7 +61,7 @@ impl<T: MyFloat> Context<T> {
 
         let ln_z = z.ln();
 
-        result += (z - T::from(0.5).unwrap()) * ln_z - z
+        result += (z - 0.5f64.unchecked_cast::<T>()) * ln_z - z
             + (T::PI() * T::from(2).unwrap()).ln() / T::from(2).unwrap();
         let z2 = z * z;
         let mut zpow = z;

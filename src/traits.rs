@@ -6,7 +6,10 @@ use std::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::sum_trunc_dirichlet::ExpPolyApprox;
+use crate::{
+    sum_trunc_dirichlet::ExpPolyApprox,
+    unchecked_from::{UncheckedCast, UncheckedFrom, UncheckedInto},
+};
 
 pub trait Erfc {
     fn erfc(self, eps: f64) -> Self;
@@ -22,6 +25,11 @@ pub trait MyFloat = Float
     + Debug // might not need
     + LowerExp // might not need
     + Default
+    + UncheckedInto<f64>
+    + UncheckedFrom<f64>
+    + UncheckedFrom<i64>
+    + UncheckedInto<i64>
+    + UncheckedCast
     + Add<Complex<Self>, Output = Complex<Self>>
     + Sub<Complex<Self>, Output = Complex<Self>>
     + Mul<Complex<Self>, Output = Complex<Self>>
