@@ -3,18 +3,14 @@
 
 use analytic::{context::Context, f64xn::f64x2, galway::Galway, traits::MyFloat, zeta::ZetaGalway};
 
-fn test<T: MyFloat>(x: T) -> T {
-    x + T::one()
-}
+fn test<T: MyFloat>(x: T) -> T { x + T::one() }
 
 fn the_default() {
     println!("default implementation");
 }
 
 trait Foo {
-    fn method(&self) {
-        the_default()
-    }
+    fn method(&self) { the_default() }
 }
 
 struct Bar;

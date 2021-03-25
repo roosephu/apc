@@ -22,9 +22,7 @@ pub struct Galway<'a, Z: FnZeta<f64>> {
 }
 
 impl<Z: FnZeta<f64>> Galway<'_, Z> {
-    fn Phi(&self, p: Float, eps: f64) -> Float {
-        erfc(p / Float::SQRT_2()) / 2.0
-    }
+    fn Phi(&self, p: Float, eps: f64) -> Float { erfc(p / Float::SQRT_2()) / 2.0 }
 
     fn phi(&self, u: Float, x: Float, eps: f64) -> Float {
         self.Phi((u / x).ln() / self.lambda, eps)
@@ -174,16 +172,7 @@ impl<Z: FnZeta<f64>> Galway<'_, Z> {
 
 impl<'a, Z: FnZeta<f64>> Galway<'a, Z> {
     pub fn new(ctx: &'a Context<f64>, fn_zeta: &'a mut Z) -> Self {
-        Self {
-            ctx,
-            fn_zeta,
-            lambda: 0.0,
-            sigma: 0.0,
-            x1: 0,
-            x2: 0,
-            h: 0.0,
-            integral_limit: 0.0,
-        }
+        Self { ctx, fn_zeta, lambda: 0.0, sigma: 0.0, x1: 0, x2: 0, h: 0.0, integral_limit: 0.0 }
     }
 
     pub fn compute(&mut self, x: u64) -> i64 {
@@ -265,18 +254,15 @@ impl<'a, Z: FnZeta<f64>> Galway<'a, Z> {
 
         let x1;
         if Em(x) > eps {
-            x1 = brentq(|u| Em(u) - 0.75 * eps, 2.0, x, 1e-8, 1e-8, 100)
-                .unwrap()
-                .floor() as u64;
+            x1 = brentq(|u| Em(u) - 0.75 * eps, 2.0, x, 1e-8, 1e-8, 100).unwrap().floor() as u64;
         } else {
             x1 = x as u64;
         }
 
         let x2;
         if Ep(x) > eps {
-            x2 = brentq(|u| Ep(u) - 0.75 * eps, x * 2.0, x, 1e-8, 1e-8, 100)
-                .unwrap()
-                .floor() as u64;
+            x2 =
+                brentq(|u| Ep(u) - 0.75 * eps, x * 2.0, x, 1e-8, 1e-8, 100).unwrap().floor() as u64;
         } else {
             x2 = x as u64;
         }

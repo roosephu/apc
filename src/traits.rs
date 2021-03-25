@@ -33,12 +33,7 @@ pub trait ComplexFunctions {
 
 impl<T: MyFloat> ComplexFunctions for Complex<T> {
     #[inline]
-    fn mul_i(self) -> Self {
-        Self {
-            re: -self.im,
-            im: self.re,
-        }
-    }
+    fn mul_i(self) -> Self { Self { re: -self.im, im: self.re } }
 
     #[inline]
     fn approx(self) -> Complex<f64> {

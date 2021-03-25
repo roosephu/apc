@@ -61,19 +61,9 @@ fn H<T: MyFloat>(w: Complex<T>) -> Complex<T> {
     T::one() / (T::one() - w.mul_i().scale(T::TAU()).exp())
 }
 
-fn is_close(a: f64, b: f64) -> bool {
-    ((a - b) / a).abs() < 1e-9
-}
+fn is_close(a: f64, b: f64) -> bool { ((a - b) / a).abs() < 1e-9 }
 
-type Plan<T> = (
-    i64,
-    i64,
-    i64,
-    i64,
-    Complex<f64>,
-    Complex<f64>,
-    Option<Complex<T>>,
-);
+type Plan<T> = (i64, i64, i64, i64, Complex<f64>, Complex<f64>, Option<Complex<T>>);
 
 #[derive(Default)]
 struct ZetaGalwayPlanner<T: MyFloat + ExpPolyApprox + FftNum> {
@@ -93,12 +83,7 @@ struct ZetaGalwayPlanner<T: MyFloat + ExpPolyApprox + FftNum> {
 }
 
 impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
-    pub fn new() -> Self {
-        Self {
-            replan: true,
-            ..Default::default()
-        }
-    }
+    pub fn new() -> Self { Self { replan: true, ..Default::default() } }
 
     fn plan_sum_trunc_dirichlet(&mut self, s: Complex<T>, n: f64) {
         let mut m = 0;
@@ -202,24 +187,12 @@ impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
         let f_alpha = |alpha: Float| ln_f_norm(n + 0.5 + direction * alpha * delta, s) - ln_eps;
 
         const ALPHA_DIFF: f64 = 0.03;
-        let alpha_1 = brentq(
-            f_alpha,
-            self.alpha_1 - ALPHA_DIFF,
-            self.alpha_1 + ALPHA_DIFF,
-            1e-6,
-            1e-6,
-            3,
-        )
-        .unwrap();
-        let alpha_2 = brentq(
-            f_alpha,
-            self.alpha_2 - ALPHA_DIFF,
-            self.alpha_2 + ALPHA_DIFF,
-            1e-6,
-            1e-6,
-            3,
-        )
-        .unwrap();
+        let alpha_1 =
+            brentq(f_alpha, self.alpha_1 - ALPHA_DIFF, self.alpha_1 + ALPHA_DIFF, 1e-6, 1e-6, 3)
+                .unwrap();
+        let alpha_2 =
+            brentq(f_alpha, self.alpha_2 - ALPHA_DIFF, self.alpha_2 + ALPHA_DIFF, 1e-6, 1e-6, 3)
+                .unwrap();
         let z_1 = n + 0.5 + direction * alpha_1 * delta;
         let z_2 = n + 0.5 + direction * alpha_2 * delta;
 
@@ -294,11 +267,7 @@ pub struct ZetaGalway<'a, T: MyFloat> {
 
 impl<'a, T: MyFloat> ZetaGalway<'a, T> {
     pub fn new(ctx: &'a Context<T>) -> Self {
-        Self {
-            ctx,
-            planners: [ZetaGalwayPlanner::new(), ZetaGalwayPlanner::new()],
-            complexity: 0,
-        }
+        Self { ctx, planners: [ZetaGalwayPlanner::new(), ZetaGalwayPlanner::new()], complexity: 0 }
     }
 }
 
@@ -349,9 +318,7 @@ impl<T: MyFloat> ZetaGalway<'_, T> {
 impl<T: MyFloat> FnZeta<T> for ZetaGalway<'_, T> {
     fn zeta(&mut self, s: Complex<T>, eps: f64) -> Complex<T> {
         let log_chi = (s - T::from(0.5).unwrap()) * T::PI().ln()
-            + self
-                .ctx
-                .loggamma((T::one() - s) * T::from(0.5).unwrap(), eps)
+            + self.ctx.loggamma((T::one() - s) * T::from(0.5).unwrap(), eps)
             - self.ctx.loggamma(s * T::from(0.5).unwrap(), eps);
         let chi = log_chi.exp();
 

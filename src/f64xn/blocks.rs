@@ -40,15 +40,11 @@ pub(crate) fn two_mul(a: f64, b: f64) -> f64x2 {
 }
 
 #[inline]
-pub(crate) fn fma(a: f64, b: f64, c: f64) -> f64 {
-    a.mul_add(b, c)
-}
+pub(crate) fn fma(a: f64, b: f64, c: f64) -> f64 { a.mul_add(b, c) }
 
 impl f64x2 {
     #[inline]
-    pub fn new(hi: f64, lo: f64) -> Self {
-        Self { hi, lo }
-    }
+    pub fn new(hi: f64, lo: f64) -> Self { Self { hi, lo } }
 }
 
 impl Add<f64> for f64x2 {

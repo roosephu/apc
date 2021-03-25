@@ -22,21 +22,13 @@ impl<T: MyFloat> Context<T> {
     }
 
     #[inline]
-    pub fn binom(&self, n: usize, m: usize) -> T {
-        self.binomial[n][m]
-    }
+    pub fn binom(&self, n: usize, m: usize) -> T { self.binomial[n][m] }
     #[inline]
-    pub fn bernoulli(&self, n: usize) -> T {
-        self.bernoulli[n]
-    }
+    pub fn bernoulli(&self, n: usize) -> T { self.bernoulli[n] }
     #[inline]
-    pub fn euler(&self, n: usize) -> T {
-        self.euler[n]
-    }
+    pub fn euler(&self, n: usize) -> T { self.euler[n] }
     #[inline]
-    pub fn factorial(&self, n: usize) -> T {
-        self.factorial[n]
-    }
+    pub fn factorial(&self, n: usize) -> T { self.factorial[n] }
 }
 
 impl<T: MyFloat> Context<T> {
@@ -139,11 +131,8 @@ impl<T: MyFloat> Context<T> {
         for i in 1..=n {
             let mut s = T::zero();
             for j in 0..i {
-                s += (if (i + j) % 2 == 0 {
-                    T::one()
-                } else {
-                    -T::one()
-                }) * euler[j]
+                s += (if (i + j) % 2 == 0 { T::one() } else { -T::one() })
+                    * euler[j]
                     * self.binom(2 * i, 2 * j);
             }
             euler[i] = -s;
