@@ -6,7 +6,7 @@
 #![allow(unused_variables)]
 #![feature(trait_alias)]
 #![feature(destructuring_assignment)]
-#![feature(type_alias_impl_trait)]
+#![feature(min_type_alias_impl_trait)]
 
 pub mod brentq;
 pub mod context;
@@ -16,3 +16,7 @@ pub mod gamma;
 pub mod sum_trunc_dirichlet;
 pub mod traits;
 pub mod zeta;
+
+pub use context::Context;
+pub use galway::Galway;
+pub use zeta::ZetaGalway;

@@ -1,33 +1,9 @@
 #![feature(trait_alias)]
 #![allow(non_snake_case)]
 
-use analytic::{context::Context, f64xn::f64x2, galway::Galway, traits::MyFloat, zeta::ZetaGalway};
-
-fn test<T: MyFloat>(x: T) -> T { x + T::one() }
-
-fn the_default() {
-    println!("default implementation");
-}
-
-trait Foo {
-    fn method(&self) { the_default() }
-}
-
-struct Bar;
-
-impl Foo for Bar {
-    fn method(&self) {
-        the_default();
-        println!("Hey, I'm doing something entirely different!");
-    }
-}
+use analytic::*;
 
 fn main() {
-    let b = Bar;
-    b.method();
-    let x = f64x2::new(1.0, 2.0);
-    let y = test(x);
-
     let args: Vec<String> = std::env::args().collect();
     env_logger::init();
 

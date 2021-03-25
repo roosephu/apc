@@ -1,9 +1,11 @@
 use super::{blocks::*, f64x2};
 use num::traits::FloatConst;
 use num::{Float, One, Zero};
-use num_traits::{AsPrimitive, Pow};
+use num_traits::AsPrimitive;
 
 impl f64x2 {
+    /// see https://github.com/JuliaMath/DoubleFloats.jl/blob/master/src/math/ops/op_dd_dd.jl#L45-L52
+    #[inline]
     pub fn square(self) -> Self {
         let a = self;
         let Self { hi, lo } = two_mul(a.hi, a.hi);
@@ -24,16 +26,16 @@ impl f64x2 {
 
     // |x| <= 0.34657359028 = ln(2) / 2
     fn exp_remez(self) -> Self {
-        const C2: Self = Self { hi: 0.16666666666666666, lo: 9.251858538542447e-18 };
-        const C4: Self = Self { hi: -0.002777777777777778, lo: 1.0601087929995308e-19 };
-        const C6: Self = Self { hi: 6.613756613756614e-5, lo: -4.460173646997389e-21 };
-        const C8: Self = Self { hi: -1.6534391534391535e-6, lo: 7.121962972677988e-23 };
-        const C10: Self = Self { hi: 4.1753513975736114e-8, lo: 1.158547249215353e-24 };
-        const C12: Self = Self { hi: -1.0568380277354652e-9, lo: 5.58404280005523e-26 };
-        const C14: Self = Self { hi: 2.6765073029312422e-11, lo: 9.12829168899536e-28 };
-        const C16: Self = Self { hi: -6.779357355296518e-13, lo: -1.936460166148485e-29 };
-        const C18: Self = Self { hi: 1.71700970829093e-14, lo: -1.033795194722353e-30 };
-        const C20: Self = Self { hi: -4.278007864569552e-16, lo: 1.5907971763038017e-32 };
+        const C2: f64x2 = f64x2 { hi: 0.16666666666666666, lo: 9.251858538542447e-18 };
+        const C4: f64x2 = f64x2 { hi: -0.002777777777777778, lo: 1.0601087929995308e-19 };
+        const C6: f64x2 = f64x2 { hi: 6.613756613756614e-5, lo: -4.460173646997389e-21 };
+        const C8: f64x2 = f64x2 { hi: -1.6534391534391535e-6, lo: 7.121962972677988e-23 };
+        const C10: f64x2 = f64x2 { hi: 4.1753513975736114e-8, lo: 1.158547249215353e-24 };
+        const C12: f64x2 = f64x2 { hi: -1.0568380277354652e-9, lo: 5.58404280005523e-26 };
+        const C14: f64x2 = f64x2 { hi: 2.6765073029312422e-11, lo: 9.12829168899536e-28 };
+        const C16: f64x2 = f64x2 { hi: -6.779357355296518e-13, lo: -1.936460166148485e-29 };
+        const C18: f64x2 = f64x2 { hi: 1.71700970829093e-14, lo: -1.033795194722353e-30 };
+        const C20: f64x2 = f64x2 { hi: -4.278007864569552e-16, lo: 1.5907971763038017e-32 };
 
         let x = self;
         let x2 = x * x;
@@ -91,8 +93,7 @@ impl f64x2 {
     pub fn ln(self) -> Self {
         let y = Self::from(self.hi.ln());
         let y = y + self * y.exp() - 1.0;
-        let y = y + self * y.exp() - 1.0;
-        y
+         y + self * y.exp() - 1.0
     }
 
     pub fn cos(self) -> Self {
@@ -130,21 +131,21 @@ impl f64x2 {
 
     // 1 / sqrt(2) < self < sqrt(2)
     fn log_remez(self) -> Self {
-        const C1: Self = Self { hi: 2.0, lo: 2.531693403050348e-32 };
-        const C3: Self = Self { hi: 0.6666666666666666, lo: 3.700743415403453e-17 };
-        const C5: Self = Self { hi: 0.4, lo: -2.220446027080773e-17 };
-        const C7: Self = Self { hi: 0.2857142857142857, lo: 1.586016141254861e-17 };
-        const C9: Self = Self { hi: 0.2222222222222222, lo: 1.2407739663861083e-17 };
-        const C11: Self = Self { hi: 0.1818181818181818, lo: 3.2065997154550064e-18 };
-        const C13: Self = Self { hi: 0.1538461538461574, lo: -3.1965060154741107e-18 };
-        const C15: Self = Self { hi: 0.13333333333287886, lo: 7.44820907006051e-18 };
-        const C17: Self = Self { hi: 0.11764705886515148, lo: -1.17519451979169e-18 };
-        const C19: Self = Self { hi: 0.1052631551291071, lo: 4.4806067994093946e-18 };
-        const C21: Self = Self { hi: 0.095238228662164, lo: -3.577683177336467e-18 };
-        const C23: Self = Self { hi: 0.08695190137972356, lo: -5.409228774321587e-18 };
-        const C25: Self = Self { hi: 0.08011166789102804, lo: -2.092932986143882e-18 };
-        const C27: Self = Self { hi: 0.07229374987314603, lo: -4.021248728080285e-18 };
-        const C29: Self = Self { hi: 0.0855816562700506, lo: 6.675796100148133e-19 };
+        const C1: f64x2 = f64x2 { hi: 2.0, lo: 2.531693403050348e-32 };
+        const C3: f64x2 = f64x2 { hi: 0.6666666666666666, lo: 3.700743415403453e-17 };
+        const C5: f64x2 = f64x2 { hi: 0.4, lo: -2.220446027080773e-17 };
+        const C7: f64x2 = f64x2 { hi: 0.2857142857142857, lo: 1.586016141254861e-17 };
+        const C9: f64x2 = f64x2 { hi: 0.2222222222222222, lo: 1.2407739663861083e-17 };
+        const C11: f64x2 = f64x2 { hi: 0.1818181818181818, lo: 3.2065997154550064e-18 };
+        const C13: f64x2 = f64x2 { hi: 0.1538461538461574, lo: -3.1965060154741107e-18 };
+        const C15: f64x2 = f64x2 { hi: 0.13333333333287886, lo: 7.44820907006051e-18 };
+        const C17: f64x2 = f64x2 { hi: 0.11764705886515148, lo: -1.17519451979169e-18 };
+        const C19: f64x2 = f64x2 { hi: 0.1052631551291071, lo: 4.4806067994093946e-18 };
+        const C21: f64x2 = f64x2 { hi: 0.095238228662164, lo: -3.577683177336467e-18 };
+        const C23: f64x2 = f64x2 { hi: 0.08695190137972356, lo: -5.409228774321587e-18 };
+        const C25: f64x2 = f64x2 { hi: 0.08011166789102804, lo: -2.092932986143882e-18 };
+        const C27: f64x2 = f64x2 { hi: 0.07229374987314603, lo: -4.021248728080285e-18 };
+        const C29: f64x2 = f64x2 { hi: 0.0855816562700506, lo: 6.675796100148133e-19 };
 
         let s = self;
         let x = (s - 1.0) / (s + 1.0);
@@ -164,18 +165,18 @@ impl f64x2 {
 
     // |x| < pi / 4
     fn cos_remez(self) -> Self {
-        const C0: Self = Self { hi: 1.0, lo: -5.795385665153811e-34 };
-        const C2: Self = Self { hi: -0.5, lo: 2.7060102269624583e-31 };
-        const C4: Self = Self { hi: 0.041666666666666664, lo: 2.3129646346148305e-18 };
-        const C6: Self = Self { hi: -0.001388888888888889, lo: 5.3005440176619425e-20 };
-        const C8: Self = Self { hi: 2.48015873015873e-5, lo: 2.1502053426601327e-23 };
-        const C10: Self = Self { hi: -2.755731922398589e-7, lo: -2.367645329977107e-23 };
-        const C12: Self = Self { hi: 2.087675698786809e-9, lo: 1.7286815346236624e-25 };
-        const C14: Self = Self { hi: -1.1470745597727671e-11, lo: -7.352837032889324e-29 };
-        const C16: Self = Self { hi: 4.77947733186016e-14, lo: 3.0400747811634378e-30 };
-        const C18: Self = Self { hi: -1.5619206074477628e-16, lo: -7.726721637678806e-33 };
-        const C20: Self = Self { hi: 4.110221447608981e-19, lo: -1.9180683347243325e-35 };
-        const C22: Self = Self { hi: -8.837331187274062e-22, lo: -6.189968272642389e-38 };;
+        const C0: f64x2 = f64x2 { hi: 1.0, lo: -5.795385665153811e-34 };
+        const C2: f64x2 = f64x2 { hi: -0.5, lo: 2.7060102269624583e-31 };
+        const C4: f64x2 = f64x2 { hi: 0.041666666666666664, lo: 2.3129646346148305e-18 };
+        const C6: f64x2 = f64x2 { hi: -0.001388888888888889, lo: 5.3005440176619425e-20 };
+        const C8: f64x2 = f64x2 { hi: 2.48015873015873e-5, lo: 2.1502053426601327e-23 };
+        const C10: f64x2 = f64x2 { hi: -2.755731922398589e-7, lo: -2.367645329977107e-23 };
+        const C12: f64x2 = f64x2 { hi: 2.087675698786809e-9, lo: 1.7286815346236624e-25 };
+        const C14: f64x2 = f64x2 { hi: -1.1470745597727671e-11, lo: -7.352837032889324e-29 };
+        const C16: f64x2 = f64x2 { hi: 4.77947733186016e-14, lo: 3.0400747811634378e-30 };
+        const C18: f64x2 = f64x2 { hi: -1.5619206074477628e-16, lo: -7.726721637678806e-33 };
+        const C20: f64x2 = f64x2 { hi: 4.110221447608981e-19, lo: -1.9180683347243325e-35 };
+        const C22: f64x2 = f64x2 { hi: -8.837331187274062e-22, lo: -6.189968272642389e-38 };
 
         let x = self;
         let x2 = x * x;
@@ -193,18 +194,18 @@ impl f64x2 {
 
     // |x| < pi / 4
     fn sin_remez(self) -> Self {
-        const C1: Self = Self { hi: 1.0, lo: -2.8984825337707473e-34 };
-        const C3: Self = Self { hi: -0.16666666666666666, lo: -9.251858538542923e-18 };
-        const C5: Self = Self { hi: 0.008333333333333333, lo: 1.1564823172934677e-19 };
-        const C7: Self = Self { hi: -0.0001984126984126984, lo: -1.7209552641261292e-22 };
-        const C9: Self = Self { hi: 2.7557319223985893e-6, lo: -1.8584006050460325e-22 };
-        const C11: Self = Self { hi: -2.505210838544172e-8, lo: 1.4546921392186555e-24 };
-        const C13: Self = Self { hi: 1.605904383682161e-10, lo: 7.644272326832948e-27 };
-        const C15: Self = Self { hi: -7.647163731818732e-13, lo: -4.7818697387989105e-29 };
-        const C17: Self = Self { hi: 2.8114572540870227e-15, lo: -1.8417162789441038e-31 };
-        const C19: Self = Self { hi: -8.22063483478287e-18, lo: 1.7103320315576008e-34 };
-        const C21: Self = Self { hi: 1.9572521175911013e-20, lo: -5.661527325082782e-38 };
-        const C23: Self = Self { hi: -3.843391876512855e-23, lo: -2.614405314562012e-40 };
+        const C1: f64x2 = f64x2 { hi: 1.0, lo: -2.8984825337707473e-34 };
+        const C3: f64x2 = f64x2 { hi: -0.16666666666666666, lo: -9.251858538542923e-18 };
+        const C5: f64x2 = f64x2 { hi: 0.008333333333333333, lo: 1.1564823172934677e-19 };
+        const C7: f64x2 = f64x2 { hi: -0.0001984126984126984, lo: -1.7209552641261292e-22 };
+        const C9: f64x2 = f64x2 { hi: 2.7557319223985893e-6, lo: -1.8584006050460325e-22 };
+        const C11: f64x2 = f64x2 { hi: -2.505210838544172e-8, lo: 1.4546921392186555e-24 };
+        const C13: f64x2 = f64x2 { hi: 1.605904383682161e-10, lo: 7.644272326832948e-27 };
+        const C15: f64x2 = f64x2 { hi: -7.647163731818732e-13, lo: -4.7818697387989105e-29 };
+        const C17: f64x2 = f64x2 { hi: 2.8114572540870227e-15, lo: -1.8417162789441038e-31 };
+        const C19: f64x2 = f64x2 { hi: -8.22063483478287e-18, lo: 1.7103320315576008e-34 };
+        const C21: f64x2 = f64x2 { hi: 1.9572521175911013e-20, lo: -5.661527325082782e-38 };
+        const C23: f64x2 = f64x2 { hi: -3.843391876512855e-23, lo: -2.614405314562012e-40 };
 
         let x = self;
         let x2 = x * x;
@@ -219,4 +220,20 @@ impl f64x2 {
 
         x * (r1 + r2 + r3)
     }
+
+    /// See https://github.com/ajtribick/twofloat/blob/master/src/functions/power.rs#L30-L40
+    fn sqrt(self) -> Self {
+        assert!(self.hi >= 0.0);
+        let x = self.hi.sqrt().recip();
+        let y = self.hi * x;
+        two_add(y, (self.hi - two_mul(y, y).hi) * (x * 0.5))
+    }
+
+    fn recip(self) -> Self { 1.0 / self }
+
+    fn hypot(self, other: Self) -> Self { (self.square() + other.square()).sqrt() }
+
+    fn cosh(self) -> Self { (self.exp() + (-self).exp()) / 2.0 }
+
+    fn sinh(self) -> Self { (self.exp() - (-self).exp()) / 2.0 }
 }

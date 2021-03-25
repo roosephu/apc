@@ -1,5 +1,7 @@
+#![allow(clippy::approx_constant)]
+
 use std::{
-    fmt::{Display, Error},
+    fmt::{Display, Error, LowerExp},
     num::FpCategory,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign},
 };
@@ -7,7 +9,7 @@ use std::{
 use num::{Complex, Float, FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 use num_traits::{AsPrimitive, FloatConst, Pow};
 
-use crate::sum_trunc_dirichlet::ExpPolyApprox;
+use crate::{sum_trunc_dirichlet::ExpPolyApprox, traits::Erfc};
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default)]
@@ -60,7 +62,7 @@ impl From<f64x2> for String {
                 }
             }
             if e != 0 {
-                ret.push('E');
+                ret.push('e');
                 ret.push_str(e.to_string().as_str());
             }
 
@@ -115,7 +117,7 @@ impl Rem for f64x2 {
     type Output = f64x2;
 
     #[inline]
-    fn rem(self, rhs: f64x2) -> Self::Output { unimplemented!() }
+    fn rem(self, rhs: f64x2) -> Self::Output { todo!() }
 }
 
 impl Num for f64x2 {
@@ -260,7 +262,7 @@ impl Float for f64x2 {
     fn sqrt(self) -> Self { todo!() }
 
     #[inline]
-    fn exp(self) -> Self { todo!() }
+    fn exp(self) -> Self { self.exp() }
 
     #[inline]
     fn exp2(self) -> Self { todo!() }
@@ -341,7 +343,7 @@ impl Float for f64x2 {
     fn cos(self) -> Self { todo!() }
 
     #[inline]
-    fn cosh(self) -> Self { todo!() }
+    fn cosh(self) -> Self { f64x2::cosh(self) }
 
     #[inline]
     fn integer_decode(self) -> (u64, i16, i8) { todo!() }
@@ -349,7 +351,13 @@ impl Float for f64x2 {
 
 impl Signed for f64x2 {
     #[inline]
-    fn abs(&self) -> Self { todo!() }
+    fn abs(&self) -> Self {
+        if self.hi < 0.0 {
+            -*self
+        } else {
+            *self
+        }
+    }
 
     #[inline]
     fn abs_sub(&self, other: &Self) -> Self { todo!() }
@@ -358,14 +366,13 @@ impl Signed for f64x2 {
     fn signum(&self) -> Self { todo!() }
 
     #[inline]
-    fn is_negative(&self) -> bool { todo!() }
+    fn is_negative(&self) -> bool { self.hi < 0.0 }
 
     #[inline]
-    fn is_positive(&self) -> bool { todo!() }
+    fn is_positive(&self) -> bool { self.hi > 0.0 }
 }
 
 impl Add<Complex<f64x2>> for f64x2 {
-    #[inline]
     type Output = Complex<f64x2>;
 
     #[inline]
@@ -620,4 +627,20 @@ impl ExpPolyApprox for f64x2 {
 
     #[inline]
     fn get_poly_approx() -> Self::Output { COEFFS.iter().enumerate().map(|(idx, &x)| (idx, x)) }
+}
+
+impl From<f64> for f64x2 {
+    fn from(x: f64) -> Self { f64x2 { hi: x, lo: 0.0 } }
+}
+
+impl LowerExp for f64x2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from(*self))
+    }
+}
+
+impl Erfc for f64x2 {
+    fn erfc(self, eps: f64) -> Self {
+        todo!()
+    }
 }
