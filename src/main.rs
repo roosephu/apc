@@ -1,9 +1,37 @@
 #![feature(trait_alias)]
 #![allow(non_snake_case)]
 
-use analytic::{context::Context, galway::Galway, zeta::ZetaGalway};
+use analytic::{context::Context, f64xn::f64x2, galway::Galway, traits::MyFloat, zeta::ZetaGalway};
+
+fn test<T: MyFloat>(x: T) -> T {
+    x + T::one()
+}
+
+fn the_default() {
+    println!("default implementation");
+}
+
+trait Foo {
+    fn method(&self) {
+        the_default()
+    }
+}
+
+struct Bar;
+
+impl Foo for Bar {
+    fn method(&self) {
+        the_default();
+        println!("Hey, I'm doing something entirely different!");
+    }
+}
 
 fn main() {
+    let b = Bar;
+    b.method();
+    let x = f64x2::new(1.0, 2.0);
+    let y = test(x);
+
     let args: Vec<String> = std::env::args().collect();
     env_logger::init();
 
@@ -13,16 +41,7 @@ fn main() {
 
     let ctx = Context::<f64>::new(100);
     let mut zeta_galway = ZetaGalway::new(&ctx);
-
-    // let s = num::Complex::new(1.5, 1.2);
-    // let lambda = 0.000200;
-    // let z = zeta_galway.zeta(s, 0.0000000000000000021714724095162593);
-    // let ln_x = (1e10f64).ln();
-    // let Psi = ((lambda * s).powi(2) / 2.0 + s * ln_x).exp() * z.ln() / s;
-    // println!("Psi = {}, z = {}", Psi, z);
-
     let mut galway = Galway::new(&ctx, &mut zeta_galway);
-    // let ans = galway.compute(10_000_000_000);
     let ans = galway.compute(n);
     println!("[Galway] ans = {}", ans);
     println!("[ZetaGalway] complexity = {}", zeta_galway.complexity);

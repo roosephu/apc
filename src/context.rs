@@ -1,4 +1,4 @@
-use crate::traits::{ComplexFunctions, GenericFloat};
+use crate::traits::{ComplexFunctions, MyFloat};
 use log::{debug, info};
 use num_complex::Complex;
 use num_traits::AsPrimitive;
@@ -11,7 +11,7 @@ pub struct Context<T> {
     factorial: Vec<T>,
 }
 
-impl<T: GenericFloat> Context<T> {
+impl<T: MyFloat> Context<T> {
     pub fn new(n: usize) -> Self {
         let mut ret = Self::default();
         ret.init_factorial(n * 2 + 1);
@@ -39,7 +39,7 @@ impl<T: GenericFloat> Context<T> {
     }
 }
 
-impl<T: GenericFloat> Context<T> {
+impl<T: MyFloat> Context<T> {
     /// error estimation
     /// See [here](https://www.wikiwand.com/en/Stirling%27s_approximation#Error_bounds) for more details.
     fn loggamma_err(&self, ln_z: Complex<f64>, n: usize) -> f64 {
@@ -83,7 +83,7 @@ impl<T: GenericFloat> Context<T> {
     }
 }
 
-impl<T: GenericFloat> Context<T> {
+impl<T: MyFloat> Context<T> {
     fn init_binomial(&mut self, n: usize) {
         info!("initialize binomial numbers up to {}", n);
         let mut binomial = vec![vec![T::zero(); n + 1]; n + 1];

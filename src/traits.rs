@@ -1,15 +1,17 @@
 use num::{Complex, Signed};
-use num_traits::{AsPrimitive, Float, FloatConst, FromPrimitive, NumAssignOps, Pow};
+use num_traits::{AsPrimitive, Float, FloatConst, NumAssignOps, Pow};
+use rustfft::FftNum;
 use std::{
     fmt::{Debug, Display},
     ops::{Add, Div, Mul, Sub},
 };
 
-pub trait GenericFloat = Float
+use crate::sum_trunc_dirichlet::ExpPolyApprox;
+
+pub trait MyFloat = Float
     + FloatConst
     + Signed
     + NumAssignOps
-    + FromPrimitive
     + AsPrimitive<f64>
     + AsPrimitive<i64>
     + Display
@@ -20,6 +22,8 @@ pub trait GenericFloat = Float
     + Mul<Complex<Self>, Output = Complex<Self>>
     + Div<Complex<Self>, Output = Complex<Self>>
     + Pow<i32, Output = Self>
+    + ExpPolyApprox
+    + FftNum
     + 'static;
 
 pub trait ComplexFunctions {
@@ -27,7 +31,7 @@ pub trait ComplexFunctions {
     fn approx(self) -> Complex<f64>;
 }
 
-impl<T: GenericFloat> ComplexFunctions for Complex<T> {
+impl<T: MyFloat> ComplexFunctions for Complex<T> {
     #[inline]
     fn mul_i(self) -> Self {
         Self {

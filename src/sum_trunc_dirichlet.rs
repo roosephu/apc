@@ -2,7 +2,7 @@ use log::debug;
 use num::Complex;
 use rustfft::{FftNum, FftPlanner};
 
-use crate::traits::GenericFloat;
+use crate::traits::MyFloat;
 
 pub trait ExpPolyApprox: Sized {
     type Output: Iterator<Item = (usize, Complex<Self>)>;
@@ -94,7 +94,7 @@ impl ExpPolyApprox for f64 {
 }
 
 // compute \sum_{j=1}^n j^{-(s + i j delta)} for every 0 <= t < m
-pub fn sum_trunc_dirichlet<T: ExpPolyApprox + GenericFloat + FftNum>(
+pub fn sum_trunc_dirichlet<T: ExpPolyApprox + MyFloat + FftNum>(
     s: Complex<T>,
     n: usize,
     m: usize,
