@@ -179,7 +179,7 @@ impl Float for f64x2 {
     fn classify(self) -> FpCategory { todo!() }
 
     #[inline]
-    fn epsilon() -> Self { todo!() }
+    fn epsilon() -> Self { Self::from(f64::epsilon()) }
 
     #[inline]
     fn hypot(self, other: Self) -> Self { todo!() }
@@ -436,61 +436,61 @@ impl Pow<i32> for f64x2 {
 
 impl FloatConst for f64x2 {
     #[inline]
-    fn PI() -> Self { todo!() }
+    fn PI() -> Self { Self { hi: 3.141592653589793, lo: 1.2246467991473515e-16 } }
 
     #[inline]
-    fn LOG2_E() -> Self { todo!() }
+    fn E() -> Self { Self { hi: 2.718281828459045, lo: 1.4456468917292359e-16 } }
 
     #[inline]
-    fn LN_10() -> Self { todo!() }
+    fn LOG2_E() -> Self { Self { hi: 1.4426950408889634, lo: 2.0355273740930133e-17 } }
 
     #[inline]
-    fn LN_2() -> Self { todo!() }
+    fn LN_10() -> Self { Self { hi: 2.302585092994046, lo: -2.170756223382255e-16 } }
 
     #[inline]
-    fn LOG10_2() -> Self { todo!() }
+    fn LN_2() -> Self { Self { hi: 0.6931471805599453, lo: 2.31904681384628e-17 } }
 
     #[inline]
-    fn LOG10_E() -> Self { todo!() }
+    fn LOG10_2() -> Self { Self { hi: 0.3010299956639812, lo: -2.803728127785059e-18 } }
 
     #[inline]
-    fn LOG2_10() -> Self { todo!() }
+    fn LOG10_E() -> Self { Self { hi: 0.4342944819032518, lo: 1.0983196502167326e-17 } }
 
     #[inline]
-    fn FRAC_1_PI() -> Self { todo!() }
+    fn LOG2_10() -> Self { Self { hi: 3.321928094887362, lo: 1.6616175169735967e-16 } }
 
     #[inline]
-    fn FRAC_1_SQRT_2() -> Self { todo!() }
+    fn FRAC_1_PI() -> Self { Self { hi: 0.3183098861837907, lo: -1.9678676675182615e-17 } }
 
     #[inline]
-    fn FRAC_2_PI() -> Self { todo!() }
+    fn FRAC_1_SQRT_2() -> Self { Self { hi: 0.7071067811865476, lo: -4.833646656726404e-17 } }
 
     #[inline]
-    fn FRAC_2_SQRT_PI() -> Self { todo!() }
+    fn FRAC_2_PI() -> Self { Self { hi: 0.6366197723675814, lo: -3.935735335036523e-17 } }
 
     #[inline]
-    fn FRAC_PI_2() -> Self { todo!() }
+    fn FRAC_2_SQRT_PI() -> Self { Self { hi: 1.1283791670955126, lo: 1.5335459613166276e-17 } }
 
     #[inline]
-    fn FRAC_PI_3() -> Self { todo!() }
+    fn FRAC_PI_2() -> Self { Self { hi: 1.5707963267948966, lo: 6.123233995736757e-17 } }
 
     #[inline]
-    fn FRAC_PI_4() -> Self { todo!() }
+    fn FRAC_PI_3() -> Self { Self { hi: 1.0471975511965979, lo: -1.0720817664510863e-16 } }
 
     #[inline]
-    fn FRAC_PI_6() -> Self { todo!() }
+    fn FRAC_PI_4() -> Self { Self { hi: 0.7853981633974483, lo: 3.061616997868379e-17 } }
 
     #[inline]
-    fn FRAC_PI_8() -> Self { todo!() }
+    fn FRAC_PI_6() -> Self { Self { hi: 0.5235987755982989, lo: -5.3604088322554315e-17 } }
 
     #[inline]
-    fn SQRT_2() -> Self { todo!() }
+    fn FRAC_PI_8() -> Self { Self { hi: 0.39269908169872414, lo: 1.5308084989341894e-17 } }
 
     #[inline]
-    fn TAU() -> Self { todo!() }
+    fn SQRT_2() -> Self { Self { hi: 1.4142135623730951, lo: -9.667293313452965e-17 } }
 
     #[inline]
-    fn E() -> Self { todo!() }
+    fn TAU() -> Self { Self { hi: 6.283185307179586, lo: 2.449293598294703e-16 } }
 }
 
 impl AsPrimitive<f64> for f64x2 {
@@ -504,23 +504,116 @@ impl AsPrimitive<i64> for f64x2 {
 }
 
 impl FromPrimitive for f64x2 {
+    // TODO: might over flow
     #[inline]
-    fn from_i64(n: i64) -> Option<Self> {
-        // TODO: might over flow
-        Some(Self { hi: n as f64, lo: 0.0 })
-    }
+    fn from_i64(n: i64) -> Option<Self> { Some(Self { hi: n as f64, lo: 0.0 }) }
 
+    // TODO: might overflow
     #[inline]
-    fn from_u64(n: u64) -> Option<Self> {
-        // TODO: might over flow
-        Some(Self { hi: n as f64, lo: 0.0 })
-    }
+    fn from_u64(n: u64) -> Option<Self> { Some(Self { hi: n as f64, lo: 0.0 }) }
 
     #[inline]
     fn from_f64(n: f64) -> Option<Self> { Some(Self { hi: n, lo: 0.0 }) }
 }
 
-const COEFFS: [Complex<f64x2>; 0] = [];
+const COEFFS: [Complex<f64x2>; 24] = [
+    Complex::<f64x2> {
+        re: f64x2 { hi: 1.0, lo: -4.098967624221445e-34 },
+        im: f64x2 { hi: -4.098967624221445e-34, lo: -1.5555341444609406e-50 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 3.013639102622782e-31, lo: 1.955165282442337e-48 },
+        im: f64x2 { hi: 1.0, lo: 2.9978991830669402e-31 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: -0.5, lo: -3.686440395906948e-29 },
+        im: f64x2 { hi: -3.647933289584011e-29, lo: -1.7688387812116778e-45 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 1.7944312320610667e-27, lo: 1.204247011048231e-43 },
+        im: f64x2 { hi: -0.16666666666666666, lo: -9.251858536776753e-18 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 0.041666666666666664, lo: 2.3129645882491033e-18 },
+        im: f64x2 { hi: -4.540745872903123e-26, lo: 2.3501738525509453e-43 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 7.369657246850729e-25, lo: 1.3905305042833041e-41 },
+        im: f64x2 { hi: 0.008333333333333333, lo: 1.1564894904668587e-19 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: -0.001388888888888889, lo: 5.2997583852953265e-20 },
+        im: f64x2 { hi: -7.600749353559733e-24, lo: -1.4295452929877914e-40 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 5.952935691552932e-23, lo: -4.8473575958472206e-39 },
+        im: f64x2 { hi: -0.0001984126984126984, lo: -1.148609310509542e-22 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 2.48015873015873e-5, lo: -3.124037069753179e-22 },
+        im: f64x2 { hi: -3.1887890759822763e-22, lo: -5.0724289498974544e-39 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 1.4275560892801856e-21, lo: 1.7937983076802776e-38 },
+        im: f64x2 { hi: 2.7557319223985905e-6, lo: -1.03072795026984e-22 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: -2.7557319223986365e-7, lo: -1.1994468685385469e-23 },
+        im: f64x2 { hi: -4.469574115662231e-21, lo: -1.4269807213263557e-37 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 1.2519942771424863e-20, lo: 6.493343756430319e-37 },
+        im: f64x2 { hi: -2.505210838543005e-8, lo: 1.0110223535016303e-24 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 2.0876756987604126e-9, lo: 1.596410632745976e-25 },
+        im: f64x2 { hi: -2.4358528608849723e-20, lo: -4.7764500560843e-37 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 4.4900371785054185e-20, lo: -1.7502963760208312e-36 },
+        im: f64x2 { hi: 1.6059043840917783e-10, lo: -2.0035561424541567e-27 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: -1.1470745659638183e-11, lo: -1.6244361659394653e-28 },
+        im: f64x2 { hi: -5.573373427988895e-20, lo: -1.4956134151510146e-36 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 6.93156930534892e-20, lo: -2.4015923876407123e-36 },
+        im: f64x2 { hi: -7.647163117497653e-13, lo: -4.5278084264034546e-29 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 4.779471038020406e-14, lo: -1.1886747323088784e-30 },
+        im: f64x2 { hi: -5.474019274931799e-20, lo: -2.473921669251002e-36 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 4.614348173584815e-20, lo: 2.0776561890169216e-37 },
+        im: f64x2 { hi: 2.811496455585735e-15, lo: -7.581326552442112e-32 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: -1.562191434065831e-16, lo: 1.8968334145071065e-34 },
+        im: f64x2 { hi: -2.2322810711198874e-20, lo: -1.17247052214804e-36 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 1.2537156366849241e-20, lo: -3.4871226451665094e-37 },
+        im: f64x2 { hi: -8.210701448480838e-18, lo: -6.658269703479169e-34 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 4.0654755277215486e-19, lo: -4.773989908786719e-36 },
+        im: f64x2 { hi: -3.359690826492369e-21, lo: -1.40728387339678e-37 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 1.19777004853017e-21, lo: -6.132839002942767e-38 },
+        im: f64x2 { hi: 2.0397006812988565e-20, lo: 8.748308795144894e-37 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: -1.1156950768713551e-21, lo: -2.2840707511532131e-38 },
+        im: f64x2 { hi: -1.340923713021694e-22, lo: -3.6414216793947587e-39 },
+    },
+    Complex::<f64x2> {
+        re: f64x2 { hi: 2.7169899607602477e-23, lo: 8.768090448822874e-40 },
+        im: f64x2 { hi: -2.7169899607602477e-23, lo: -8.768090448822874e-40 },
+    },
+];
 
 impl ExpPolyApprox for f64x2 {
     type Output = impl Iterator<Item = (usize, Complex<Self>)>;
