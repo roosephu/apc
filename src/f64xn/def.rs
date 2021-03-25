@@ -640,7 +640,5 @@ impl LowerExp for f64x2 {
 }
 
 impl Erfc for f64x2 {
-    fn erfc(self, eps: f64) -> Self {
-        todo!()
-    }
+    fn erfc(self, eps: f64) -> Self { todo!() }
 }

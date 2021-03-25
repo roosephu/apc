@@ -134,7 +134,10 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
     }
 
     fn calc_pi_star(&mut self, x: T, eps: f64) -> T {
-        let eps = eps / 4.0 / AsPrimitive::<f64>::as_(x).powf(self.sigma.as_()) / AsPrimitive::<f64>::as_(x).ln();
+        let eps = eps
+            / 4.0
+            / AsPrimitive::<f64>::as_(x).powf(self.sigma.as_())
+            / AsPrimitive::<f64>::as_(x).ln();
         let ln_x = x.ln();
 
         let mut ans = Complex::<T>::zero();

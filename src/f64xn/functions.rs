@@ -93,7 +93,7 @@ impl f64x2 {
     pub fn ln(self) -> Self {
         let y = Self::from(self.hi.ln());
         let y = y + self * y.exp() - 1.0;
-         y + self * y.exp() - 1.0
+        y + self * y.exp() - 1.0
     }
 
     pub fn cos(self) -> Self {
