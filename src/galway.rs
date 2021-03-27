@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use crate::{brentq::brentq, unchecked_from::UncheckedCast, zeta::FnZeta};
+use crate::{brentq::brentq, unchecked_cast::UncheckedCast, zeta::FnZeta};
 use crate::{context::Context, traits::MyFloat};
 use log::{debug, info};
 use num::integer::*;

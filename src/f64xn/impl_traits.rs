@@ -9,7 +9,7 @@ use std::{
 use num::{Complex, Float, FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 use num_traits::{AsPrimitive, FloatConst, Pow};
 
-use crate::{f64x2, sum_trunc_dirichlet::ExpPolyApprox, traits::Erfc, unchecked_from::{UncheckedCast, UncheckedFrom, UncheckedInto}};
+use crate::{f64x2, sum_trunc_dirichlet::ExpPolyApprox, traits::Erfc, unchecked_cast::{UncheckedCast, UncheckedFrom, UncheckedInto}};
 
 
 impl From<f64x2> for String {

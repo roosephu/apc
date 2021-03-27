@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     sum_trunc_dirichlet::ExpPolyApprox,
-    unchecked_from::{UncheckedCast, UncheckedFrom, UncheckedInto},
+    unchecked_cast::{UncheckedCast, UncheckedFrom, UncheckedInto},
 };
 
 pub trait Erfc {

@@ -1,4 +1,4 @@
-use crate::{brentq::brentq, context::Context, traits::MyFloat, unchecked_from::UncheckedCast};
+use crate::{brentq::brentq, context::Context, traits::MyFloat, unchecked_cast::UncheckedCast};
 use crate::{
     sum_trunc_dirichlet::{sum_trunc_dirichlet, ExpPolyApprox},
     traits::ComplexFunctions,

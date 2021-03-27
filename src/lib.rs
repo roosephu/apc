@@ -15,7 +15,7 @@ pub mod galway;
 pub mod gamma;
 pub mod sum_trunc_dirichlet;
 pub mod traits;
-pub mod unchecked_from;
+pub mod unchecked_cast;
 pub mod zeta;
 
 pub use context::Context;
