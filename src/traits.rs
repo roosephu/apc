@@ -1,5 +1,5 @@
 use num::{Complex, Signed};
-use num_traits::{AsPrimitive, Float, FloatConst, NumAssignOps, Pow};
+use num_traits::{Float, FloatConst, NumAssignOps, Pow};
 use rustfft::FftNum;
 use std::{
     fmt::{Debug, Display, LowerExp},
@@ -19,8 +19,6 @@ pub trait MyFloat = Float
     + FloatConst
     + Signed
     + NumAssignOps
-    + AsPrimitive<f64>
-    + AsPrimitive<i64>
     + Display // might not need
     + Debug // might not need
     + LowerExp // might not need
@@ -29,6 +27,8 @@ pub trait MyFloat = Float
     + UncheckedFrom<f64>
     + UncheckedFrom<i64>
     + UncheckedInto<i64>
+    + UncheckedFrom<i32>
+    + UncheckedInto<i32>
     + UncheckedCast
     + Add<Complex<Self>, Output = Complex<Self>>
     + Sub<Complex<Self>, Output = Complex<Self>>
@@ -51,10 +51,7 @@ impl<T: MyFloat> ComplexFunctions for Complex<T> {
 
     #[inline]
     fn approx(self) -> Complex<f64> {
-        Complex::<f64> {
-            re: AsPrimitive::<f64>::as_(self.re),
-            im: AsPrimitive::<f64>::as_(self.im),
-        }
+        Complex::<f64> { re: self.re.unchecked_cast(), im: self.im.unchecked_cast() }
     }
 }
 

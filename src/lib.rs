@@ -19,5 +19,6 @@ pub mod unchecked_from;
 pub mod zeta;
 
 pub use context::Context;
+pub use f64xn::f64x2;
 pub use galway::Galway;
 pub use zeta::ZetaGalway;

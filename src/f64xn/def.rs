@@ -9,7 +9,7 @@ use std::{
 use num::{Complex, Float, FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 use num_traits::{AsPrimitive, FloatConst, Pow};
 
-use crate::{sum_trunc_dirichlet::ExpPolyApprox, traits::Erfc};
+use crate::{sum_trunc_dirichlet::ExpPolyApprox, traits::Erfc, unchecked_from::{UncheckedCast, UncheckedFrom, UncheckedInto}};
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default)]
@@ -51,7 +51,7 @@ impl From<f64x2> for String {
             for _ in 0..30 {
                 let d = a.floor().hi as u8; // a is in [0, 8] so it's fine to use floor
                 ret.push((b'0' + d) as char);
-                a = (a - f64x2::from_f64(d as f64).unwrap()) * 10.;
+                a = (a - (d as i32).unchecked_cast::<f64x2>()) * 10.;
                 if a.is_zero() {
                     break;
                 }
@@ -184,7 +184,7 @@ impl Float for f64x2 {
     fn epsilon() -> Self { Self::from(f64::epsilon()) }
 
     #[inline]
-    fn hypot(self, other: Self) -> Self { todo!() }
+    fn hypot(self, other: Self) -> Self { f64x2::hypot(self, other) }
 
     #[inline]
     fn nan() -> Self { todo!() }
@@ -208,13 +208,13 @@ impl Float for f64x2 {
     fn max_value() -> Self { todo!() }
 
     #[inline]
-    fn is_nan(self) -> bool { todo!() }
+    fn is_nan(self) -> bool { self.hi.is_nan() }
 
     #[inline]
-    fn is_finite(self) -> bool { todo!() }
+    fn is_finite(self) -> bool { self.hi.is_finite() }
 
     #[inline]
-    fn is_infinite(self) -> bool { todo!() }
+    fn is_infinite(self) -> bool { self.hi.is_infinite() }
 
     #[inline]
     fn is_normal(self) -> bool { todo!() }
@@ -223,10 +223,10 @@ impl Float for f64x2 {
     fn floor(self) -> Self { todo!() }
 
     #[inline]
-    fn ceil(self) -> Self { todo!() }
+    fn ceil(self) -> Self { self.ceil() }
 
     #[inline]
-    fn round(self) -> Self { todo!() }
+    fn round(self) -> Self { self.round() }
 
     #[inline]
     fn trunc(self) -> Self { todo!() }
@@ -235,40 +235,40 @@ impl Float for f64x2 {
     fn fract(self) -> Self { todo!() }
 
     #[inline]
-    fn abs(self) -> Self { todo!() }
+    fn abs(self) -> Self { self.abs() }
 
     #[inline]
     fn signum(self) -> Self { todo!() }
 
     #[inline]
-    fn is_sign_negative(self) -> bool { todo!() }
+    fn is_sign_negative(self) -> bool { self.hi < 0.0 }
 
     #[inline]
-    fn is_sign_positive(self) -> bool { todo!() }
+    fn is_sign_positive(self) -> bool { self.hi > 0.0 }
 
     #[inline]
     fn mul_add(self, a: Self, b: Self) -> Self { todo!() }
 
     #[inline]
-    fn recip(self) -> Self { todo!() }
+    fn recip(self) -> Self { f64x2::recip(self) }
 
     #[inline]
     fn powi(self, n: i32) -> Self { todo!() }
 
     #[inline]
-    fn powf(self, n: Self) -> Self { todo!() }
+    fn powf(self, n: Self) -> Self { f64x2::powf(self, n) }
 
     #[inline]
-    fn sqrt(self) -> Self { todo!() }
+    fn sqrt(self) -> Self { f64x2::sqrt(self) }
 
     #[inline]
-    fn exp(self) -> Self { self.exp() }
+    fn exp(self) -> Self { f64x2::exp(self) }
 
     #[inline]
     fn exp2(self) -> Self { todo!() }
 
     #[inline]
-    fn ln(self) -> Self { todo!() }
+    fn ln(self) -> Self { f64x2::ln(self) }
 
     #[inline]
     fn log10(self) -> Self { todo!() }
@@ -307,10 +307,10 @@ impl Float for f64x2 {
     fn asinh(self) -> Self { todo!() }
 
     #[inline]
-    fn atan(self) -> Self { todo!() }
+    fn atan(self) -> Self { f64x2::atan(self) }
 
     #[inline]
-    fn atan2(self, other: Self) -> Self { todo!() }
+    fn atan2(self, other: Self) -> Self { f64x2::atan2(self, other) }
 
     #[inline]
     fn atanh(self) -> Self { todo!() }
@@ -328,19 +328,19 @@ impl Float for f64x2 {
     fn to_radians(self) -> Self { todo!() }
 
     #[inline]
-    fn sin(self) -> Self { todo!() }
+    fn sin(self) -> Self { f64x2::sin(self) }
 
     #[inline]
-    fn sin_cos(self) -> (Self, Self) { todo!() }
+    fn sin_cos(self) -> (Self, Self) { (f64x2::sin(self), f64x2::cos(self)) }
 
     #[inline]
-    fn sinh(self) -> Self { todo!() }
+    fn sinh(self) -> Self { f64x2::sinh(self) }
 
     #[inline]
     fn cbrt(self) -> Self { todo!() }
 
     #[inline]
-    fn cos(self) -> Self { todo!() }
+    fn cos(self) -> Self { f64x2::cos(self) }
 
     #[inline]
     fn cosh(self) -> Self { f64x2::cosh(self) }
@@ -438,7 +438,7 @@ impl Pow<i32> for f64x2 {
     type Output = Self;
 
     #[inline]
-    fn pow(self, rhs: i32) -> Self::Output { todo!() }
+    fn pow(self, rhs: i32) -> Self::Output { self.powi(rhs as i64) }
 }
 
 impl FloatConst for f64x2 {
@@ -642,3 +642,35 @@ impl LowerExp for f64x2 {
 impl Erfc for f64x2 {
     fn erfc(self, eps: f64) -> Self { todo!() }
 }
+
+impl UncheckedFrom<f64> for f64x2 {
+    fn unchecked_from(x: f64) -> Self { Self { hi: x, lo: 0.0 } }
+}
+
+impl UncheckedFrom<i64> for f64x2 {
+    fn unchecked_from(x: i64) -> Self {
+        let hi = x as f64;
+        let lo = (x - x as i64) as f64;
+        Self { hi, lo }
+    }
+}
+
+impl UncheckedFrom<i32> for f64x2 {
+    fn unchecked_from(x: i32) -> Self {
+        Self { hi: x as f64, lo: 0.0 }
+    }
+}
+
+impl UncheckedInto<f64> for f64x2 {
+    fn unchecked_into(self) -> f64 { self.hi }
+}
+
+impl UncheckedInto<i64> for f64x2 {
+    fn unchecked_into(self) -> i64 { self.hi as i64 + self.lo as i64 }
+}
+
+impl UncheckedInto<i32> for f64x2 {
+    fn unchecked_into(self) -> i32 { self.hi as i32 }
+}
+
+impl UncheckedCast for f64x2 {}

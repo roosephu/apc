@@ -5,7 +5,6 @@ use crate::{context::Context, traits::MyFloat};
 use log::{debug, info};
 use num::integer::*;
 use num::Complex;
-use num_traits::AsPrimitive;
 
 pub struct Galway<'a, T, Z: FnZeta<T>> {
     ctx: &'a Context<T>,
@@ -138,13 +137,13 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
     fn calc_pi_star(&mut self, x: T, eps: f64) -> T {
         let eps = eps
             / 4.0
-            / AsPrimitive::<f64>::as_(x).powf(self.sigma.as_())
-            / AsPrimitive::<f64>::as_(x).ln();
+            / x.unchecked_cast::<f64>().powf(self.sigma.unchecked_cast())
+            / x.unchecked_cast::<f64>().ln();
         let ln_x = x.ln();
 
         let mut ans = Complex::<T>::zero();
 
-        let n_total_evals: i64 = (self.integral_limit / self.h).ceil().as_();
+        let n_total_evals: i64 = (self.integral_limit / self.h).ceil().unchecked_cast();
         for t in 1..=n_total_evals {
             let s = Complex::new(self.sigma, self.h * t.unchecked_cast::<T>());
             ans += self.Psi(s, ln_x, eps);
@@ -191,7 +190,7 @@ impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
         debug!("pi^* = {:.6}", pi_star);
         let delta = self.calc_delta(x, eps / 2.0);
         debug!("delta = {:.6}", delta);
-        AsPrimitive::<i64>::as_((pi_star + delta).round()) as u64
+        (pi_star + delta).round().unchecked_cast::<i64>() as u64
     }
 
     /// During planning, these hyperparameters (lambda, sigma, h, x1, x2, integral_limits)
@@ -210,8 +209,8 @@ impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
         info!("delta range = [{}, {}], length = {}", x1, x2, x2 - x1);
         info!(
             "integral limit = {:.6}, # zeta evals = {}",
-            self.integral_limit,
-            (self.integral_limit / self.h).ceil()
+            integral_limit,
+            (integral_limit / h).ceil()
         );
 
         self.sigma = sigma.unchecked_cast();

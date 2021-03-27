@@ -43,8 +43,6 @@ impl<T: MyFloat> Context<T> {
         } else {
             1.0 / (arg / 2.0).cos().pow(2 * n as i32)
         };
-        // AsPrimitive::<f64>::as_(self.bernoulli(n * 2))
-        // cast::<T, f64>(self.bernoulli(n * 2)).unwrap()
         self.bernoulli(n * 2).unchecked_cast::<f64>() / ((2 * n) * (2 * n - 1)) as f64 * err_coef
     }
 
@@ -54,7 +52,7 @@ impl<T: MyFloat> Context<T> {
         const N: usize = 20;
 
         let mut result = Complex::zero();
-        while z.re < T::from(N).unwrap() {
+        while z.re < (N as i64).unchecked_into() {
             result -= z.ln();
             z += T::one();
         }
@@ -62,11 +60,11 @@ impl<T: MyFloat> Context<T> {
         let ln_z = z.ln();
 
         result += (z - 0.5f64.unchecked_cast::<T>()) * ln_z - z
-            + (T::PI() * T::from(2).unwrap()).ln() / T::from(2).unwrap();
+            + (T::PI() * 2i32.unchecked_cast::<T>()).ln() / 2i32.unchecked_cast::<T>();
         let z2 = z * z;
         let mut zpow = z;
         for i in 1..N {
-            result += self.bernoulli(i * 2) / T::from((2 * i) * (2 * i - 1)).unwrap() / zpow;
+            result += self.bernoulli(i * 2) / (((2 * i) * (2 * i - 1)) as i32).unchecked_cast::<T>() / zpow;
             zpow *= z2;
         }
         let err = self.loggamma_err(ln_z.approx(), N);
@@ -96,7 +94,7 @@ impl<T: MyFloat> Context<T> {
         info!("initialize factorial up to {}", n);
         let mut factorial = vec![T::one(); n + 1];
         for i in 1..=n {
-            factorial[i] = factorial[i - 1] * T::from(i).unwrap();
+            factorial[i] = factorial[i - 1] * (i as i32).unchecked_cast::<T>();
         }
         self.factorial = factorial;
     }
@@ -107,7 +105,7 @@ impl<T: MyFloat> Context<T> {
         info!("initialize Bernoulli numbers up to {}", n);
         let mut bernoulli = vec![T::zero(); n + 1];
         bernoulli[0] = T::one();
-        bernoulli[1] = -T::from(2).unwrap().recip();
+        bernoulli[1] = (-2i32).unchecked_cast::<T>().recip();
 
         for i in 1..=n / 2 {
             let mut b = T::zero();
@@ -117,7 +115,7 @@ impl<T: MyFloat> Context<T> {
             bernoulli[2 * i] = (T::one() - b) / self.factorial(2 * i);
         }
         for i in 1..=n / 2 {
-            bernoulli[i * 2] *= self.factorial(2 * i) / T::from(4).unwrap().pow(i as i32);
+            bernoulli[i * 2] *= self.factorial(2 * i) / 4i32.unchecked_cast::<T>().pow(i as i32);
         }
 
         debug!("bernoulli numbers = {:?}", &bernoulli[..10]);

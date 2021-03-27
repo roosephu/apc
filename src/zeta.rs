@@ -6,7 +6,6 @@ use crate::{
 use core::panic;
 use log::debug;
 use num::Complex;
-use num_traits::AsPrimitive;
 use rustfft::FftNum;
 use std::f64::consts::PI;
 
@@ -34,7 +33,7 @@ fn ln_g_norm(z: Complex<f64>, s: Complex<f64>) -> f64 {
 
 /// z = O(n) + i O(ln(n)), s = O(1) + i t.
 fn f<T: MyFloat>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
-    let z_im = AsPrimitive::<f64>::as_(z.im);
+    let z_im: f64 = z.im.unchecked_cast();
     if z_im > 100.0 {
         let a = z.scale(T::PI()).mul_i().exp();
         g(z, s) / a
@@ -250,8 +249,8 @@ impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
         if let Some(h) = self.h {
             let idx = (s.im - self.s0.im) / h;
             let round_idx = idx.round();
-            let int_idx = AsPrimitive::<i64>::as_(round_idx) as usize;
-            assert!(AsPrimitive::<f64>::as_((idx - round_idx).abs()) <= 1e-8);
+            let int_idx = round_idx.unchecked_cast::<i64>() as usize;
+            assert!((idx - round_idx).abs().unchecked_cast::<f64>() <= 1e-8);
 
             plan.6 = Some(self.sum_trunc_dirichlet[int_idx]);
         }

@@ -46,15 +46,15 @@ pub fn sum_trunc_dirichlet<T: ExpPolyApprox + MyFloat + FftNum>(
 ) -> Vec<Complex<T>> {
     debug!("[OS-FKBJ] s = {:.6}, n = {}, m = {}, delta = {:.6}", s, n, m, delta);
     let M2 = (m + m % 2) / 2;
-    let TM2 = T::from(M2).unwrap();
+    let TM2 = (M2 as i64).unchecked_cast::<T>();
     let s = s + Complex::new(T::zero(), TM2 * delta);
     let a: Vec<_> =
-        (1..=n).map(|x| Complex::new(T::from(x).unwrap(), T::zero()).powc(-s)).collect();
-    let g: Vec<T> = (1..=n).map(|x| T::from(x).unwrap().ln() * -delta).collect();
+        (1..=n).map(|x| Complex::new((x as i32).unchecked_cast::<T>(), T::zero()).powc(-s)).collect();
+    let g: Vec<T> = (1..=n).map(|x| (x as i32).unchecked_cast::<T>().ln() * -delta).collect();
     let R = (m + 1).next_power_of_two() * 2;
-    let div = T::TAU() / T::from(R).unwrap();
-    let w: Vec<i64> = g.iter().map(|&x| ((x / div).round().as_())).collect();
-    let d: Vec<T> = g.iter().zip(w.iter()).map(|(&x, &y)| x - T::from(y).unwrap() * div).collect();
+    let div = T::TAU() / (R as i32).unchecked_cast::<T>();
+    let w: Vec<i64> = g.iter().map(|&x| ((x / div).round().unchecked_cast())).collect();
+    let d: Vec<T> = g.iter().zip(w.iter()).map(|(&x, &y)| x - y.unchecked_cast::<T>() * div).collect();
 
     let mut ret = vec![Complex::zero(); m + 1];
     let mut f = vec![Complex::zero(); R];
@@ -71,7 +71,7 @@ pub fn sum_trunc_dirichlet<T: ExpPolyApprox + MyFloat + FftNum>(
         fft.process(&mut f);
         for x in 0..=m {
             ret[x] +=
-                c * f[(x + R - M2) % R] * (T::from(x).unwrap() / TM2 - T::one()).pow(e as i32);
+                c * f[(x + R - M2) % R] * ((x as i32).unchecked_cast::<T>() / TM2 - T::one()).pow(e as i32);
         }
     }
 

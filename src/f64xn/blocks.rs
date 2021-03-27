@@ -159,7 +159,7 @@ impl Div<f64x2> for f64x2 {
     fn div(self, y: f64x2) -> f64x2 {
         let x = self;
         let t_hi = x.hi / y.hi;
-        let r = y / t_hi;
+        let r = y * t_hi;
         let p_hi = x.hi - r.hi;
         let d_lo = x.lo - r.lo;
         let d = p_hi + d_lo;
