@@ -1,5 +1,11 @@
-pub mod def;
-pub use def::f64x2;
-pub mod blocks;
-pub mod functions;
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default)]
+pub struct f64x2 {
+    pub hi: f64,
+    pub lo: f64,
+}
+
+mod impl_traits;
+mod blocks;
+mod functions;
 mod remez;

@@ -64,7 +64,9 @@ impl<T: MyFloat> Context<T> {
         let z2 = z * z;
         let mut zpow = z;
         for i in 1..N {
-            result += self.bernoulli(i * 2) / (((2 * i) * (2 * i - 1)) as i32).unchecked_cast::<T>() / zpow;
+            result += self.bernoulli(i * 2)
+                / (((2 * i) * (2 * i - 1)) as i32).unchecked_cast::<T>()
+                / zpow;
             zpow *= z2;
         }
         let err = self.loggamma_err(ln_z.approx(), N);

@@ -1,7 +1,7 @@
 #![allow(clippy::approx_constant)]
 
 use std::{
-    fmt::{Display, Error, LowerExp},
+    fmt::{Display, LowerExp},
     num::FpCategory,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign},
 };
@@ -9,14 +9,8 @@ use std::{
 use num::{Complex, Float, FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 use num_traits::{AsPrimitive, FloatConst, Pow};
 
-use crate::{sum_trunc_dirichlet::ExpPolyApprox, traits::Erfc, unchecked_from::{UncheckedCast, UncheckedFrom, UncheckedInto}};
+use crate::{f64x2, sum_trunc_dirichlet::ExpPolyApprox, traits::Erfc, unchecked_from::{UncheckedCast, UncheckedFrom, UncheckedInto}};
 
-#[allow(non_camel_case_types)]
-#[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default)]
-pub struct f64x2 {
-    pub hi: f64,
-    pub lo: f64,
-}
 
 impl From<f64x2> for String {
     fn from(mut a: f64x2) -> Self {
@@ -121,7 +115,7 @@ impl Rem for f64x2 {
 }
 
 impl Num for f64x2 {
-    type FromStrRadixErr = Error;
+    type FromStrRadixErr = &'static str;
 
     #[inline]
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> { todo!() }
@@ -256,19 +250,19 @@ impl Float for f64x2 {
     fn powi(self, n: i32) -> Self { todo!() }
 
     #[inline]
-    fn powf(self, n: Self) -> Self { f64x2::powf(self, n) }
+    fn powf(self, n: Self) -> Self { self.powf(n) }
 
     #[inline]
-    fn sqrt(self) -> Self { f64x2::sqrt(self) }
+    fn sqrt(self) -> Self { self.sqrt() }
 
     #[inline]
-    fn exp(self) -> Self { f64x2::exp(self) }
+    fn exp(self) -> Self { self.exp() }
 
     #[inline]
     fn exp2(self) -> Self { todo!() }
 
     #[inline]
-    fn ln(self) -> Self { f64x2::ln(self) }
+    fn ln(self) -> Self { self.ln() }
 
     #[inline]
     fn log10(self) -> Self { todo!() }
@@ -307,10 +301,10 @@ impl Float for f64x2 {
     fn asinh(self) -> Self { todo!() }
 
     #[inline]
-    fn atan(self) -> Self { f64x2::atan(self) }
+    fn atan(self) -> Self { self.atan() }
 
     #[inline]
-    fn atan2(self, other: Self) -> Self { f64x2::atan2(self, other) }
+    fn atan2(self, other: Self) -> Self { self.atan2(other) }
 
     #[inline]
     fn atanh(self) -> Self { todo!() }
@@ -328,22 +322,22 @@ impl Float for f64x2 {
     fn to_radians(self) -> Self { todo!() }
 
     #[inline]
-    fn sin(self) -> Self { f64x2::sin(self) }
+    fn sin(self) -> Self { self.sin() }
 
     #[inline]
-    fn sin_cos(self) -> (Self, Self) { (f64x2::sin(self), f64x2::cos(self)) }
+    fn sin_cos(self) -> (Self, Self) { (self.sin(), self.cos()) }
 
     #[inline]
-    fn sinh(self) -> Self { f64x2::sinh(self) }
+    fn sinh(self) -> Self { self.sinh() }
 
     #[inline]
     fn cbrt(self) -> Self { todo!() }
 
     #[inline]
-    fn cos(self) -> Self { f64x2::cos(self) }
+    fn cos(self) -> Self { self.cos() }
 
     #[inline]
-    fn cosh(self) -> Self { f64x2::cosh(self) }
+    fn cosh(self) -> Self { self.cosh() }
 
     #[inline]
     fn integer_decode(self) -> (u64, i16, i8) { todo!() }
@@ -656,9 +650,7 @@ impl UncheckedFrom<i64> for f64x2 {
 }
 
 impl UncheckedFrom<i32> for f64x2 {
-    fn unchecked_from(x: i32) -> Self {
-        Self { hi: x as f64, lo: 0.0 }
-    }
+    fn unchecked_from(x: i32) -> Self { Self { hi: x as f64, lo: 0.0 } }
 }
 
 impl UncheckedInto<f64> for f64x2 {

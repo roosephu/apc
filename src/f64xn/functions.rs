@@ -216,9 +216,7 @@ impl f64x2 {
     }
 
     #[inline]
-    pub fn powf(self, other: Self) -> Self {
-        (self.ln() * other).exp()
-    }
+    pub fn powf(self, other: Self) -> Self { (self.ln() * other).exp() }
 
     pub fn abs(self) -> Self {
         if self.hi < 0.0 {

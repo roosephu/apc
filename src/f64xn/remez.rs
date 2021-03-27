@@ -1,7 +1,6 @@
 use crate::f64x2;
 
 impl f64x2 {
-
     // |x| < pi / 4
     #[inline]
     pub(crate) fn sin_remez(self) -> Self {
