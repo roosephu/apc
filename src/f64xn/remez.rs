@@ -143,14 +143,14 @@ impl f64x2 {
         const C27: f64x2 = f64x2 { hi: -0.035922805494120864, lo: -1.4742055459849575e-18 };
         const C29: f64x2 = f64x2 { hi: 0.025993659875133343, lo: 4.697290175572255e-19 };
 
-        let s = self;
-        let x = (s - 1.0) / (s + 1.0);
+        let x = self;
         let x2 = x * x;
         let x4 = x2 * x2;
         let x6 = x2 * x4;
         let x8 = x4 * x4;
         let x10 = x4 * x6;
         let x20 = x10 * x10;
+
         let r1 = C1 + x2 * C3 + x4 * C5 + x6 * C7 + x8 * C9;
         let r2 = x10 * (C11 + x2 * C11 + x4 * C11 + x6 * C15 + x8 * C19);
         let r3 = x20 * (C21 + x2 * C23 + x4 * C25 + x6 * C27 + x8 * C29);

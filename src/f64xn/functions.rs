@@ -35,7 +35,7 @@ impl f64x2 {
 
     pub fn powi(self, n: i64) -> Self {
         if n == 0 {
-            Self::zero()
+            Self::one()
         } else {
             let mut s = Self::one();
             let mut n_abs = n.abs();
@@ -63,8 +63,8 @@ impl f64x2 {
 
     pub fn ln(self) -> Self {
         let y = Self::from(self.hi.ln());
-        let y = y + self * y.exp() - 1.0;
-        y + self * y.exp() - 1.0
+        let y = y + self * (-y).exp() - 1.0;
+        y + self * (-y).exp() - 1.0
     }
 
     pub fn cos(self) -> Self {
@@ -120,7 +120,7 @@ impl f64x2 {
             Self { hi: self.hi.floor(), lo: 0.0 }
         };
         let diff = self - ret;
-        assert!(0.0 <= diff.hi && diff.hi < 1.0, "self = {:?}", self);
+        assert!(0.0 <= diff.hi && diff.hi <= 1.0, "self = {:?}", self);
         ret
     }
 
@@ -166,8 +166,7 @@ impl f64x2 {
 
             if approx <= 1.0 {
                 // atan(x) < PI/4
-                const TAN_FRAC_PI_8: f64 = 0.41421356237309503;
-                if approx < TAN_FRAC_PI_8 {
+                if approx < 0.41421356237309503 { // tan(PI / 8)
                     // atan(x) < PI/8 => base = PI / 16
                     (base, tan_base) = (0.19634954084936207, 0.198912367379658);
                 } else {
@@ -175,8 +174,8 @@ impl f64x2 {
                     (base, tan_base) = (0.5890486225480862, 0.6681786379192989);
                 }
             } else {
-                const TAN_FRAC_3PI_8: f64 = 2.414213562373095;
-                if approx < TAN_FRAC_3PI_8 {
+                // another division
+                if approx < 2.414213562373095 { // tan(3 PI / 8)
                     // PI/4 <= atan(x) < 3PI/8 => base = 5PI / 16
                     (base, tan_base) = (0.9817477042468103, 1.496605762665489);
                 } else {
@@ -185,7 +184,7 @@ impl f64x2 {
                 }
             }
 
-            base + (self - tan_base) / (1.0 + self * tan_base).atan_remez()
+            base + ((self - tan_base) / (1.0 + self * tan_base)).atan_remez()
         }
     }
 

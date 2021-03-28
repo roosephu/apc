@@ -57,7 +57,11 @@ fn ln_f_norm(z: Complex<f64>, s: Complex<f64>) -> f64 {
 }
 
 fn H<T: MyFloat>(w: Complex<T>) -> Complex<T> {
-    T::one() / (T::one() - w.mul_i().scale(T::TAU()).exp())
+    if w.im < (-30.0f64).unchecked_cast() {
+        Complex::<T>::zero()
+    } else {
+        T::one() / (T::one() - w.mul_i().scale(T::TAU()).exp())
+    }
 }
 
 fn is_close(a: f64, b: f64) -> bool { ((a - b) / a).abs() < 1e-9 }
@@ -133,9 +137,10 @@ impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
         let direction = Complex64::new(0.5f64.sqrt(), 0.5f64.sqrt());
 
         let f_alpha = |alpha: Float| ln_f_norm(n + 0.5 + direction * alpha * delta, s) - ln_eps;
+        // println!("{} {} {}", f_alpha(0.0), f_alpha(2.0), f_alpha(-2.0));
 
-        let alpha_1 = brentq(f_alpha, 0.0, 1.0, 1e-6, 1e-6, 10).unwrap();
-        let alpha_2 = brentq(f_alpha, 0.0, -1.0, 1e-6, 1e-6, 10).unwrap();
+        let alpha_1 = brentq(f_alpha, 0.0, 2.0, 1e-6, 1e-6, 20).unwrap();
+        let alpha_2 = brentq(f_alpha, 0.0, -2.0, 1e-6, 1e-6, 20).unwrap();
         let z_1 = n + 0.5 + direction * alpha_1 * delta;
         let z_2 = n + 0.5 + direction * alpha_2 * delta;
 
@@ -169,7 +174,7 @@ impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
         //     "[Zeta plan from scratch] alpha_1 = {:.6}, alpha_2 = {:.6}",
         //     self.alpha_1, self.alpha_2
         // );
-        assert!((0.2..=0.8).contains(&alpha_1) && (-0.8..=-0.2).contains(&alpha_2));
+        // assert!((0.2..=0.8).contains(&alpha_1) && (-0.8..=-0.2).contains(&alpha_2));
 
         (n as i64, m as i64, n_l, n_r, h, z_1, None)
     }
@@ -219,7 +224,7 @@ impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
             // debug!("[I] a1 = {:.6}, a2 = {:.6}, delta = {:.6}", alpha_1, alpha_2, delta);
             debug!("m = {}", m);
         }
-        assert!((0.2..=0.8).contains(&alpha_1) && (-0.8..=-0.2).contains(&alpha_2));
+        // assert!((0.1..=0.9).contains(&alpha_1) && (-0.8..=-0.2).contains(&alpha_2));
 
         self.m = m;
         self.alpha_1 = alpha_1;
@@ -294,6 +299,7 @@ impl<T: MyFloat> ZetaGalway<'_, T> {
         let mut s1 = Complex::<T>::zero();
         for i in 0..=m {
             s1 += f(z_1 + h * i.unchecked_cast::<T>(), s);
+            // debug!("{:?}, {:?}, {:?}", z_1 + h * i.unchecked_cast::<T>(), s, f(z_1 + h * i.unchecked_cast::<T>(), s));
         }
 
         let mut s2 = Complex::<T>::zero();
@@ -306,8 +312,10 @@ impl<T: MyFloat> ZetaGalway<'_, T> {
         for i in n + 1..=n_r {
             let cast_i = i.unchecked_cast::<T>();
             s3 += Complex::<T>::new(cast_i, T::zero()).powc(-s) * H((z_1 - cast_i) / h);
+            // println!("{:?} {:?}", (z_1 - cast_i) / h, H((z_1 - cast_i) / h));
         }
-        // info!("s0 = {}, s1 = {}, s2 = {}, s3 = {}", s0, s1, s2, s3);
+        // debug!("s = {}, plan = {:?}", s, plan);
+        // debug!("s0 = {}, s1 = {}, s2 = {}, s3 = {}", s0, s1, s2, s3);
         // info!("ret = {}", s0 + s1 * h - s2 + s3);
 
         s0 + s1 * h - s2 + s3
@@ -316,6 +324,7 @@ impl<T: MyFloat> ZetaGalway<'_, T> {
 
 impl<T: MyFloat> FnZeta<T> for ZetaGalway<'_, T> {
     fn zeta(&mut self, s: Complex<T>, eps: f64) -> Complex<T> {
+        // println!("??? s = {}, eps = {}", s, eps);
         let log_chi = (s - 0.5f64.unchecked_cast::<T>()) * T::PI().ln()
             + self.ctx.loggamma((T::one() - s) * 0.5f64.unchecked_cast::<T>(), eps)
             - self.ctx.loggamma(s * 0.5f64.unchecked_cast::<T>(), eps);
@@ -323,11 +332,24 @@ impl<T: MyFloat> FnZeta<T> for ZetaGalway<'_, T> {
 
         let plan0 = self.planners[0].plan(s, eps);
         let plan1 = self.planners[1].plan(T::one() - s.conj(), eps);
-        self.I0(s, plan0) + chi * self.I0(T::one() - s.conj(), plan1).conj()
+        let ret = self.I0(s, plan0) + chi * self.I0(T::one() - s.conj(), plan1).conj();
+        // println!("!!! ret = {}, {}, {}, {}", ret, self.I0(s, plan0), chi, self.I0(T::one() - s.conj(), plan1));
+        ret
     }
 
     fn prepare_multi_eval(&mut self, h: T, eps: f64) {
         self.planners[0].h = Some(h);
         self.planners[1].h = Some(h);
     }
+}
+
+use crate::f64xn::f64x2;
+
+#[test]
+fn test() {
+    type T = f64x2;
+    let a = Complex { re: f64x2 { hi: 18628203234838640000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0, lo: -563006310020321800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0 }, im: f64x2 { hi: 2485660905699169000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0, lo: -111937677378621850000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0 } };
+    // let b = T::one() / a;
+    let b = a.re.hypot(a.im);
+    println!("a = {:?}, b = {}", a, b);
 }

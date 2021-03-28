@@ -198,7 +198,7 @@ impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
     /// as long as they satisfy the error bound.
     fn plan(&mut self, x: f64) {
         let sigma = 1.5;
-        let lambda = 30.0 / x.sqrt();
+        let lambda = 2.0 / x.sqrt();
 
         let (x1, x2) = self.plan_delta_bounds(lambda, x, 0.24);
         let h = self.plan_h(sigma, lambda, x, 0.2);

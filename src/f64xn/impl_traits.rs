@@ -380,7 +380,7 @@ impl Sub<Complex<f64x2>> for f64x2 {
 
     #[inline]
     fn sub(self, rhs: Complex<f64x2>) -> Self::Output {
-        Complex::<f64x2>::new(self - rhs.re, rhs.im)
+        Complex::<f64x2>::new(self - rhs.re, -rhs.im)
     }
 }
 
