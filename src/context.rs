@@ -36,14 +36,18 @@ impl<T: MyFloat> Context<T> {
     fn loggamma_err(&self, ln_z: Complex<f64>, n: usize) -> f64 {
         let arg = ln_z.im;
         let norm = ln_z.re.exp();
-        let err_coef = if arg < std::f64::consts::PI / 4.0 {
+        let err_coef = if arg < std::f64::consts::FRAC_PI_4 {
             1.0
-        } else if arg < std::f64::consts::PI / 2.0 {
+        } else if arg < std::f64::consts::FRAC_PI_2 {
             1.0 / arg.sin().abs()
         } else {
+            panic!("you should normalize z first!, z = {:?}", ln_z);
             1.0 / (arg / 2.0).cos().pow(2 * n as i32)
         };
-        self.bernoulli(n * 2).unchecked_cast::<f64>() / ((2 * n) * (2 * n - 1)) as f64 * err_coef
+        self.bernoulli(n * 2).unchecked_cast::<f64>().abs()
+            / ((2 * n) * (2 * n - 1)) as f64
+            / norm.powi((2 * n - 1) as i32)
+            * err_coef
     }
 
     /// log Gamma function by Stirling series
@@ -51,6 +55,7 @@ impl<T: MyFloat> Context<T> {
     pub fn loggamma(&self, mut z: Complex<T>, eps: f64) -> Complex<T> {
         const N: usize = 20;
 
+        assert!(z.re > (-20.0f64).unchecked_cast(), "beyond impl {:?}", z);
         let mut result = Complex::zero();
         while z.re < (N as i64).unchecked_into() {
             result -= z.ln();
@@ -64,10 +69,15 @@ impl<T: MyFloat> Context<T> {
         let z2 = z * z;
         let mut zpow = z;
         for i in 1..N {
-            result += self.bernoulli(i * 2)
+            let contrib = self.bernoulli(i * 2)
                 / (((2 * i) * (2 * i - 1)) as i32).unchecked_cast::<T>()
                 / zpow;
+            result += contrib;
+
             zpow *= z2;
+            if contrib.l1_norm().unchecked_cast::<f64>() * 10.0 < eps {
+                break;
+            }
         }
         let err = self.loggamma_err(ln_z.approx(), N);
         assert!(err <= eps);

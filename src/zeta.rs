@@ -222,7 +222,7 @@ impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
 
         if rand::random::<f64>() < 0.001 {
             // debug!("[I] a1 = {:.6}, a2 = {:.6}, delta = {:.6}", alpha_1, alpha_2, delta);
-            debug!("m = {}", m);
+            // debug!("m = {}", m);
         }
         // assert!((0.1..=0.9).contains(&alpha_1) && (-0.8..=-0.2).contains(&alpha_2));
 
@@ -299,7 +299,7 @@ impl<T: MyFloat> ZetaGalway<'_, T> {
         let mut s1 = Complex::<T>::zero();
         for i in 0..=m {
             s1 += f(z_1 + h * i.unchecked_cast::<T>(), s);
-            // debug!("{:?}, {:?}, {:?}", z_1 + h * i.unchecked_cast::<T>(), s, f(z_1 + h * i.unchecked_cast::<T>(), s));
+            // debug!("{:?}, {:?} {:?}", z_1 + h * i.unchecked_cast::<T>(), s, f(z_1 + h * i.unchecked_cast::<T>(), s));
         }
 
         let mut s2 = Complex::<T>::zero();
@@ -320,6 +320,16 @@ impl<T: MyFloat> ZetaGalway<'_, T> {
 
         s0 + s1 * h - s2 + s3
     }
+
+    fn test(&mut self, s: Complex<T>, eps: f64) {
+        let log_chi = (s - 0.5f64.unchecked_cast::<T>()) * T::PI().ln()
+            + self.ctx.loggamma((T::one() - s) * 0.5f64.unchecked_cast::<T>(), eps)
+            - self.ctx.loggamma(s * 0.5f64.unchecked_cast::<T>(), eps);
+        let a = self.ctx.loggamma((T::one() - s) * 0.5f64.unchecked_cast::<T>(), eps);
+        let b = self.ctx.loggamma(s * 0.5f64.unchecked_cast::<T>(), eps);
+        println!("a = {:?}, b = {:?}", a, b);
+        println!("log chi = {:?}", log_chi);
+    }
 }
 
 impl<T: MyFloat> FnZeta<T> for ZetaGalway<'_, T> {
@@ -328,6 +338,7 @@ impl<T: MyFloat> FnZeta<T> for ZetaGalway<'_, T> {
         let log_chi = (s - 0.5f64.unchecked_cast::<T>()) * T::PI().ln()
             + self.ctx.loggamma((T::one() - s) * 0.5f64.unchecked_cast::<T>(), eps)
             - self.ctx.loggamma(s * 0.5f64.unchecked_cast::<T>(), eps);
+        assert!(!log_chi.re.is_nan(), "{:?} {}", s, eps);
         let chi = log_chi.exp();
 
         let plan0 = self.planners[0].plan(s, eps);
@@ -347,9 +358,17 @@ use crate::f64xn::f64x2;
 
 #[test]
 fn test() {
-    type T = f64x2;
-    let a = Complex { re: f64x2 { hi: 18628203234838640000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0, lo: -563006310020321800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0 }, im: f64x2 { hi: 2485660905699169000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0, lo: -111937677378621850000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0 } };
-    // let b = T::one() / a;
-    let b = a.re.hypot(a.im);
-    println!("a = {:?}, b = {}", a, b);
+    let ctx2 = Context::<f64x2>::new(100);
+    let mut zeta_galway2 = ZetaGalway::new(&ctx2);
+
+    let s = Complex {
+        re: f64x2 { hi: 1.5, lo: 0.0 },
+        im: f64x2 { hi: 29284.310190328237, lo: -0.0000000000006786238238021269 },
+    } * 0.5f64.unchecked_cast::<f64x2>();
+    let eps = 0.00000000000000000006242544263895699;
+    println!("{}", s);
+    let t = ctx2.loggamma(s, eps);
+    println!("{:?}", t);
+
+    // zeta_galway2.test(s, eps);
 }

@@ -25,7 +25,7 @@ impl f64x2 {
         let x16 = x8 * x8;
 
         let r1 = C1 + x2 * C3 + x4 * C5 + x6 * C7;
-        let r2 = x8 * (C9 + x2 * C11 + x4 * C11 + x6 * C15);
+        let r2 = x8 * (C9 + x2 * C11 + x4 * C13 + x6 * C15);
         let r3 = x16 * (C17 + x2 * C19 + x4 * C21 + x6 * C23);
 
         x * (r1 + r2 + r3)
@@ -90,7 +90,7 @@ impl f64x2 {
         let x20 = x10 * x10;
 
         let r1 = C1 + x2 * C3 + x4 * C5 + x6 * C7 + x8 * C9;
-        let r2 = x10 * (C11 + x2 * C11 + x4 * C11 + x6 * C15 + x8 * C19);
+        let r2 = x10 * (C11 + x2 * C13 + x4 * C15 + x6 * C17 + x8 * C19);
         let r3 = x20 * (C21 + x2 * C23 + x4 * C25 + x6 * C27 + x8 * C29);
 
         x * (r1 + r2 + r3)
@@ -119,7 +119,7 @@ impl f64x2 {
 
         let r1 = x2 * C2 + x4 * C4 + x6 * C6;
         let r2 = x8 * (C8 + x2 * C10 + x4 * C12);
-        let r3 = x14 * (C16 + x2 * C18 + x4 * C20);
+        let r3 = x14 * (C14 + x2 * C16 + x4 * C18 + x6 * C20);
         // r = 2.0 + r1 + r2 + r3;
         // r = x (exp(x) + 1) / (exp(x) - 1) => exp(x) = 1 + 2r / (r - x)
         let c = x - (r1 + r2 + r3);
@@ -152,7 +152,7 @@ impl f64x2 {
         let x20 = x10 * x10;
 
         let r1 = C1 + x2 * C3 + x4 * C5 + x6 * C7 + x8 * C9;
-        let r2 = x10 * (C11 + x2 * C11 + x4 * C11 + x6 * C15 + x8 * C19);
+        let r2 = x10 * (C11 + x2 * C13 + x4 * C15 + x6 * C17 + x8 * C19);
         let r3 = x20 * (C21 + x2 * C23 + x4 * C25 + x6 * C27 + x8 * C29);
 
         x * (r1 + r2 + r3)

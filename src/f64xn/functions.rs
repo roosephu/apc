@@ -1,3 +1,5 @@
+use crate::unchecked_cast::UncheckedCast;
+
 use super::{blocks::*, f64x2};
 use num::traits::FloatConst;
 use num::{Float, One, Zero};
@@ -70,7 +72,7 @@ impl f64x2 {
     pub fn cos(self) -> Self {
         let x = (self / Self::FRAC_PI_2()).floor();
         let y = self - x * Self::FRAC_PI_2();
-        let x: i64 = x.as_();
+        let x: i64 = x.unchecked_cast();
         match x.rem_euclid(4) {
             0 => y.cos_remez(),
             1 => -y.sin_remez(),
@@ -83,7 +85,7 @@ impl f64x2 {
     pub fn sin(self) -> Self {
         let x = (self / Self::FRAC_PI_2()).floor();
         let y = self - x * Self::FRAC_PI_2();
-        let x: i64 = x.as_();
+        let x: i64 = x.unchecked_cast();
         match x.rem_euclid(4) {
             0 => y.sin_remez(),
             1 => y.cos_remez(),
@@ -119,8 +121,8 @@ impl f64x2 {
         } else {
             Self { hi: self.hi.floor(), lo: 0.0 }
         };
-        let diff = self - ret;
-        assert!(0.0 <= diff.hi && diff.hi <= 1.0, "self = {:?}", self);
+        // let diff = self - ret;
+        // assert!(0.0 <= diff.hi && diff.hi <= 1.0, "self = {:?}", self);
         ret
     }
 
@@ -148,8 +150,8 @@ impl f64x2 {
         // } else {
         //     ret = Self { hi: self.hi.round(), lo: 0.0 }
         // }
-        let diff = ret - self;
-        assert!(-0.5 <= diff.hi && diff.hi <= 0.5, "self = {:?}", self);
+        // let diff = ret - self;
+        // assert!(-0.5 <= diff.hi && diff.hi <= 0.5, "self = {:?}", self);
         ret
     }
 
@@ -166,7 +168,8 @@ impl f64x2 {
 
             if approx <= 1.0 {
                 // atan(x) < PI/4
-                if approx < 0.41421356237309503 { // tan(PI / 8)
+                if approx < 0.41421356237309503 {
+                    // tan(PI / 8)
                     // atan(x) < PI/8 => base = PI / 16
                     (base, tan_base) = (0.19634954084936207, 0.198912367379658);
                 } else {
@@ -175,7 +178,8 @@ impl f64x2 {
                 }
             } else {
                 // another division
-                if approx < 2.414213562373095 { // tan(3 PI / 8)
+                if approx < 2.414213562373095 {
+                    // tan(3 PI / 8)
                     // PI/4 <= atan(x) < 3PI/8 => base = 5PI / 16
                     (base, tan_base) = (0.9817477042468103, 1.496605762665489);
                 } else {

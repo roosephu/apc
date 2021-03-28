@@ -90,7 +90,8 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
                 if power < x1 {
                     ret -= m.unchecked_cast::<T>().recip();
                 } else {
-                    ret -= self.phi(m.unchecked_cast(), fx, eps) / m.unchecked_cast::<T>();
+                    ret -= self.phi((power as i64).unchecked_cast(), fx, eps)
+                        / m.unchecked_cast::<T>();
                 }
             }
         }
@@ -135,20 +136,23 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
     }
 
     fn calc_pi_star(&mut self, x: T, eps: f64) -> T {
+        let n_total_evals: i64 = (self.integral_limit / self.h).ceil().unchecked_cast();
+
         let eps = eps
             / 4.0
             / x.unchecked_cast::<f64>().powf(self.sigma.unchecked_cast())
-            / x.unchecked_cast::<f64>().ln();
+            / x.unchecked_cast::<f64>().ln()
+            / n_total_evals as f64;
         let ln_x = x.ln();
 
         let mut ans = Complex::<T>::zero();
 
-        let n_total_evals: i64 = (self.integral_limit / self.h).ceil().unchecked_cast();
         for t in 1..=n_total_evals {
             let s = Complex::new(self.sigma, self.h * t.unchecked_cast::<T>());
             ans += self.Psi(s, ln_x, eps);
+            // println!("s = {}, Psi = {}, eps = {}", s, self.Psi(s, ln_x, eps), eps);
             if t % (n_total_evals / 100).max(1) == 0 || t == n_total_evals {
-                info!(
+                debug!(
                     "n total evals = {}, progress = {}, height = {:.6}, ans = {:.16}, Psi = {:.6e}",
                     n_total_evals,
                     t,
@@ -168,6 +172,11 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
     }
 }
 
+#[derive(Default)]
+pub struct GalwayHints {
+    pub lambda: Option<f64>,
+}
+
 impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
     pub fn new(ctx: &'a Context<T>, fn_zeta: &'a mut Z) -> Self {
         Self {
@@ -182,30 +191,31 @@ impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
         }
     }
 
-    pub fn compute(&mut self, x: u64) -> u64 {
-        self.plan(x as f64);
+    pub fn compute(&mut self, x: u64, hints: GalwayHints) -> u64 {
+        self.plan(x as f64, hints);
 
         let eps = 0.4;
         let pi_star = self.calc_pi_star((x as i64).unchecked_cast(), eps / 2.0);
-        debug!("pi^* = {:.6}", pi_star);
+        info!("pi^* = {:.6}", pi_star);
         let delta = self.calc_delta(x, eps / 2.0);
-        debug!("delta = {:.6}", delta);
+        info!("delta = {:.6}", delta);
+        info!("sum = {:.6}", pi_star + delta);
         (pi_star + delta).round().unchecked_cast::<i64>() as u64
     }
 
     /// During planning, these hyperparameters (lambda, sigma, h, x1, x2, integral_limits)
     /// doesn't need to be very accurate
     /// as long as they satisfy the error bound.
-    fn plan(&mut self, x: f64) {
+    fn plan(&mut self, x: f64, hints: GalwayHints) {
         let sigma = 1.5;
-        let lambda = 2.0 / x.sqrt();
+        let lambda = hints.lambda.unwrap_or(1.0) / x.sqrt();
 
         let (x1, x2) = self.plan_delta_bounds(lambda, x, 0.24);
         let h = self.plan_h(sigma, lambda, x, 0.2);
         let integral_limit = self.plan_integral(sigma, lambda, x, 0.1);
         info!("sigma = {:.6}", sigma);
         info!("lambda = {:.6}", lambda);
-        info!("h = {:.6}", self.h);
+        info!("h = {:.6}", h);
         info!("delta range = [{}, {}], length = {}", x1, x2, x2 - x1);
         info!(
             "integral limit = {:.6}, # zeta evals = {}",
@@ -223,15 +233,16 @@ impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
     }
 
     fn plan_integral(&mut self, sigma: f64, lambda: f64, x: f64, eps: f64) -> f64 {
-        let limit = 0.75 * eps / (lambda * lambda * sigma * sigma / 2.0) / (2.0 * PI)
-            * rgsl::zeta::riemann::zeta(sigma)
-            / x.powf(sigma);
+        let limit = 0.75 * eps
+            / ((lambda * lambda * sigma * sigma / 2.0).exp() / (2.0 * PI)
+                * rgsl::zeta::riemann::zeta(sigma).ln()
+                * x.powf(sigma));
         let u = brentq(
-            |x| rgsl::exponential_integrals::E1(x) - limit,
+            |x| rgsl::exponential_integrals::E1(x).ln() - limit.ln(),
             lambda * lambda / 2.0,
             -limit.ln(),
-            eps,
-            eps,
+            0.0,
+            0.0,
             100,
         )
         .unwrap();

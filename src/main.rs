@@ -2,35 +2,58 @@
 #![allow(non_snake_case)]
 
 use analytic::*;
+use clap::{crate_authors, crate_version, Clap};
 
 type T = f64x2;
 
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    env_logger::init();
+#[derive(Clap, Debug)]
+#[clap(version = crate_version!(), author = crate_authors!())]
+struct Opts {
+    n: u64,
+    #[clap(long)]
+    lambda: Option<f64>,
+}
 
-    assert!(args.len() == 2);
-    let n = args[1].to_string().parse::<u64>().unwrap();
+fn main() {
+    env_logger::init();
+    let opts: Opts = Opts::parse();
+
+    let n = opts.n;
     println!("======= computing pi({}) ======", n);
 
-    let ctx = Context::<f64>::new(100);
+    let ctx = Context::<f64x2>::new(100);
     let mut zeta_galway = ZetaGalway::new(&ctx);
     let mut galway = Galway::new(&ctx, &mut zeta_galway);
-    let ans = galway.compute(n);
+
+    let hints = GalwayHints { lambda: opts.lambda };
+
+    let ans = galway.compute(n, hints);
     println!("[Galway] ans = {}", ans);
     println!("[ZetaGalway] complexity = {}", zeta_galway.complexity);
 }
 
-
 #[cfg(test)]
 mod tests {
-    use analytic::f64x2;
+    use analytic::unchecked_cast::*;
+    use analytic::zeta::FnZeta;
+    use analytic::*;
     use num::{Complex, One};
 
     #[test]
-    fn test() {
-        // let x = f64x2 { hi: 3.0, lo: -0.2204808216865093e-4 };
-        let s = Complex { re: f64x2 { hi: 1.5, lo: 0.0 }, im: f64x2 { hi: 0.1364376340480039, lo: 0.0 } };
-        println!("s = {:?}, 1 - s = {:?}", s, f64x2::one() - s);
+    fn test_tmp() {
+        let ctx1 = Context::<f64>::new(100);
+        let mut zeta_galway1 = ZetaGalway::new(&ctx1);
+        zeta_galway1.prepare_multi_eval(0.23939822958279525, 1e-10);
+
+        let ctx2 = Context::<f64x2>::new(100);
+        let mut zeta_galway2 = ZetaGalway::new(&ctx2);
+        zeta_galway2.prepare_multi_eval(0.23939822958279525.unchecked_into(), 1e-10);
+
+        let s1 = Complex::<f64>::new(1.5, 0.23939822958279525);
+        let s2 = Complex::<f64x2>::new(1.5.unchecked_into(), 0.23939822958279525.unchecked_into());
+        let result1 = zeta_galway1.zeta(s1, 1e-10);
+        let result2 = zeta_galway2.zeta(s2, 1e-10);
+        println!("{:?}", result1);
+        println!("{:?}", result2);
     }
 }

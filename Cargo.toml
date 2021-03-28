@@ -3,6 +3,7 @@ name = "analytic"
 version = "0.1.0"
 authors = ["Yuping Luo <roosephu@gmail.com>"]
 edition = "2018"
+description = "Prime counting, analytically"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]
@@ -19,3 +20,4 @@ env_logger = "0.8.3"
 num-traits = "0.2.14"
 num-complex = "0.3"
 rand = "0.8.3"
+clap = "3.0.0-beta.2"

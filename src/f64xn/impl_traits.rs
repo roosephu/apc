@@ -9,8 +9,12 @@ use std::{
 use num::{Complex, Float, FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 use num_traits::{AsPrimitive, FloatConst, Pow};
 
-use crate::{f64x2, sum_trunc_dirichlet::ExpPolyApprox, traits::Erfc, unchecked_cast::{UncheckedCast, UncheckedFrom, UncheckedInto}};
-
+use crate::{
+    f64x2,
+    sum_trunc_dirichlet::ExpPolyApprox,
+    traits::Erfc,
+    unchecked_cast::{UncheckedCast, UncheckedFrom, UncheckedInto},
+};
 
 impl From<f64x2> for String {
     fn from(mut a: f64x2) -> Self {
@@ -35,7 +39,7 @@ impl From<f64x2> for String {
                 a = a / 10.0; // TODO: avoid division
                 e += 1;
             }
-            while a * 10.0 < f64x2::one() {
+            while a < f64x2::one() {
                 a = a * 10.0;
                 e -= 1;
             }
@@ -634,7 +638,52 @@ impl LowerExp for f64x2 {
 }
 
 impl Erfc for f64x2 {
-    fn erfc(self, eps: f64) -> Self { todo!() }
+    fn erfc(self, eps: f64) -> Self {
+        if self.hi.abs() > 2.0 {
+            let h = f64::PI() / (6.0 / eps).ln().sqrt();
+            let K = ((1.0 / eps).ln().sqrt() / h).ceil() as i32;
+            let mut ret = Self::one() / self.square();
+
+            let h = h.unchecked_cast::<Self>();
+            for k in 1..=K {
+                let w = h.square() * (k * k).unchecked_cast::<Self>();
+                ret += 2.0.unchecked_cast::<Self>() * (-w).exp() / (self.square() + w);
+            }
+            ret * (-self.square()).exp() * h * self / Self::PI()
+                + 2.0.unchecked_cast::<Self>() / (Self::one() - (Self::TAU() * self / h).exp())
+        } else {
+            let s;
+            let z;
+            if self.hi >= 0.0 {
+                s = 1;
+                z = self;
+            } else {
+                s = -1;
+                z = -self;
+            }
+
+            let eps0 = eps / 2.0;
+
+            let mut t = z;
+            let mut k = 0i32;
+            let mut S = Self::zero();
+            let z_sq = z.square();
+            loop {
+                let ds = t / (2 * k + 1).unchecked_cast::<Self>();
+                S += ds;
+                if ds.abs().hi < eps0 {
+                    break;
+                }
+                k += 1;
+                t *= -z_sq / k.unchecked_cast::<Self>();
+            }
+            if s == 1 {
+                Self::one() - S * Self::FRAC_2_SQRT_PI()
+            } else {
+                Self::one() + S * Self::FRAC_2_SQRT_PI()
+            }
+        }
+    }
 }
 
 impl UncheckedFrom<f64> for f64x2 {

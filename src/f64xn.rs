@@ -5,7 +5,7 @@ pub struct f64x2 {
     pub lo: f64,
 }
 
-mod impl_traits;
 mod blocks;
 mod functions;
+mod impl_traits;
 mod remez;
