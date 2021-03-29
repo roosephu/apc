@@ -11,7 +11,7 @@ pub struct PowerSeries<T, const N: usize> {
 }
 
 impl<T: Copy + Num, const N: usize> PowerSeries<T, N> {
-    fn new(x: T) -> Self {
+    pub fn new(x: T) -> Self {
         let mut ret = Self { data: [T::zero(); N] };
         ret.data[0] = x;
         ret.data[1] = T::one();
@@ -90,7 +90,7 @@ impl<T: Copy + Num + UncheckedFrom<i32> + NumAssignOps, const N: usize> PowerSer
 }
 
 impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps, const N: usize> PowerSeries<T, N> {
-    fn cos_(&mut self) {
+    pub fn cos_(&mut self) {
         let mut derivatives = [T::zero(); N];
         let (sin_x, cos_x) = self.data[0].sin_cos();
         for i in 0..N {

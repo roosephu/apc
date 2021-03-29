@@ -640,17 +640,21 @@ impl LowerExp for f64x2 {
 impl Erfc for f64x2 {
     fn erfc(self, eps: f64) -> Self {
         if self.hi.abs() > 2.0 {
+            let z = self;
             let h = f64::PI() / (6.0 / eps).ln().sqrt();
             let K = ((1.0 / eps).ln().sqrt() / h).ceil() as i32;
-            let mut ret = Self::one() / self.square();
+
+            let z_sq = z.square();
+            let mut ret = Self::one() / z_sq;
 
             let h = h.unchecked_cast::<Self>();
+            let h_sq = h.square();
             for k in 1..=K {
-                let w = h.square() * (k * k).unchecked_cast::<Self>();
-                ret += 2.0.unchecked_cast::<Self>() * (-w).exp() / (self.square() + w);
+                let w = h_sq * (k * k).unchecked_cast::<Self>();
+                ret += 2.0.unchecked_cast::<Self>() * (-w).exp() / (z_sq + w);
             }
-            ret * (-self.square()).exp() * h * self / Self::PI()
-                + 2.0.unchecked_cast::<Self>() / (Self::one() - (Self::TAU() * self / h).exp())
+            ret * (-z_sq).exp() * h * z / Self::PI()
+                + 2.0.unchecked_cast::<Self>() / (Self::one() - (Self::TAU() * z / h).exp())
         } else {
             let s;
             let z;

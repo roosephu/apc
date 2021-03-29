@@ -14,6 +14,7 @@ pub mod f64xn;
 pub mod galway;
 pub mod gamma;
 pub mod power_series;
+pub mod riemann_siegel;
 pub mod sum_trunc_dirichlet;
 pub mod traits;
 pub mod unchecked_cast;

@@ -5,6 +5,9 @@ use num::traits::FloatConst;
 use num::{Float, One, Zero};
 use num_traits::AsPrimitive;
 
+#[inline]
+fn pow2(n: i32) -> f64 { f64::from_bits(((0x3ff + n) as u64) << 52) }
+
 impl f64x2 {
     /// see https://github.com/JuliaMath/DoubleFloats.jl/blob/master/src/math/ops/op_dd_dd.jl#L45-L52
     #[inline]
@@ -30,7 +33,7 @@ impl f64x2 {
         let factor2 = (self / Self::LN_2()).round();
         let rem = self - Self::LN_2() * factor2;
         let factor2: i64 = factor2.as_();
-        let exp_factor2 = 2.0.powi(factor2 as i32);
+        let exp_factor2 = pow2(factor2 as i32);
         let exp_rem = rem.exp_remez();
         Self { hi: exp_rem.hi * exp_factor2, lo: exp_rem.lo * exp_factor2 }
     }
@@ -63,10 +66,30 @@ impl f64x2 {
         }
     }
 
-    pub fn ln(self) -> Self {
+    pub fn ln_newton(self) -> Self {
         let y = Self::from(self.hi.ln());
         let y = y + self * (-y).exp() - 1.0;
-        y + self * (-y).exp() - 1.0
+        let ret = y + self * (-y).exp() - 1.0;
+
+        let diff = self.ln() - ret;
+        assert!(-1e-20 <= diff.hi && diff.hi <= 1e-20);
+
+        ret
+    }
+
+    pub fn ln(self) -> Self {
+        let bits = self.hi.to_bits();
+        let mut e = ((bits >> 52) & 0x7ff) as i32 - 0x3ff;
+        let mantissa = bits & 0xfffffffffffff;
+        if mantissa > 1865452045155277u64 {
+            // 2.0f64.sqrt().to_bits() & 0xfffffffffffff
+            // in this case: self.hi.log2().round() = e + 1;
+            e += 1;
+        }
+
+        let p2 = pow2(e);
+        let normalized = Self { hi: self.hi / p2, lo: self.lo / p2 };
+        normalized.ln_remez() + e.unchecked_cast::<Self>() * Self::LN_2()
     }
 
     pub fn cos(self) -> Self {
@@ -77,7 +100,8 @@ impl f64x2 {
             0 => y.cos_remez(),
             1 => -y.sin_remez(),
             2 => -y.cos_remez(),
-            _ => y.sin_remez(),
+            3 => y.sin_remez(),
+            _ => unreachable!(),
         }
     }
 
@@ -90,7 +114,8 @@ impl f64x2 {
             0 => y.sin_remez(),
             1 => y.cos_remez(),
             2 => -y.sin_remez(),
-            _ => -y.cos_remez(),
+            3 => -y.cos_remez(),
+            _ => unreachable!(),
         }
     }
 
@@ -126,30 +151,10 @@ impl f64x2 {
         ret
     }
 
-    pub fn ceil(self) -> Self {
-        -(-self).floor()
-        // let ret = two_add_fast(self.hi.ceil(), self.lo.ceil());
-        // let ret;
-        // if self.lo >= 0.5 || self.lo <= -0.5 {
-        //     // see analysis for floor
-        //     ret = two_add_fast(self.hi, self.lo.ceil())
-        // } else {
-        //     // hi.ceil doesn't overflow.
-        //     ret = Self { hi: self.hi.ceil(), lo: 0.0 }
-        // }
-        // let diff = ret - self;
-        // assert!(0.0 <= diff.hi && diff.hi < 1.0, "self = {:?}", self);
-        // ret
-    }
+    pub fn ceil(self) -> Self { -(-self).floor() }
 
     pub fn round(self) -> Self {
         let ret = two_add_fast(self.hi.round(), self.lo.round());
-        // let ret;
-        // if self.lo >= 0.5 || self.lo <= -0.5 {
-        //     ret = two_add_fast(self.hi, self.lo.round())
-        // } else {
-        //     ret = Self { hi: self.hi.round(), lo: 0.0 }
-        // }
         // let diff = ret - self;
         // assert!(-0.5 <= diff.hi && diff.hi <= 0.5, "self = {:?}", self);
         ret
@@ -171,20 +176,32 @@ impl f64x2 {
                 if approx < 0.41421356237309503 {
                     // tan(PI / 8)
                     // atan(x) < PI/8 => base = PI / 16
-                    (base, tan_base) = (0.19634954084936207, 0.198912367379658);
+                    (base, tan_base) = (
+                        0.19634954084936207,
+                        f64x2 { hi: 0.198912367379658, lo: -7.117703886485398e-18 },
+                    );
                 } else {
                     // PI/8 <= atan(x) < PI/4 => base = 3 PI / 16
-                    (base, tan_base) = (0.5890486225480862, 0.6681786379192989);
+                    (base, tan_base) = (
+                        0.5890486225480862,
+                        f64x2 { hi: 0.6681786379192989, lo: 7.828409495095202e-18 },
+                    );
                 }
             } else {
                 // another division
                 if approx < 2.414213562373095 {
                     // tan(3 PI / 8)
                     // PI/4 <= atan(x) < 3PI/8 => base = 5PI / 16
-                    (base, tan_base) = (0.9817477042468103, 1.496605762665489);
+                    (base, tan_base) = (
+                        0.9817477042468103,
+                        f64x2 { hi: 1.496605762665489, lo: -5.424792800215555e-17 },
+                    );
                 } else {
                     // 3 PI / 8 <= atan(x) < PI / 2 => base = 7 PI / 16
-                    (base, tan_base) = (1.3744467859455345, 5.027339492125846);
+                    (base, tan_base) = (
+                        1.3744467859455345,
+                        f64x2 { hi: 5.027339492125846, lo: 3.9817094207573838e-16 },
+                    );
                 }
             }
 
@@ -229,3 +246,6 @@ impl f64x2 {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {}

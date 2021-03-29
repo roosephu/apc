@@ -63,7 +63,8 @@ impl f64x2 {
 
     // 1 / sqrt(2) < self < sqrt(2)
     #[inline]
-    pub(crate) fn log_remez(self) -> Self {
+    pub(crate) fn ln_remez(self) -> Self {
+        assert!(0.707 <= self.hi && self.hi <= 1.415);
         const C1: f64x2 = f64x2 { hi: 2.0, lo: 2.531693403050348e-32 };
         const C3: f64x2 = f64x2 { hi: 0.6666666666666666, lo: 3.700743415403453e-17 };
         const C5: f64x2 = f64x2 { hi: 0.4, lo: -2.220446027080773e-17 };
