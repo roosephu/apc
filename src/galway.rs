@@ -1,7 +1,7 @@
 use std::f64::consts::PI;
 
 use crate::{brentq::brentq, unchecked_cast::UncheckedCast, zeta::FnZeta};
-use crate::{context::Context, traits::MyFloat};
+use crate::{context::Context, traits::MyReal};
 use log::{debug, info};
 use num::integer::*;
 use num::Complex;
@@ -17,7 +17,7 @@ pub struct Galway<'a, T, Z: FnZeta<T>> {
     x2: u64,
 }
 
-impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
+impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
     fn Phi(&self, p: T, eps: f64) -> T {
         (p / T::SQRT_2()).erfc(eps) / 2.0f64.unchecked_cast::<T>()
     }
@@ -99,7 +99,7 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
     }
 }
 
-impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
+impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
     fn init_F_taylor(&mut self, N: usize) {
         // [de Reyna]
         let pi = T::PI();
@@ -124,7 +124,7 @@ impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
     }
 }
 
-impl<T: MyFloat, Z: FnZeta<T>> Galway<'_, T, Z> {
+impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
     /// a little bit different from Galway's definition
     /// I divied it by x^sigma.
     fn Psi(&mut self, s: Complex<T>, ln_x: T, eps: f64) -> Complex<T> {
@@ -177,7 +177,7 @@ pub struct GalwayHints {
     pub lambda: Option<f64>,
 }
 
-impl<'a, T: MyFloat, Z: FnZeta<T>> Galway<'a, T, Z> {
+impl<'a, T: MyReal, Z: FnZeta<T>> Galway<'a, T, Z> {
     pub fn new(ctx: &'a Context<T>, fn_zeta: &'a mut Z) -> Self {
         Self {
             ctx,

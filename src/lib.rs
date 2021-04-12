@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(clippy::float_cmp)]
-#![allow(clippy::many_single_char_names)]
 #![allow(clippy::needless_range_loop)]
 #![allow(unused_variables)]
 #![feature(trait_alias)]
@@ -23,4 +22,5 @@ pub mod zeta;
 pub use context::Context;
 pub use f64xn::f64x2;
 pub use galway::{Galway, GalwayHints};
+pub use riemann_siegel::RiemannSiegelZeta;
 pub use zeta::ZetaGalway;

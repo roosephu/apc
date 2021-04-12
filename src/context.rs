@@ -1,22 +1,38 @@
-use crate::traits::{ComplexFunctions, MyFloat};
+use crate::{
+    traits::{ComplexFunctions, MyReal},
+    unchecked_cast::UncheckedCast,
+};
 use log::{debug, info};
 use num_complex::Complex;
 
-#[derive(Default)]
+const N: usize = 256;
+
 pub struct Context<T> {
     binomial: Vec<Vec<T>>,
     bernoulli: Vec<T>,
     euler: Vec<T>,
     factorial: Vec<T>,
+    PI: T,
+    pow_pi: [T; N],
+    pow2: [T; N],
 }
 
-impl<T: MyFloat> Context<T> {
+impl<T: MyReal> Context<T> {
     pub fn new(n: usize) -> Self {
-        let mut ret = Self::default();
+        let mut ret = Self {
+            binomial: vec![],
+            bernoulli: vec![],
+            euler: vec![],
+            factorial: vec![],
+            PI: T::PI(),
+            pow_pi: [T::zero(); N],
+            pow2: [T::zero(); N],
+        };
         ret.init_factorial(n * 2 + 1);
         ret.init_binomial(n * 2);
         ret.init_bernoulli(n);
         ret.init_euler(n);
+        ret.init_pows();
         ret
     }
 
@@ -28,9 +44,16 @@ impl<T: MyFloat> Context<T> {
     pub fn euler(&self, n: usize) -> T { self.euler[n] }
     #[inline]
     pub fn factorial(&self, n: usize) -> T { self.factorial[n] }
+    #[inline]
+    pub fn pow_pi(&self, n: usize) -> T { self.pow_pi[n] }
+    #[inline]
+    pub fn pow2(&self, n: usize) -> T { self.pow2[n] }
+
+    #[inline]
+    pub fn two(&self) -> T { 2.0f64.unchecked_cast::<T>() }
 }
 
-impl<T: MyFloat> Context<T> {
+impl<T: MyReal> Context<T> {
     /// error estimation
     /// See [here](https://www.wikiwand.com/en/Stirling%27s_approximation#Error_bounds) for more details.
     fn loggamma_err(&self, ln_z: Complex<f64>, n: usize) -> f64 {
@@ -86,7 +109,7 @@ impl<T: MyFloat> Context<T> {
     }
 }
 
-impl<T: MyFloat> Context<T> {
+impl<T: MyReal> Context<T> {
     fn init_binomial(&mut self, n: usize) {
         info!("initialize binomial numbers up to {}", n);
         let mut binomial = vec![vec![T::zero(); n + 1]; n + 1];
@@ -149,5 +172,14 @@ impl<T: MyFloat> Context<T> {
             euler[i] = -s;
         }
         self.euler = euler;
+    }
+
+    fn init_pows(&mut self) {
+        self.pow_pi[0] = T::one();
+        self.pow2[0] = T::one();
+        for i in 1..N {
+            self.pow_pi[i] = self.pow_pi[i - 1] * T::PI();
+            self.pow2[i] = self.pow2[i - 1] * 2.0f64.unchecked_cast::<T>();
+        }
     }
 }

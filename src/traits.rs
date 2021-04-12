@@ -15,7 +15,7 @@ pub trait Erfc {
     fn erfc(self, eps: f64) -> Self;
 }
 
-pub trait MyFloat = Float
+pub trait MyReal = Float
     + FloatConst
     + Signed
     + NumAssignOps
@@ -42,12 +42,23 @@ pub trait MyFloat = Float
 
 pub trait ComplexFunctions {
     fn mul_i(self) -> Self;
+    fn mul_pow_i(self, k: usize) -> Self;
     fn approx(self) -> Complex<f64>;
 }
 
-impl<T: MyFloat> ComplexFunctions for Complex<T> {
+impl<T: MyReal> ComplexFunctions for Complex<T> {
     #[inline]
     fn mul_i(self) -> Self { Self { re: -self.im, im: self.re } }
+
+    fn mul_pow_i(self, k: usize) -> Self {
+        match k % 4 {
+            0 => self,
+            1 => Self { re: -self.im, im: self.re },
+            2 => Self { re: -self.re, im: -self.im },
+            3 => Self { re: self.im, im: -self.re },
+            _ => unreachable!(),
+        }
+    }
 
     #[inline]
     fn approx(self) -> Complex<f64> {

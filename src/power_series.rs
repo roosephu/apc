@@ -1,108 +1,148 @@
-use std::ops::{AddAssign, DivAssign, MulAssign};
+use std::{
+    cmp::{max, min},
+    ops::{AddAssign, DivAssign, MulAssign, SubAssign},
+};
 
 use num::{Float, Num};
 use num_traits::NumAssignOps;
 
 use crate::unchecked_cast::UncheckedFrom;
 
-#[derive(Debug)]
-pub struct PowerSeries<T, const N: usize> {
-    pub data: [T; N],
+#[derive(Debug, Clone)]
+pub struct PowerSeries<T> {
+    pub n: usize,
+    pub N: usize,
+    pub data: Vec<T>,
 }
 
-impl<T: Copy + Num, const N: usize> PowerSeries<T, N> {
-    pub fn new(x: T) -> Self {
-        let mut ret = Self { data: [T::zero(); N] };
-        ret.data[0] = x;
-        ret.data[1] = T::one();
-        ret
+impl<T: Copy + Num> PowerSeries<T> {
+    pub fn new(max_order: usize, x: T) -> Self {
+        let mut data = vec![T::zero(); max_order];
+        data[0] = x;
+        data[1] = T::one();
+        Self { n: 2, N: max_order, data }
+    }
+
+    pub fn from_vec(max_order: usize, mut data: Vec<T>) -> Self {
+        data.resize(max_order, T::zero());
+        Self { n: data.len(), N: max_order, data }
     }
 }
 
-impl<T: Copy + NumAssignOps, const N: usize> AddAssign<&PowerSeries<T, N>> for PowerSeries<T, N> {
+impl<T: Copy + NumAssignOps> AddAssign<&PowerSeries<T>> for PowerSeries<T> {
     fn add_assign(&mut self, rhs: &Self) {
-        for i in 0..N {
+        self.n = max(self.n, rhs.n);
+        for i in 0..self.n {
             self.data[i] += rhs.data[i];
         }
     }
 }
 
-impl<T: Copy + Num + NumAssignOps, const N: usize> MulAssign<&PowerSeries<T, N>>
-    for PowerSeries<T, N>
-{
+impl<T: Copy + NumAssignOps> SubAssign<&PowerSeries<T>> for PowerSeries<T> {
+    fn sub_assign(&mut self, rhs: &Self) {
+        self.n = max(self.n, rhs.n);
+        for i in 0..self.n {
+            self.data[i] -= rhs.data[i];
+        }
+    }
+}
+
+impl<T: Copy + Num + NumAssignOps> MulAssign<T> for PowerSeries<T> {
+    fn mul_assign(&mut self, rhs: T) {
+        for i in 0..self.n {
+            self.data[i] *= rhs;
+        }
+    }
+}
+
+impl<T: Copy + Num + NumAssignOps> MulAssign<&PowerSeries<T>> for PowerSeries<T> {
     fn mul_assign(&mut self, rhs: &Self) {
-        for i in (0..N).rev() {
-            let mut s = T::zero();
-            for j in 0..=i {
-                s += self.data[i - j] * rhs.data[j];
+        let mut data = vec![T::zero(); self.N];
+        let new_n = min(self.n + rhs.n, self.N);
+        for i in 0..self.n {
+            for j in 0..=min(new_n - i, rhs.n) {
+                data[i + j] += self.data[i] * rhs.data[j];
             }
-            self.data[i] = s;
         }
+        self.n = new_n;
+        self.data.clone_from_slice(&data);
     }
 }
 
-impl<T: Copy + Num + NumAssignOps, const N: usize> DivAssign<&PowerSeries<T, N>>
-    for PowerSeries<T, N>
-{
+impl<T: Copy + Num + NumAssignOps> DivAssign<&PowerSeries<T>> for PowerSeries<T> {
     fn div_assign(&mut self, rhs: &Self) {
+        let mut data = self.data.clone();
+        let N = self.N;
         for i in 0..N {
-            let d = self.data[i] / rhs.data[0];
-            for j in 0..N - i {
-                self.data[i + j] -= d * rhs.data[j];
-            }
+            let d = data[i] / rhs.data[0];
             self.data[i] = d;
+            for j in 0..N - i {
+                data[i + j] -= d * rhs.data[j];
+            }
         }
     }
 }
 
-impl<T: Copy + Num + UncheckedFrom<i32> + NumAssignOps, const N: usize> PowerSeries<T, N> {
+impl<T: Copy + Num + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
     /// function composition
     /// Assuming N is small, brute-forcing can typically be very fast.
     /// input = \sum_{i=0}^\infty a_i t^i
     /// let x = a_0, D = \sum_{i=1}^\infty a_i t^i
     /// then f(x + D) = \sum_{i=0}^\infty f^{(i)}(x) D^i / i!
-    fn compose(&mut self, mut derivatives: [T; N]) {
+    fn compose(&mut self, derivatives: &mut [T]) {
         let x = self.data[0];
-        let mut series = [T::zero(); N];
+        let mut series = vec![T::zero(); self.N];
         let mut factorial = T::one();
-        for i in 0..N {
+        for i in 0..self.N {
             derivatives[i] /= factorial;
             factorial *= T::unchecked_from(i as i32 + 1);
         }
 
         series[0] = self.data[0];
         self.data[0] = T::zero();
-        for i in (0..N).rev() {
+        for i in (0..self.N).rev() {
             // basically it's `ret = ret * D + f^{(i)}`
-            // We truncate the series to length n.
-            let n = N - i;
+            // We truncate the series to order n.
+            let n = self.N - i;
             for j in (0..n).rev() {
                 let mut s = T::zero();
-                for k in 1..=j {
+                for k in 1..min(j + 1, self.n) {
                     s += series[j - k] * self.data[k];
                 }
                 series[j] = s;
             }
             series[0] += derivatives[i];
         }
+        self.n = self.N;
         self.data = series;
     }
 }
 
-impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps, const N: usize> PowerSeries<T, N> {
+impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
     pub fn cos_(&mut self) {
-        let mut derivatives = [T::zero(); N];
+        let mut derivatives = vec![T::zero(); self.N];
         let (sin_x, cos_x) = self.data[0].sin_cos();
-        for i in 0..N {
-            derivatives[i] = match i % 4 {
-                0 => cos_x,
-                1 => -sin_x,
-                2 => -cos_x,
-                3 => sin_x,
-                _ => unreachable!(),
-            }
+        let table = [cos_x, -sin_x, -cos_x, sin_x];
+        for i in 0..self.N {
+            derivatives[i] = table[i % 4];
         }
-        self.compose(derivatives);
+        self.compose(&mut derivatives);
+    }
+
+    pub fn sin_(&mut self) {
+        let mut derivatives = vec![T::zero(); self.N];
+        let (sin_x, cos_x) = self.data[0].sin_cos();
+        let table = [sin_x, cos_x, -sin_x, -cos_x];
+        for i in 0..self.N {
+            derivatives[i] = table[i % 4];
+        }
+        self.compose(&mut derivatives);
+    }
+
+    pub fn exp_(&mut self) {
+        let exp = self.data[0].exp();
+        let mut derivatives = vec![exp; self.N];
+        self.compose(&mut derivatives);
     }
 }
 
@@ -113,15 +153,12 @@ mod tests {
 
     #[test]
     fn composition() {
-        type PS = PowerSeries<f64, 10>;
+        type PS = PowerSeries<f64>;
         let z = 0.2;
-        let mut numer = PS::new(z * z * PI / 2.0 + 3.0 * PI / 8.0);
-        numer.data[1] = PI * z;
-        numer.data[2] = PI / 2.0;
+        let mut numer = PS::from_vec(20, vec![z * z * PI / 2.0 + 3.0 * PI / 8.0, PI * z, PI / 2.0]);
         numer.cos_();
 
-        let mut denom = PS::new(z * PI);
-        denom.data[1] = PI;
+        let mut denom = PS::from_vec(20, vec![z * PI, PI]);
         denom.cos_();
 
         // println!("numer  = {:?}", numer);

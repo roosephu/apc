@@ -1,4 +1,4 @@
-use crate::{brentq::brentq, context::Context, traits::MyFloat, unchecked_cast::UncheckedCast};
+use crate::{brentq::brentq, context::Context, traits::MyReal, unchecked_cast::UncheckedCast};
 use crate::{
     sum_trunc_dirichlet::{sum_trunc_dirichlet, ExpPolyApprox},
     traits::ComplexFunctions,
@@ -19,7 +19,7 @@ pub trait FnZeta<T> {
 
 /// essentially the following, but avoid large exponent
 /// z.powc(-s) * (z * z * Complex::new(0.0, PI)).exp()
-fn g<T: MyFloat>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
+fn g<T: MyReal>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
     (-s * z.ln() + (z * z * T::PI()).mul_i()).exp()
 }
 
@@ -32,7 +32,7 @@ fn ln_g_norm(z: Complex<f64>, s: Complex<f64>) -> f64 {
 }
 
 /// z = O(n) + i O(ln(n)), s = O(1) + i t.
-fn f<T: MyFloat>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
+fn f<T: MyReal>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
     let z_im: f64 = z.im.unchecked_cast();
     if z_im > 100.0 {
         let a = z.scale(T::PI()).mul_i().exp();
@@ -56,7 +56,7 @@ fn ln_f_norm(z: Complex<f64>, s: Complex<f64>) -> f64 {
     }
 }
 
-fn H<T: MyFloat>(w: Complex<T>) -> Complex<T> {
+fn H<T: MyReal>(w: Complex<T>) -> Complex<T> {
     if w.im < (-30.0f64).unchecked_cast() {
         Complex::<T>::zero()
     } else {
@@ -69,7 +69,7 @@ fn is_close(a: f64, b: f64) -> bool { ((a - b) / a).abs() < 1e-9 }
 type Plan<T> = (i64, i64, i64, i64, Complex<f64>, Complex<f64>, Option<Complex<T>>);
 
 #[derive(Default)]
-struct ZetaGalwayPlanner<T: MyFloat + ExpPolyApprox + FftNum> {
+struct ZetaGalwayPlanner<T: MyReal + ExpPolyApprox + FftNum> {
     eps: f64,
     ln_eps: f64,
     replan: bool,
@@ -85,7 +85,7 @@ struct ZetaGalwayPlanner<T: MyFloat + ExpPolyApprox + FftNum> {
     alpha_2: f64,
 }
 
-impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
+impl<T: MyReal + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
     pub fn new() -> Self { Self { replan: true, ..Default::default() } }
 
     fn plan_sum_trunc_dirichlet(&mut self, s: Complex<T>, n: f64) {
@@ -263,19 +263,19 @@ impl<T: MyFloat + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
     }
 }
 
-pub struct ZetaGalway<'a, T: MyFloat> {
+pub struct ZetaGalway<'a, T: MyReal> {
     ctx: &'a Context<T>,
     planners: [ZetaGalwayPlanner<T>; 2],
     pub complexity: i64,
 }
 
-impl<'a, T: MyFloat> ZetaGalway<'a, T> {
+impl<'a, T: MyReal> ZetaGalway<'a, T> {
     pub fn new(ctx: &'a Context<T>) -> Self {
         Self { ctx, planners: [ZetaGalwayPlanner::new(), ZetaGalwayPlanner::new()], complexity: 0 }
     }
 }
 
-impl<T: MyFloat> ZetaGalway<'_, T> {
+impl<T: MyReal> ZetaGalway<'_, T> {
     fn I0(&self, s: Complex<T>, plan: Plan<T>) -> Complex<T> {
         let (n, m, n_l, n_r, h, z_1, plan_sum_trunc_dirichlet) = plan;
         // we don't care the precise value of z_1 and h, as it's only for correction.
@@ -332,7 +332,7 @@ impl<T: MyFloat> ZetaGalway<'_, T> {
     }
 }
 
-impl<T: MyFloat> FnZeta<T> for ZetaGalway<'_, T> {
+impl<T: MyReal> FnZeta<T> for ZetaGalway<'_, T> {
     fn zeta(&mut self, s: Complex<T>, eps: f64) -> Complex<T> {
         // println!("??? s = {}, eps = {}", s, eps);
         let log_chi = (s - 0.5f64.unchecked_cast::<T>()) * T::PI().ln()
