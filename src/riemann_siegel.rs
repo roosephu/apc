@@ -160,6 +160,11 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
             }
             coeffs.push(d);
         }
+        for k in 0..=K {
+            for j in 0..=3 * k / 2 {
+                coeffs[k][j] *= ctx.factorial(3 * k - 2 * j) / ctx.pow_pi(2 * k - j) / ctx.pow2(j);
+            }
+        }
 
         coeffs
     }
@@ -191,13 +196,9 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
 
         let coeffs = if reflect { &self.coeffs2 } else { &self.coeffs1 };
         for k in 0..=K {
-            let J = 3 * k / 2;
             let mut s = Complex::<T>::zero();
-            for j in 0..=J {
-                let v = coeffs[k][j] * self.ctx.factorial(3 * k - 2 * j)
-                    / self.ctx.pow_pi(2 * k - j)
-                    / self.ctx.pow2(j);
-                s += ps.data[3 * k - 2 * j].mul_pow_i(4 - j % 4) * v;
+            for j in 0..=3 * k / 2 {
+                s += ps.data[3 * k - 2 * j].mul_pow_i(4 - j % 4) * coeffs[k][j];
             }
             ret += s / a.powi(k as i32);
         }
@@ -228,8 +229,7 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
                 let s = Complex::new(sigma, t);
                 let n = n.unchecked_cast::<i32>();
                 for i in 1..=n {
-                    sum_trunc_dirichlet +=
-                        Complex::<T>::new(i.unchecked_cast::<T>(), T::zero()).powc(-s);
+                    sum_trunc_dirichlet += (-s * i.unchecked_cast::<T>().ln()).exp();
                 }
             }
         }
@@ -244,15 +244,14 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
 
     pub fn zeta(&self, z: Complex<T>, eps: f64) -> Option<Complex<T>> {
         let log_chi = (z - 0.5f64.unchecked_cast::<T>()) * T::PI().ln()
-            + self.ctx.loggamma((T::one() - z) * 0.5f64.unchecked_cast::<T>(), eps)
-            - self.ctx.loggamma(z * 0.5f64.unchecked_cast::<T>(), eps);
+            + self.ctx.loggamma((T::one() - z) * 0.5f64.unchecked_cast::<T>(), eps / 3.0)
+            - self.ctx.loggamma(z * 0.5f64.unchecked_cast::<T>(), eps / 3.0);
         assert!(!log_chi.re.is_nan(), "{:?} {}", z, eps);
         let chi = log_chi.exp();
-        // TODO: chi might have error.
 
         let t = z.im;
-        let plan0 = self.planners[0].plan(t.unchecked_cast(), eps / 2.0)?;
-        let plan1 = self.planners[1].plan(t.unchecked_cast(), eps / 2.0)?;
+        let plan0 = self.planners[0].plan(t.unchecked_cast(), eps / 3.0)?;
+        let plan1 = self.planners[1].plan(t.unchecked_cast(), eps / 3.0)?;
 
         let K = std::cmp::max(plan0.0, plan1.0);
         let two = self.ctx.two();
@@ -272,6 +271,7 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
 
 #[cfg(test)]
 mod tests {
+    use crate::f64x2;
     use crate::*;
     use num::Complex;
 
@@ -279,10 +279,10 @@ mod tests {
     fn rszeta() {
         let ctx = Context::<f64>::new(100);
         // let mut zeta_galway = ZetaGalway::new(&ctx);
-        let zeta_rs = RiemannSiegelZeta::new(&ctx, 1.5, 50);
+        let zeta_rs = RiemannSiegelZeta::new(&ctx, f64::from(1.5), 50);
 
-        let s = Complex::new(1.5, 10000.0);
-        println!("s = {:?}, zeta(s) = {:?}", s, zeta_rs.zeta(s, 1e-12));
+        let s = Complex::new(f64::from(1.5), f64::from(1000000.0));
+        println!("s = {}, zeta(s) = {}", s, zeta_rs.zeta(s, 1e-17).unwrap());
         panic!();
     }
 }

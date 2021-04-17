@@ -218,7 +218,7 @@ impl Float for f64x2 {
     fn is_normal(self) -> bool { todo!() }
 
     #[inline]
-    fn floor(self) -> Self { todo!() }
+    fn floor(self) -> Self { self.floor() }
 
     #[inline]
     fn ceil(self) -> Self { self.ceil() }
@@ -251,7 +251,7 @@ impl Float for f64x2 {
     fn recip(self) -> Self { f64x2::recip(self) }
 
     #[inline]
-    fn powi(self, n: i32) -> Self { todo!() }
+    fn powi(self, n: i32) -> Self { self.powi(n as i64) }
 
     #[inline]
     fn powf(self, n: Self) -> Self { self.powf(n) }
@@ -441,61 +441,61 @@ impl Pow<i32> for f64x2 {
 
 impl FloatConst for f64x2 {
     #[inline]
-    fn PI() -> Self { Self { hi: 3.141592653589793, lo: 1.2246467991473515e-16 } }
+    fn PI() -> Self { Self { hi: 3.141592653589793, lo: 1.2246467991473532e-16 } }
 
     #[inline]
-    fn E() -> Self { Self { hi: 2.718281828459045, lo: 1.4456468917292359e-16 } }
+    fn E() -> Self { Self { hi: 2.718281828459045, lo: 1.4456468917292502e-16 } }
 
     #[inline]
-    fn LOG2_E() -> Self { Self { hi: 1.4426950408889634, lo: 2.0355273740930133e-17 } }
+    fn LOG2_E() -> Self { Self { hi: 1.4426950408889634, lo: 2.0355273740931033e-17 } }
 
     #[inline]
-    fn LN_10() -> Self { Self { hi: 2.302585092994046, lo: -2.170756223382255e-16 } }
+    fn LN_10() -> Self { Self { hi: 2.302585092994046, lo: -2.1707562233822494e-16 } }
 
     #[inline]
-    fn LN_2() -> Self { Self { hi: 0.6931471805599453, lo: 2.31904681384628e-17 } }
+    fn LN_2() -> Self { Self { hi: 0.6931471805599453, lo: 2.3190468138462996e-17 } }
 
     #[inline]
-    fn LOG10_2() -> Self { Self { hi: 0.3010299956639812, lo: -2.803728127785059e-18 } }
+    fn LOG10_2() -> Self { Self { hi: 0.3010299956639812, lo: -2.8037281277851704e-18 } }
 
     #[inline]
-    fn LOG10_E() -> Self { Self { hi: 0.4342944819032518, lo: 1.0983196502167326e-17 } }
+    fn LOG10_E() -> Self { Self { hi: 0.4342944819032518, lo: 1.098319650216765e-17 } }
 
     #[inline]
-    fn LOG2_10() -> Self { Self { hi: 3.321928094887362, lo: 1.6616175169735967e-16 } }
+    fn LOG2_10() -> Self { Self { hi: 3.321928094887362, lo: 1.661617516973592e-16 } }
 
     #[inline]
-    fn FRAC_1_PI() -> Self { Self { hi: 0.3183098861837907, lo: -1.9678676675182615e-17 } }
+    fn FRAC_1_PI() -> Self { Self { hi: 0.3183098861837907, lo: -1.9678676675182486e-17 } }
 
     #[inline]
-    fn FRAC_1_SQRT_2() -> Self { Self { hi: 0.7071067811865476, lo: -4.833646656726404e-17 } }
+    fn FRAC_1_SQRT_2() -> Self { Self { hi: 0.7071067811865476, lo: -4.833646656726457e-17 } }
 
     #[inline]
-    fn FRAC_2_PI() -> Self { Self { hi: 0.6366197723675814, lo: -3.935735335036523e-17 } }
+    fn FRAC_2_PI() -> Self { Self { hi: 0.6366197723675814, lo: -3.935735335036497e-17 } }
 
     #[inline]
-    fn FRAC_2_SQRT_PI() -> Self { Self { hi: 1.1283791670955126, lo: 1.5335459613166276e-17 } }
+    fn FRAC_2_SQRT_PI() -> Self { Self { hi: 1.1283791670955126, lo: 1.533545961316588e-17 } }
 
     #[inline]
-    fn FRAC_PI_2() -> Self { Self { hi: 1.5707963267948966, lo: 6.123233995736757e-17 } }
+    fn FRAC_PI_2() -> Self { Self { hi: 1.5707963267948966, lo: 6.123233995736766e-17 } }
 
     #[inline]
-    fn FRAC_PI_3() -> Self { Self { hi: 1.0471975511965979, lo: -1.0720817664510863e-16 } }
+    fn FRAC_PI_3() -> Self { Self { hi: 1.0471975511965979, lo: -1.072081766451091e-16 } }
 
     #[inline]
-    fn FRAC_PI_4() -> Self { Self { hi: 0.7853981633974483, lo: 3.061616997868379e-17 } }
+    fn FRAC_PI_4() -> Self { Self { hi: 0.7853981633974483, lo: 3.061616997868383e-17 } }
 
     #[inline]
-    fn FRAC_PI_6() -> Self { Self { hi: 0.5235987755982989, lo: -5.3604088322554315e-17 } }
+    fn FRAC_PI_6() -> Self { Self { hi: 0.5235987755982989, lo: -5.360408832255455e-17 } }
 
     #[inline]
-    fn FRAC_PI_8() -> Self { Self { hi: 0.39269908169872414, lo: 1.5308084989341894e-17 } }
+    fn FRAC_PI_8() -> Self { Self { hi: 0.39269908169872414, lo: 1.5308084989341915e-17 } }
 
     #[inline]
-    fn SQRT_2() -> Self { Self { hi: 1.4142135623730951, lo: -9.667293313452965e-17 } }
+    fn SQRT_2() -> Self { Self { hi: 1.4142135623730951, lo: -9.667293313452913e-17 } }
 
     #[inline]
-    fn TAU() -> Self { Self { hi: 6.283185307179586, lo: 2.449293598294703e-16 } }
+    fn TAU() -> Self { Self { hi: 6.283185307179586, lo: 2.4492935982947064e-16 } }
 }
 
 impl AsPrimitive<f64> for f64x2 {

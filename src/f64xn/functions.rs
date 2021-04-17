@@ -125,7 +125,7 @@ impl f64x2 {
         assert!(self.hi >= 0.0, "self = {:?}", self);
         let x = self.hi.sqrt().recip();
         let y = self.hi * x;
-        two_add(y, (self.hi - two_mul(y, y).hi) * (x * 0.5))
+        two_add(y, (self - two_mul(y, y)).hi * (x * 0.5))
     }
 
     #[inline]

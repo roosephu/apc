@@ -290,9 +290,9 @@ impl<T: MyReal> ZetaGalway<'_, T> {
             None => {
                 s0 = Complex::<T>::zero();
                 for i in 1..=n {
-                    s0 += Complex::<T>::new(i.unchecked_cast::<T>(), T::zero()).powc(-s);
+                    s0 += (-s * i.unchecked_cast::<T>().ln()).exp();
                 }
-                panic!("why don't you use [FKBJ-OS]?");
+                // panic!("why don't you use [FKBJ-OS]?");
             }
         }
 
@@ -357,18 +357,14 @@ impl<T: MyReal> FnZeta<T> for ZetaGalway<'_, T> {
 use crate::f64xn::f64x2;
 
 #[test]
-fn test() {
+fn test_zeta_galway() {
     let ctx2 = Context::<f64x2>::new(100);
     let mut zeta_galway2 = ZetaGalway::new(&ctx2);
 
-    let s = Complex {
-        re: f64x2 { hi: 1.5, lo: 0.0 },
-        im: f64x2 { hi: 29284.310190328237, lo: -0.0000000000006786238238021269 },
-    } * 0.5f64.unchecked_cast::<f64x2>();
-    let eps = 0.00000000000000000006242544263895699;
-    println!("{}", s);
-    let t = ctx2.loggamma(s, eps);
-    println!("{:?}", t);
+    let s = Complex { re: f64x2 { hi: 1.5, lo: 0.0 }, im: f64x2 { hi: 10000.0, lo: 0.0 } };
+    let eps = 1e-18;
+    println!("s = {}, zeta(s) = {}", s, zeta_galway2.zeta(s, eps));
+    panic!();
 
     // zeta_galway2.test(s, eps);
 }
