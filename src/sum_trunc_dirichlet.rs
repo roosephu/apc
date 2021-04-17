@@ -70,7 +70,7 @@ pub fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
         for j in 0..n {
             f[w[j].rem_euclid(R as i64) as usize] += a[j] * (d[j] * TM2).pow(e as i32);
         }
-        fft.process(&mut f);
+        fft.process(f.as_mut_slice());
         for x in 0..=m {
             ret[x] += c
                 * f[(x + R - M2) % R]

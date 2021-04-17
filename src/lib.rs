@@ -3,6 +3,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::needless_range_loop)]
 #![allow(unused_variables)]
+#![allow(unused_imports)]
 #![feature(trait_alias)]
 #![feature(destructuring_assignment)]
 #![feature(min_type_alias_impl_trait)]

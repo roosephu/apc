@@ -277,11 +277,12 @@ mod tests {
 
     #[test]
     fn rszeta() {
-        let ctx = Context::<f64>::new(100);
+        type T = f64;
+        let ctx = Context::<T>::new(100);
         // let mut zeta_galway = ZetaGalway::new(&ctx);
-        let zeta_rs = RiemannSiegelZeta::new(&ctx, f64::from(1.5), 50);
+        let zeta_rs = RiemannSiegelZeta::new(&ctx, T::from(1.5), 50);
 
-        let s = Complex::new(f64::from(1.5), f64::from(1000000.0));
+        let s = Complex::new(T::from(1.5), f64::from(1000000.0));
         println!("s = {}, zeta(s) = {}", s, zeta_rs.zeta(s, 1e-17).unwrap());
         panic!();
     }
