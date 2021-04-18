@@ -9,22 +9,14 @@ use crate::{
     unchecked_cast::UncheckedCast,
 };
 
-/// Gabcke's function
-// fn gen_gabcke_power_series<T: MyFloat, const N: usize>(z: T) -> PowerSeries<T, N> {
-//     let mut numer = PowerSeries::<T, N>::new(
-//         z * z * T::FRAC_PI_2() + 3.0f64.unchecked_cast::<T>() * T::FRAC_PI_8(),
-//     );
-//     numer.data[1] = T::PI() * z;
-//     numer.data[2] = T::FRAC_PI_2();
-//     numer.cos_();
-
-//     let mut denom = PowerSeries::<T, N>::new(z * T::PI());
-//     denom.data[1] = T::PI();
-//     denom.cos_();
-
-//     numer /= &denom;
-//     numer
-// }
+fn riemann_siegel_chi<T: MyReal>(ctx: &Context<T>, z: Complex<T>, eps: f64) -> Complex<T> {
+    let half = 0.5f64.unchecked_cast::<T>();
+    let log_chi = (z - half) * T::PI().ln() + ctx.loggamma((T::one() - z) * half, eps)
+        - ctx.loggamma(z * half, eps);
+    assert!(!log_chi.re.is_nan(), "{:?} {}", z, eps);
+    let chi = log_chi.exp();
+    chi
+}
 
 /// Juan de Reyna's function
 /// F(z) = F_re(z) + i F_im(z), where F_re(z) is the function used by Gabcke (then divided by 2):
@@ -35,11 +27,7 @@ fn gen_rs_power_series<T: MyReal>(z: T, N: usize) -> PowerSeries<Complex<T>> {
     // (z^2 / 2 + 3/8) PI
     let zpoly = PowerSeries::<T>::from_vec(
         N,
-        vec![
-            z * z * T::FRAC_PI_2() + 3.0f64.unchecked_cast::<T>() * T::FRAC_PI_8(),
-            T::PI() * z,
-            T::FRAC_PI_2(),
-        ],
+        vec![z * z * T::FRAC_PI_2() + T::FRAC_PI_8() * 3.0, T::PI() * z, T::FRAC_PI_2()],
     );
 
     let mut denom = PowerSeries::<T>::from_vec(N, vec![z * T::PI(), T::PI()]);
@@ -246,8 +234,7 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
         reflect: bool,
     ) -> Complex<T> {
         let ctx = self.ctx;
-        let two = ctx.two();
-        let a = (t / T::PI() / two).sqrt();
+        let a = (t / T::PI() / 2.0).sqrt();
         let n = a.floor();
         let sigma = if reflect { T::one() - self.sigma } else { self.sigma };
 
@@ -266,7 +253,7 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
                 }
             }
         }
-        let logU = t / two * (t / two / T::PI()).ln() - t / two - T::FRAC_PI_8();
+        let logU = t / 2.0 * (t / 2.0 / T::PI()).ln() - t / 2.0 - T::FRAC_PI_8();
         let U = Complex::new(T::zero(), -logU).exp();
 
         sum_trunc_dirichlet
@@ -276,11 +263,7 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
     }
 
     pub fn zeta(&self, z: Complex<T>, eps: f64) -> Option<Complex<T>> {
-        let log_chi = (z - 0.5f64.unchecked_cast::<T>()) * T::PI().ln()
-            + self.ctx.loggamma((T::one() - z) * 0.5f64.unchecked_cast::<T>(), eps / 3.0)
-            - self.ctx.loggamma(z * 0.5f64.unchecked_cast::<T>(), eps / 3.0);
-        assert!(!log_chi.re.is_nan(), "{:?} {}", z, eps);
-        let chi = log_chi.exp();
+        let chi = riemann_siegel_chi(self.ctx, z, eps / 3.0);
 
         let t = z.im;
         let plan0 = self.planners[0].plan(t.unchecked_cast(), eps / 3.0)?;
@@ -299,6 +282,146 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
         let R1 = self.solve(t, &ps, plan1, true);
         println!("R0 = {}, R1 = {}", R0, R1);
         let ret = R0 + chi * R1.conj();
+        Some(ret)
+    }
+}
+
+/// Gabcke's
+pub struct RiemannSiegelZ<'a, T> {
+    ctx: &'a Context<T>,
+    K: usize,
+    coeffs: Vec<Vec<T>>,
+}
+
+impl<'a, T: MyReal> RiemannSiegelZ<'a, T> {
+    pub fn new(ctx: &'a Context<T>, K: usize) -> Self {
+        let coeffs = RiemannSiegelZ::gen_coeffs(ctx, K);
+        Self { ctx, K, coeffs }
+    }
+}
+
+impl<T: MyReal> RiemannSiegelZ<'_, T> {
+    fn gen_coeffs(ctx: &Context<T>, K: usize) -> Vec<Vec<T>> {
+        let mut coeffs: Vec<Vec<T>> = vec![];
+        let mut lambda = vec![T::zero(); K + 1];
+        lambda[0] = T::one();
+        for n in 0..=K / 4 {
+            for k in 0..=n {
+                let d = ctx.pow2(4 * k + 1) * ctx.euler(k + 1).abs() * lambda[n - k];
+                lambda[n + 1] += d;
+            }
+            lambda[n + 1] = lambda[n + 1] / (n + 1) as f64;
+        }
+
+        for k in 0..=K {
+            let J = 3 * k / 4;
+            let mut d = vec![T::zero(); J + 1];
+            for j in 0..=J {
+                let r = 3 * k - 4 * j;
+                if r == 0 {
+                    d[j] = lambda[k / 4];
+                } else {
+                    if r > 2 {
+                        d[j] += coeffs[k - 1][j] * ((r - 2) * (r - 1)) as f64;
+                    }
+                    if j >= 1 {
+                        d[j] += coeffs[k - 1][j - 1];
+                    }
+                }
+            }
+            coeffs.push(d);
+        }
+        for k in 0..=K {
+            for j in 0..=3 * k / 4 {
+                coeffs[k][j] /= ctx.pow_pi(2 * k - 2 * j) * ctx.pow2(2 * k);
+            }
+        }
+
+        coeffs
+    }
+
+    /// Gabcke's function
+    fn gen_power_series(z: T, n: usize) -> PowerSeries<T> {
+        let mut numer = PowerSeries::<T>::from_vec(
+            n,
+            vec![z * z * T::FRAC_PI_2() + T::FRAC_PI_8() * 3.0, T::PI() * z, T::FRAC_PI_2()],
+        );
+        numer.cos_();
+
+        let mut denom = PowerSeries::<T>::from_vec(n, vec![z * T::PI(), T::PI()]);
+        denom.cos_();
+
+        numer /= &denom;
+        numer
+    }
+
+    fn plan(&self, t: f64, eps: f64) -> Option<(usize, Option<T>)> {
+        if t <= 200.0 {
+            return None;
+        }
+
+        const COEFFS: [f64; 10] =
+            [0.127, 0.053, 0.011, 0.031, 0.017, 0.061, 0.661, 9.2, 130.0, 1837.0];
+        let mut pow = t.powf(-0.75);
+        let sqrt_t = t.sqrt();
+        for (k, c) in COEFFS.iter().enumerate() {
+            if pow * c <= eps {
+                return Some((k, None));
+            }
+            pow /= sqrt_t;
+        }
+
+        None
+    }
+
+    fn solve(&self, t: T, ps: &PowerSeries<T>, plan: (usize, Option<T>), eps: f64) -> T {
+        let two = self.ctx.two();
+        let a = (t / T::PI() / 2.0).sqrt();
+        let n = a.floor();
+        let (K, plan_sum_trunc_dirichlet) = plan;
+        let z = Complex::new(0.25.unchecked_cast::<T>(), t * 0.5);
+        let theta = self.ctx.loggamma(z, eps).im - t * 0.5 * T::PI().ln();
+
+        let mut sum_trunc_dirichlet;
+        match plan_sum_trunc_dirichlet {
+            Some(x) => {
+                sum_trunc_dirichlet = x;
+            }
+            None => {
+                sum_trunc_dirichlet = T::zero();
+                let n = n.unchecked_cast::<i32>();
+                for i in 1..=n {
+                    let i = i.unchecked_cast::<T>();
+                    sum_trunc_dirichlet += (theta - t * i.ln()).cos() / i.sqrt();
+                }
+            }
+        }
+        let sum_trunc_dirichlet = sum_trunc_dirichlet * 2.0;
+
+        let mut correction = T::zero();
+
+        for k in 0..=K {
+            let mut s = T::zero();
+            for j in 0..=3 * k / 4 {
+                s += self.coeffs[k][j] * ps.data[3 * k - 4 * j];
+            }
+            correction += s / a.powi(k as i32);
+        }
+
+        sum_trunc_dirichlet
+            + correction / a.sqrt() * (if n.unchecked_cast::<i32>() % 2 == 0 { -1.0 } else { 1.0 })
+    }
+
+    pub fn Z(&self, t: T, eps: f64) -> Option<T> {
+        let plan = self.plan(t.unchecked_cast(), eps / 3.0)?;
+        let K = plan.0;
+        let a = (t / T::PI() / 2.0).sqrt();
+        let n = a.floor();
+        let p = T::one() - (a - n) * 2.0;
+        let ps = Self::gen_power_series(p, 3 * K + 1);
+
+        println!("power series: K = {}", K);
+        let ret = self.solve(t, &ps, plan, eps);
         Some(ret)
     }
 }
@@ -337,5 +460,44 @@ mod tests {
         println!("s = {}, zeta(s) = {}", s, z);
         assert_complex_close(z, gt, eps);
         // panic!();
+    }
+
+    #[test]
+    fn test_rs_z() {
+        type T = f64x2;
+
+        let ctx = Context::<T>::new(100);
+        // let mut zeta_galway = ZetaGalway::new(&ctx);
+        let rs_z = RiemannSiegelZ::new(&ctx, 20);
+
+        let eps = 1e-10;
+        let t = T::from(1000.0);
+        let z = rs_z.Z(t, eps).unwrap();
+        let gt = f64x2 { hi: 0.9977946375215866, lo: 2.2475077894406e-17 };
+        println!("t = {}, Z(t) = {}", t, z);
+        assert_close(z, gt, eps);
+
+        let eps = 1e-24;
+        let t = T::from(1000000.0);
+        let z = rs_z.Z(t, eps).unwrap();
+        let gt = -f64x2 { hi: 2.8061338784306984, lo: 8.690744258391294e-17 };
+        println!("t = {}, Z(t) = {}", t, z);
+        assert_close(z, gt, eps);
+        panic!();
+    }
+
+    #[test]
+    fn test_bisect() {
+        type T = f64x2;
+        let a = f64x2 { hi: 4.2653549760951556e7, lo: -2.2653541564941407e-9 };
+        let b = f64x2 { hi: 4.2653549760951556e7, lo: -2.3653541564941408e-9 };
+
+        let eps = 1e-15;
+        let ctx = Context::<T>::new(100);
+        // let mut zeta_galway = ZetaGalway::new(&ctx);
+        let rs_z = RiemannSiegelZ::new(&ctx, 20);
+
+        println!("{} {}", rs_z.Z(a, eps).unwrap(), rs_z.Z(b, eps).unwrap());
+        panic!();
     }
 }

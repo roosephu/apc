@@ -26,5 +26,5 @@ pub mod zeta;
 pub use context::Context;
 pub use f64xn::f64x2;
 pub use galway::{Galway, GalwayHints};
-pub use riemann_siegel::RiemannSiegelZeta;
+pub use riemann_siegel::{RiemannSiegelZ, RiemannSiegelZeta};
 pub use zeta::ZetaGalway;
