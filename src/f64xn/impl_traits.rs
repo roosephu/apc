@@ -670,7 +670,7 @@ impl Erfc for f64x2 {
             let h_sq = h.square();
             for k in 1..=K {
                 let w = h_sq * (k * k).unchecked_cast::<Self>();
-                ret += 2.0.unchecked_cast::<Self>() * (-w).exp() / (z_sq + w);
+                ret += (-w).exp() * 2.0 / (z_sq + w);
             }
             ret * (-z_sq).exp() * h * z / Self::PI()
                 + 2.0.unchecked_cast::<Self>() / (Self::one() - (Self::TAU() * z / h).exp())

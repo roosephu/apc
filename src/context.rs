@@ -65,7 +65,7 @@ impl<T: MyReal> Context<T> {
             1.0 / arg.sin().abs()
         } else {
             panic!("you should normalize z first!, z = {:?}", ln_z);
-            1.0 / (arg / 2.0).cos().pow(2 * n as i32)
+            // 1.0 / (arg / 2.0).cos().pow(2 * n as i32)
         };
         self.bernoulli(n * 2).unchecked_cast::<f64>().abs()
             / ((2 * n) * (2 * n - 1)) as f64

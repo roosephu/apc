@@ -21,7 +21,7 @@ fn main() {
     let n = opts.n;
     println!("======= computing pi({}) ======", n);
 
-    let ctx = Context::<f64x2>::new(100);
+    let ctx = Context::<T>::new(100);
     let mut zeta_galway = ZetaGalway::new(&ctx);
     let mut galway = Galway::new(&ctx, &mut zeta_galway);
 
@@ -37,7 +37,7 @@ mod tests {
     use analytic::unchecked_cast::*;
     use analytic::zeta::FnZeta;
     use analytic::*;
-    use num::{Complex, One};
+    use num::Complex;
 
     #[test]
     fn test_tmp() {
