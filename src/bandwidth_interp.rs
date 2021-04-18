@@ -9,7 +9,7 @@ use crate::{
 type HParams<T> = (T, T);
 
 /// a data structure for querying \sum_{t=1}^k n^{-sigma - i t}
-struct FastSumTruncDirichlet<T> {
+struct BandwidthInterp<T> {
     k: usize,
     tau: T,
     sigma: T,
@@ -21,7 +21,7 @@ struct FastSumTruncDirichlet<T> {
     data: Vec<Complex<T>>,
 }
 
-impl<T: MyReal + Sinc> FastSumTruncDirichlet<T> {
+impl<T: MyReal + Sinc> BandwidthInterp<T> {
     pub fn new(k: usize, sigma: T) -> Self {
         let k0 = T::one();
         let k1 = (k as f64).unchecked_cast::<T>();
@@ -91,7 +91,7 @@ impl<T: MyReal + Sinc> FastSumTruncDirichlet<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::FastSumTruncDirichlet;
+    use super::BandwidthInterp;
     use crate::f64x2;
     use num::traits::FloatConst;
     use num::{Complex, Zero};
@@ -102,7 +102,7 @@ mod tests {
     fn test_bandwidth_limited_interp() {
         let k = 100;
         let sigma = T::from(0.5);
-        let ds = FastSumTruncDirichlet::<T>::new(k, sigma);
+        let ds = BandwidthInterp::<T>::new(k, sigma);
         let t = T::PI() * 2.0 * 10100.0;
         // let t = ds.t0;
         let mut gt = Complex::<T>::zero();
