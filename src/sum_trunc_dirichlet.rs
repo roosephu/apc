@@ -32,24 +32,6 @@ pub fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
     let mut planner = FftPlanner::<T>::new();
     let fft = planner.plan_fft_inverse(R);
 
-    // for t in 0..=m {
-    //     for j in 0..n {
-    //         // ret[t] += a[j] * Complex::new(T::zero(), gamma[j] * (t as i64 - M2 as i64) as f64).exp();
-    //         // ret[t] += a[j] * Complex::new(T::zero(), (div * w[j] as f64 + d[j]) * (t as f64 - M2 as f64)).exp();
-    //         let rem = d[j] * (t as f64 - M2 as f64);
-    //         let mut exp = Complex::<T>::zero();
-    //         for (e, c) in T::get_poly_approx() {
-    //             exp += c * rem.pow(e as i32);
-    //         }
-    //         let gt = Complex::new(T::zero(), rem).exp();
-    //         // println!("diff norm = {:.e}, exp = {:?}, gt = {:?}, rem = {:?}", (gt - exp).norm(), exp, gt, rem);
-    //         ret[t] += a[j]
-    //             * Complex::new(T::zero(), (div * w[j] as f64) * (t as f64 - M2 as f64)).exp()
-    //             * exp;
-    //     }
-    // }
-    // return ret;
-
     for (e, c) in T::get_poly_approx() {
         for x in f.iter_mut() {
             x.set_zero()
