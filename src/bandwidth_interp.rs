@@ -5,87 +5,104 @@ use crate::{
     traits::{MyReal, Sinc},
     unchecked_cast::UncheckedCast,
 };
-
-type HParams<T> = (T, T);
+use log::debug;
 
 /// a data structure for querying \sum_{t=1}^k n^{-sigma - i t}
 struct BandwidthInterp<T> {
-    k: usize,
+    k0: usize,
+    k1: usize,
     tau: T,
     sigma: T,
     t0: T,
+    gap: T,
 
     alpha: T,
     beta: T,
-    h_params: HParams<T>,
     data: Vec<Complex<T>>,
 }
 
+/// determine c: c / sinh(c) = eps
+fn find_c(eps: f64) -> f64 {
+    let c = 1.0;
+    let c = (2.0 / eps * c).ln();
+    let c = (2.0 / eps * c).ln();
+    c
+}
+
 impl<T: MyReal + Sinc> BandwidthInterp<T> {
+    /// tau = ln(k1/k0)
+    /// precompute = O((c + k1 eps)(tau/gap + 2))
+    /// query = O(k0 + c (tau/gap + 1))
     pub fn new(k: usize, sigma: T) -> Self {
-        let k0 = T::one();
+        let k0_int = std::cmp::min(4, k);
+        let k0 = (k0_int as f64).unchecked_cast::<T>();
         let k1 = (k as f64).unchecked_cast::<T>();
         let tau = (k1 / k0).ln();
-        let beta = tau + 20.0;
-        let eps = (beta - tau) / 2.0;
+        let gap = tau * 0.5;
+        let beta = tau + gap * 2.0;
         let alpha = (k0 * k1).ln() / 2.0;
-        let c = 80.0f64.unchecked_cast::<T>();
+        let max_c = 80.0f64.unchecked_cast::<T>();
         let min_t = T::PI() * 2.0 * k1 * k1;
         let max_t = T::PI() * 2.0 * (k1 + 1.0) * (k1 + 1.0);
-        let t0 = min_t - c / eps;
-        let t1 = max_t + c / eps;
+        let t0 = min_t - max_c / gap;
+        let t1 = max_t + max_c / gap;
         let delta = T::PI() / beta;
         let m = ((t1 - t0) / delta).unchecked_cast::<i64>() as usize;
-        let data = sum_trunc_dirichlet(Complex::new(sigma, t0), 1, k, m, delta);
+        let data = sum_trunc_dirichlet(Complex::new(sigma, t0), k0_int, k, m, delta);
         let data = data
             .iter()
             .enumerate()
             .map(|(i, &x)| Complex::new(T::zero(), (t0 + delta * i as f64) * alpha).exp() * x)
             .collect();
-        let coeff = c / c.sinh();
-        println!("coef = {}, sinh = {}", coeff, c.sinh());
+        debug!("precompute {} terms", m);
 
-        println!("precompute {} terms", m);
-
-        Self { k, tau, sigma, alpha, beta, data, h_params: (c, eps), t0 }
+        Self { k0: k0_int, k1: k, tau, sigma, alpha, beta, data, gap, t0 }
     }
 
-    fn h(&self, t: T) -> T {
-        let (c, eps) = self.h_params;
-        let w = (c * c - eps * eps * t * t).sqrt();
-        let coeff = c / c.sinh();
+    fn h(&self, c: T, t: T) -> T {
+        let w = (c * c - self.gap * self.gap * t * t).sqrt();
         if w.is_zero() {
-            coeff
+            T::one()
         } else {
-            coeff * w.sinh() / w
+            w.sinh() / w
         }
     }
 
     /// we have all precomputed data of
     /// G1(dt) = G(dt + t0) = e^{i alpha (t0 + dt)} \sum_{n=k0}^{k1} n^{-sigma - i(t0 + dt)}
     /// for dt multipliers of delta = pi/beta
-    pub fn query(&self, t: T) -> Complex<T> {
+    pub fn query(&self, t: T, eps: f64) -> Complex<T> {
+        let c = find_c(eps / 10.0).unchecked_cast::<T>();
+        let c_over_c_sinh = c / c.sinh();
+
         let dt = t - self.t0;
         let delta = T::PI() / self.beta;
-        let (c, eps) = self.h_params;
-        let r = ((dt + c / eps) / delta).floor();
-        let l = ((dt - c / eps) / delta).ceil();
+        let gap = self.gap;
+        let r = ((dt + c / self.gap) / delta).floor();
+        let l = ((dt - c / self.gap) / delta).ceil();
 
         let mut ret = Complex::<T>::zero();
         for a in l.unchecked_cast::<i32>()..=r.unchecked_cast::<i32>() {
             ret += self.data[a as usize]
-                * self.h(dt - delta * (a as f64))
+                * self.h(c, dt - delta * (a as f64))
                 * (self.beta * dt - T::PI() * (a as f64)).sinc();
-            // println!("{} {}", self.h(dt - delta * (a as f64)), (self.beta * dt - T::PI() * (a as f64)).sinc());
+            // println!("{} {}", self.h(c, dt - delta * (a as f64)), (self.beta * dt - T::PI() * (a as f64)).sinc());
+        }
+        ret *= Complex::new(T::zero(), -self.alpha * t).exp() * c_over_c_sinh;
+
+        let s = Complex::new(self.sigma, t);
+        for n in 1..self.k0 {
+            ret += (-s * (n as f64).unchecked_cast::<T>().ln()).exp();
         }
         println!(
-            "# interp terms = {:}, l = {}, r = {}",
+            "c = {}, coeff = {}, # interp terms = {:}, l = {}, r = {}",
+            c, c_over_c_sinh,
             (r - l + 1.0).unchecked_cast::<i32>(),
             l.unchecked_cast::<i32>(),
             r.unchecked_cast::<i32>()
         );
 
-        ret * Complex::new(T::zero(), -self.alpha * t).exp()
+        ret
     }
 }
 
@@ -93,6 +110,8 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
 mod tests {
     use super::BandwidthInterp;
     use crate::f64x2;
+    use crate::test_utils::*;
+    use crate::traits::MyReal;
     use num::traits::FloatConst;
     use num::{Complex, Zero};
 
@@ -101,21 +120,22 @@ mod tests {
     #[test]
     fn test_bandwidth_limited_interp() {
         let k = 100;
-        let sigma = T::from(0.5);
+        let sigma = 0.5.unchecked_cast::<T>();
+        let eps = 1e-26;
         let ds = BandwidthInterp::<T>::new(k, sigma);
         let t = T::PI() * 2.0 * 10100.0;
         // let t = ds.t0;
         let mut gt = Complex::<T>::zero();
         let s = Complex::new(sigma, t);
         for i in 1..=k {
-            gt += Complex::new(T::from(i as f64), T::zero()).powc(-s);
+            gt += (-s * (i as f64).unchecked_cast::<T>().ln()).exp();
         }
         println!("ds params: alpha = {}, beta = {}, tau = {}", ds.alpha, ds.beta, ds.tau);
 
-        let output = ds.query(t);
+        let output = ds.query(t, eps);
         // let output = ds.data[0];
         // gt *= Complex::new(T::zero(), ds.alpha * t).exp();
         println!("gt = {}, output = {}, diff = {:.e}", gt, output, gt - output);
-        panic!();
+        assert_complex_close(output, gt, eps);
     }
 }
