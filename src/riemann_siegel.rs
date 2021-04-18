@@ -286,9 +286,44 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
     }
 }
 
+pub struct RiemannSiegelTheta<'a, T> {
+    ctx: &'a Context<T>,
+    K: usize,
+    coeffs: Vec<T>,
+}
+
+impl<'a, T: MyReal> RiemannSiegelTheta<'a, T> {
+    /// see https://arxiv.org/pdf/1609.03682.pdf for the "wrong" formula
+    pub fn new(ctx: &'a Context<T>, K: usize) -> Self {
+        // (1 - T(2)^(1 - 2 * j)) * abs(T(_bernoulli[j + 1])) / (4 * j * (2 * j - 1))
+        let mut coeffs = vec![T::zero(); K + 1];
+        for j in 1..=K {
+            coeffs[j] = (T::one() - 2.0.unchecked_cast::<T>().powi(1 - 2 * j as i32))
+                * ctx.bernoulli(2 * j).abs()
+                / (4 * j * (2 * j - 1)) as f64;
+        }
+        Self { ctx, K, coeffs }
+    }
+
+    pub fn theta(&self, t: T, eps: f64) -> T {
+        // as it's typically used with RiemannSiegelZ, we hope it's not too small.
+        assert!(t.unchecked_cast::<f64>() >= 200.0 && eps > 1e-33);
+        const K: usize = 7;
+        let mut ret = t / 2.0 * (t / 2.0 / T::PI() / T::E()).ln() - T::FRAC_PI_8();
+        let mut tpow = t;
+        let tsqr = t * t;
+        for i in 1..=K {
+            ret += self.coeffs[i] / tpow;
+            tpow *= tsqr;
+        }
+        ret
+    }
+}
+
 /// Gabcke's
 pub struct RiemannSiegelZ<'a, T> {
     ctx: &'a Context<T>,
+    theta: RiemannSiegelTheta<'a, T>,
     K: usize,
     coeffs: Vec<Vec<T>>,
 }
@@ -296,7 +331,7 @@ pub struct RiemannSiegelZ<'a, T> {
 impl<'a, T: MyReal> RiemannSiegelZ<'a, T> {
     pub fn new(ctx: &'a Context<T>, K: usize) -> Self {
         let coeffs = RiemannSiegelZ::gen_coeffs(ctx, K);
-        Self { ctx, K, coeffs }
+        Self { ctx, K, coeffs, theta: RiemannSiegelTheta::new(ctx, K) }
     }
 }
 
@@ -380,7 +415,8 @@ impl<T: MyReal> RiemannSiegelZ<'_, T> {
         let n = a.floor();
         let (K, plan_sum_trunc_dirichlet) = plan;
         let z = Complex::new(0.25.unchecked_cast::<T>(), t * 0.5);
-        let theta = self.ctx.loggamma(z, eps).im - t * 0.5 * T::PI().ln();
+        // let theta = self.ctx.loggamma(z, eps).im - t * 0.5 * T::PI().ln();
+        let theta = self.theta.theta(t, eps);
 
         let mut sum_trunc_dirichlet;
         match plan_sum_trunc_dirichlet {
@@ -432,12 +468,12 @@ mod tests {
     use crate::test_utils::*;
     use crate::*;
     use num::Complex;
+    use riemann_siegel::RiemannSiegelTheta;
 
     #[test]
     fn rszeta() {
         type T = f64x2;
         let ctx = Context::<T>::new(100);
-        // let mut zeta_galway = ZetaGalway::new(&ctx);
         let zeta_rs = RiemannSiegelZeta::new(&ctx, T::from(1.5), 20);
 
         let eps = 1e-10;
@@ -467,7 +503,6 @@ mod tests {
         type T = f64x2;
 
         let ctx = Context::<T>::new(100);
-        // let mut zeta_galway = ZetaGalway::new(&ctx);
         let rs_z = RiemannSiegelZ::new(&ctx, 20);
 
         let eps = 1e-10;
@@ -494,10 +529,23 @@ mod tests {
 
         let eps = 1e-15;
         let ctx = Context::<T>::new(100);
-        // let mut zeta_galway = ZetaGalway::new(&ctx);
         let rs_z = RiemannSiegelZ::new(&ctx, 20);
 
         println!("{} {}", rs_z.Z(a, eps).unwrap(), rs_z.Z(b, eps).unwrap());
         panic!();
+    }
+
+    #[test]
+    fn test_rs_theta() {
+        type T = f64x2;
+        let t = f64x2 { hi: 1000.0, lo: 0.0 };
+
+        let eps = 1e-30;
+        let ctx = Context::<T>::new(100);
+        let rs_theta = RiemannSiegelTheta::new(&ctx, 20);
+        let gt = f64x2 { hi: 2034.5464280380315, lo: 7.28690383001782e-14 };
+        let output = rs_theta.theta(t, eps);
+
+        assert_close(output, gt, eps);
     }
 }
