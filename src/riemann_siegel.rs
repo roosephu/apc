@@ -336,6 +336,6 @@ mod tests {
         );
         println!("s = {}, zeta(s) = {}", s, z);
         assert_complex_close(z, gt, eps);
-        panic!();
+        // panic!();
     }
 }

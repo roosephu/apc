@@ -364,7 +364,7 @@ fn test_zeta_galway() {
     let s = Complex { re: f64x2 { hi: 1.5, lo: 0.0 }, im: f64x2 { hi: 10000.0, lo: 0.0 } };
     let eps = 1e-18;
     println!("s = {}, zeta(s) = {}", s, zeta_galway2.zeta(s, eps));
-    panic!();
+    // panic!();
 
     // zeta_galway2.test(s, eps);
 }
