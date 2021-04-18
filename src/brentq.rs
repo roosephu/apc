@@ -1,30 +1,32 @@
+use crate::traits::MyReal;
+
 // scipy defaults: xtol = 2e-12, rtol = 8.881784197001252e-16
 
-pub fn brentq<F>(f: F, xa: f64, xb: f64, xtol: f64, rtol: f64, iter: i64) -> Option<f64>
+pub fn brentq<T: MyReal, F>(f: F, xa: T, xb: T, xtol: T, rtol: T, iter: usize) -> Option<T>
 where
-    F: Fn(f64) -> f64,
+    F: Fn(T) -> T,
 {
     let mut xpre = xa;
     let mut xcur = xb;
-    let mut xblk = 0.0;
+    let mut xblk = T::zero();
     let mut fpre = f(xpre);
     let mut fcur = f(xcur);
-    let mut fblk = 0.0;
-    let mut spre = 0.0;
-    let mut scur = 0.0;
+    let mut fblk = T::zero();
+    let mut spre = T::zero();
+    let mut scur = T::zero();
 
-    if fpre * fcur > 0.0 {
+    if (fpre * fcur).is_positive() {
         return None;
     }
-    if fpre == 0.0 {
+    if fpre.is_zero() {
         return Some(xpre);
     }
-    if fcur == 0.0 {
+    if fcur.is_zero() {
         return Some(xcur);
     }
 
     for _ in 0..iter {
-        if fpre * fcur < 0.0 {
+        if (fpre * fcur).is_negative() {
             xblk = xpre;
             fblk = fpre;
             spre = xcur - xpre;
@@ -44,7 +46,7 @@ where
         let delta = (xtol + rtol * xcur.abs()) / 2.0;
         let sbis = (xblk - xcur) / 2.0;
 
-        if fcur == 0.0 || sbis.abs() < delta {
+        if fcur.is_zero() || sbis.abs() < delta {
             return Some(xcur);
         }
         if spre.abs() > delta && fcur.abs() < fpre.abs() {
@@ -55,7 +57,7 @@ where
                 let dblk = (fblk - fcur) / (xblk - xcur);
                 -fcur * (fblk * dblk - fpre * dpre) / (dblk * dpre * (fblk - fpre))
             };
-            if 2.0 * stry.abs() < spre.abs().min(3.0 * sbis.abs() - delta) {
+            if stry.abs() * 2.0 < spre.abs().min(sbis.abs() * 3.0 - delta) {
                 spre = scur;
                 scur = stry;
             } else {
@@ -73,7 +75,7 @@ where
         if scur.abs() > delta {
             xcur += scur;
         } else {
-            xcur += if sbis > 0.0 { delta } else { -delta };
+            xcur += if sbis.is_positive() { delta } else { -delta };
         }
 
         fcur = f(xcur);
