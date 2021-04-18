@@ -87,14 +87,11 @@ impl<T: MyReal> Context<T> {
 
         let ln_z = z.ln();
 
-        result += (z - 0.5f64.unchecked_cast::<T>()) * ln_z - z
-            + (T::PI() * 2i32.unchecked_cast::<T>()).ln() / 2i32.unchecked_cast::<T>();
+        result += (z - 0.5f64.unchecked_cast::<T>()) * ln_z - z + (T::PI() * 2.0).ln() / 2.0;
         let z2 = z * z;
         let mut zpow = z;
         for i in 1..N {
-            let contrib = self.bernoulli(i * 2)
-                / (((2 * i) * (2 * i - 1)) as i32).unchecked_cast::<T>()
-                / zpow;
+            let contrib = self.bernoulli(i * 2) / ((2 * i) * (2 * i - 1)) as f64 / zpow;
             result += contrib;
 
             zpow *= z2;
@@ -140,7 +137,7 @@ impl<T: MyReal> Context<T> {
         info!("initialize Bernoulli numbers up to {}", n);
         let mut bernoulli = vec![T::zero(); n + 1];
         bernoulli[0] = T::one();
-        bernoulli[1] = (-2i32).unchecked_cast::<T>().recip();
+        bernoulli[1] = T::one() / 2.0;
 
         for i in 1..=n / 2 {
             let mut b = T::zero();
@@ -179,7 +176,7 @@ impl<T: MyReal> Context<T> {
         self.pow2[0] = T::one();
         for i in 1..N {
             self.pow_pi[i] = self.pow_pi[i - 1] * T::PI();
-            self.pow2[i] = self.pow2[i - 1] * 2.0f64.unchecked_cast::<T>();
+            self.pow2[i] = self.pow2[i - 1] * 2.0;
         }
     }
 }

@@ -122,6 +122,9 @@ impl f64x2 {
     /// See https://github.com/ajtribick/twofloat/blob/master/src/functions/power.rs#L30-L40
     #[inline]
     pub fn sqrt(self) -> Self {
+        if self.is_zero() {
+            return self;
+        }
         assert!(self.hi >= 0.0, "self = {:?}", self);
         let x = self.hi.sqrt().recip();
         let y = self.hi * x;

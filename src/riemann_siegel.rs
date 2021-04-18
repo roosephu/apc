@@ -27,7 +27,7 @@ use crate::{
 // }
 
 /// Juan de Reyna's function
-/// F(z) = F_re(z) + i F_im(z), where F_re(z) is the function used by Gabcke (then divide by 2):
+/// F(z) = F_re(z) + i F_im(z), where F_re(z) is the function used by Gabcke (then divided by 2):
 /// F_re(z) = cos(PI (z^2 / 2 + 3/8)) / cos(PI z) / 2
 /// F_im(z) = (sin(PI (z^2 / 2 + 3/8)) + \sqrt(2) cos(PI z / 2)) / cos(PI z) / 2
 /// I guess computing real part and image part separately can be faster, as all operations are real.
@@ -79,13 +79,34 @@ pub struct RiemannSiegelZeta<'a, T> {
 
 pub struct RiemannSiegelPlanner<T> {
     sigma: f64,
+    K: usize,
     sum_trunc_dirichlet: Vec<Complex<T>>,
+
+    /// \approx coeffs[k][0]
+    max_coeff: Vec<f64>,
+
+    /// gamma((k + 1) / 2)
+    gamma_half: Vec<f64>,
 }
 
 type Plan<T> = (usize, Option<Complex<T>>);
 
 impl<T: MyReal> RiemannSiegelPlanner<T> {
-    pub fn new(sigma: f64) -> Self { Self { sigma, sum_trunc_dirichlet: vec![] } }
+    pub fn new(sigma: f64, K: usize) -> Self {
+        let gamma_half =
+            (0..=K).map(|k| rgsl::gamma_beta::gamma::gamma((k as f64 + 1.0) / 2.0)).collect();
+        let max_coeff = (0..=K)
+            .map(|k| {
+                if k == 0 {
+                    1.0
+                } else {
+                    let k = k as f64;
+                    (2.0 * k * k.ln() - 2.0 * k * (2.0 * f64::PI() * f64::E() / 3.0).ln()).exp()
+                }
+            })
+            .collect();
+        Self { K, max_coeff, sigma, gamma_half, sum_trunc_dirichlet: vec![] }
+    }
 
     pub fn plan(&self, t: f64, eps: f64) -> Option<Plan<T>> {
         let a = (t.unchecked_cast::<f64>() / f64::PI() / 2.0).sqrt();
@@ -104,14 +125,26 @@ impl<T: MyReal> RiemannSiegelPlanner<T> {
 
         let eps = eps * a.powf(sigma);
         let b = 10.0 / 11.0 * a;
+        let mut bpow = b.powi(k as i32 + 1);
 
-        while k <= 50 {
-            let err =
-                c1 * rgsl::gamma_beta::gamma::gamma((k as f64 + 1.0) / 2.0) / b.powi(k as i32 + 1);
+        let coeff_bound = eps / T::epsilon().unchecked_cast::<f64>() / 10.0f64;
+        while k <= self.K {
+            // bpow = b.powi(k + 1)
+            let err = c1 * self.gamma_half[k] / bpow;
+
+            if self.max_coeff[k] > coeff_bound {
+                println!(
+                    "k = {}, max_coef = {}, coeff bound = {}, err = {:.e}, eps = {:.e}",
+                    k, self.max_coeff[k], coeff_bound, err, eps
+                );
+                return None;
+            }
+
             if err < eps {
                 return Some((k, None));
             }
             k += 1;
+            bpow *= b;
         }
 
         None
@@ -179,8 +212,8 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
             coeffs1,
             coeffs2,
             planners: [
-                RiemannSiegelPlanner::new(sigma.unchecked_cast::<f64>()),
-                RiemannSiegelPlanner::new(1.0 - sigma.unchecked_cast::<f64>()),
+                RiemannSiegelPlanner::new(sigma.unchecked_cast::<f64>(), K),
+                RiemannSiegelPlanner::new(1.0 - sigma.unchecked_cast::<f64>(), K),
             ],
         }
     }
@@ -264,6 +297,7 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
         // println!("plan: {:?} {:?}", plan0, plan1);
         let R0 = self.solve(t, &ps, plan0, false);
         let R1 = self.solve(t, &ps, plan1, true);
+        println!("R0 = {}, R1 = {}", R0, R1);
         let ret = R0 + chi * R1.conj();
         Some(ret)
     }
@@ -272,18 +306,36 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
 #[cfg(test)]
 mod tests {
     use crate::f64x2;
+    use crate::test_utils::*;
     use crate::*;
     use num::Complex;
 
     #[test]
     fn rszeta() {
-        type T = f64;
+        type T = f64x2;
         let ctx = Context::<T>::new(100);
         // let mut zeta_galway = ZetaGalway::new(&ctx);
-        let zeta_rs = RiemannSiegelZeta::new(&ctx, T::from(1.5), 50);
+        let zeta_rs = RiemannSiegelZeta::new(&ctx, T::from(1.5), 20);
 
-        let s = Complex::new(T::from(1.5), f64::from(1000000.0));
-        println!("s = {}, zeta(s) = {}", s, zeta_rs.zeta(s, 1e-17).unwrap());
+        let eps = 1e-10;
+        let s = Complex::new(T::from(1.5), T::from(1000.0));
+        let z = zeta_rs.zeta(s, eps).unwrap();
+        let gt = Complex::new(
+            f64x2 { hi: 0.9555445813034115, lo: 2.3151859668257056e-17 },
+            f64x2 { hi: -0.09613241765159551, lo: 7.727321635166056e-19 },
+        );
+        println!("s = {}, zeta(s) = {}", s, z);
+        assert_complex_close(z, gt, eps);
+
+        let eps = 1e-24;
+        let s = Complex::new(T::from(1.5), T::from(1000000.0));
+        let z = zeta_rs.zeta(s, eps).unwrap();
+        let gt = Complex::new(
+            f64x2 { hi: 0.9380775942197226, lo: 1.0691936973721035e-17 },
+            f64x2 { hi: 0.38907944826016855, lo: -2.7797363425251712e-18 },
+        );
+        println!("s = {}, zeta(s) = {}", s, z);
+        assert_complex_close(z, gt, eps);
         panic!();
     }
 }

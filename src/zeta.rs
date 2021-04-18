@@ -1,7 +1,7 @@
 use crate::{brentq::brentq, context::Context, traits::MyReal, unchecked_cast::UncheckedCast};
 use crate::{
-    sum_trunc_dirichlet::{sum_trunc_dirichlet, ExpPolyApprox},
-    traits::ComplexFunctions,
+    sum_trunc_dirichlet::sum_trunc_dirichlet,
+    traits::{ComplexFunctions, ExpPolyApprox},
 };
 use core::panic;
 use log::debug;

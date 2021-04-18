@@ -12,7 +12,8 @@ debug = true
 [dependencies]
 rug = "1.11.0"
 num = "0.4.0"
-rustfft =  { git = "https://github.com/roosephu/RustFFT.git" }
+rustfft =  { path = "/Users/roosephu/git/RustFFT" }
+# rustfft =  { local = "/Users/roosephu/git/RustFFT", git = "https://github.com/roosephu/RustFFT.git" }
 GSL = "4.0.0"
 bit-vec = "0.6.3"
 log = "0.4.14"

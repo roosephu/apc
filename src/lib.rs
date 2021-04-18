@@ -8,6 +8,7 @@
 #![feature(destructuring_assignment)]
 #![feature(min_type_alias_impl_trait)]
 
+pub mod bandwidth_limited;
 pub mod brentq;
 pub mod context;
 pub mod f64xn;
@@ -16,6 +17,7 @@ pub mod gamma;
 pub mod power_series;
 pub mod riemann_siegel;
 pub mod sum_trunc_dirichlet;
+pub(crate) mod test_utils;
 pub mod traits;
 pub mod unchecked_cast;
 pub mod zeta;
