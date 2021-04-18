@@ -36,7 +36,7 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
         let t1 = max_t + c / eps;
         let delta = T::PI() / beta;
         let m = ((t1 - t0) / delta).unchecked_cast::<i64>() as usize;
-        let data = sum_trunc_dirichlet(Complex::new(sigma, t0), k, m, delta);
+        let data = sum_trunc_dirichlet(Complex::new(sigma, t0), 1, k, m, delta);
         let data = data
             .iter()
             .enumerate()

@@ -102,7 +102,7 @@ impl<T: MyReal + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
         }
 
         // add m by 1 to avoid offset-by-1 due to limited precision.
-        self.sum_trunc_dirichlet = sum_trunc_dirichlet(s, n as usize, m + 1, h);
+        self.sum_trunc_dirichlet = sum_trunc_dirichlet(s, 1, n as usize, m + 1, h);
         self.s0 = s;
     }
 

@@ -8,7 +8,7 @@
 #![feature(destructuring_assignment)]
 #![feature(min_type_alias_impl_trait)]
 
-pub mod bandwidth_limited;
+pub mod bandwidth_interp;
 pub mod brentq;
 pub mod context;
 pub mod f64xn;

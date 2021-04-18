@@ -4,30 +4,22 @@ use rustfft::{FftNum, FftPlanner};
 
 use crate::traits::{ExpPolyApprox, MyReal};
 
-/// compute \sum_{j=1}^n j^{-(s + i t delta)} for every 0 <= t <= m
-pub fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
-    s: Complex<T>,
-    n: usize,
+/// compute F(t) = \sum_{(a, g)} a exp(i t g) for t in [-m, m]
+pub fn sum_weighted_exp<T: ExpPolyApprox + MyReal + FftNum>(
+    a: &[Complex<T>],
+    g: &[T],
     m: usize,
-    delta: T,
 ) -> Vec<Complex<T>> {
-    debug!("[OS-FKBJ] s = {:.6}, n = {}, m = {}, delta = {:.6}", s, n, m, delta);
-    let M2 = (m + m % 2) / 2;
-    let TM2 = (M2 as i64).unchecked_cast::<T>();
-    let s = s + Complex::new(T::zero(), TM2 * delta);
-
-    // ans[t] = \sum_{j=0}^{n - 1} a[j] * exp(i gamma[j] (t - M2))
-    let a: Vec<_> = (1..=n).map(|x| (-s * (x as f64).unchecked_cast::<T>().ln()).exp()).collect();
-    let gamma: Vec<T> = (1..=n).map(|x| -delta * (x as f64).unchecked_cast::<T>().ln()).collect();
-
-    // gamma[j] = w[j] * div + d[j];
-    let R = (m + 1).next_power_of_two() * 2;
+    let TM = (m as f64).unchecked_cast::<T>();
+    // g[j] = w[j] * div + d[j];
+    let n = a.len();
+    let R = (m as usize + 1).next_power_of_two() * 2;
     let div = T::TAU() / (R as f64);
-    let w: Vec<i64> = gamma.iter().map(|&x| ((x / div).round().unchecked_cast())).collect();
+    let w: Vec<i64> = g.iter().map(|&x| ((x / div).round().unchecked_cast())).collect();
     let d: Vec<T> =
-        gamma.iter().zip(w.iter()).map(|(&x, &y)| x - y.unchecked_cast::<T>() * div).collect();
+        g.iter().zip(w.iter()).map(|(&x, &y)| x - y.unchecked_cast::<T>() * div).collect();
 
-    let mut ret = vec![Complex::zero(); m + 1];
+    let mut ret = vec![Complex::zero(); m * 2 + 1];
     let mut f = vec![Complex::zero(); R];
     let mut planner = FftPlanner::<T>::new();
     let fft = planner.plan_fft_inverse(R);
@@ -37,17 +29,37 @@ pub fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
             x.set_zero()
         }
         for j in 0..n {
-            f[w[j].rem_euclid(R as i64) as usize] += a[j] * (d[j] * TM2).pow(e as i32);
+            f[w[j].rem_euclid(R as i64) as usize] += a[j] * (d[j] * TM).pow(e as i32);
         }
         fft.process(f.as_mut_slice());
-        for x in 0..=m {
+        for x in 0..=m * 2 {
             ret[x] += c
-                * f[(x + R - M2) % R]
-                * ((x as i32).unchecked_cast::<T>() / TM2 - 1.0).pow(e as i32);
+                * f[(x + R - m) % R]
+                * ((x as i32).unchecked_cast::<T>() / TM - 1.0).pow(e as i32);
         }
     }
 
     ret
+}
+
+/// compute \sum_{j=n0}^n1 j^{-(s + i t delta)} for every 0 <= t <= m
+pub fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
+    s: Complex<T>,
+    n0: usize,
+    n1: usize,
+    m: usize,
+    delta: T,
+) -> Vec<Complex<T>> {
+    debug!("[OS-FKBJ] s = {:.6}, n = [{}, {}], m = {}, delta = {:.6}", s, n0, n1, m, delta);
+    let M2 = (m + m % 2) / 2;
+    let s = s + Complex::new(T::zero(), delta * M2 as f64);
+
+    // ans[t] = \sum_{j=0}^{n - 1} a[j] * exp(i gamma[j] (t - M2))
+    let ln_x: Vec<_> = (n0..=n1).map(|x| (x as f64).unchecked_cast::<T>().ln()).collect();
+    let a: Vec<_> = ln_x.iter().map(|&ln_x| (-s * ln_x).exp()).collect();
+    let gamma: Vec<T> = ln_x.iter().map(|&ln_x| -delta * ln_x).collect();
+
+    sum_weighted_exp(&a, &gamma, M2)
 }
 
 #[cfg(test)]
@@ -65,7 +77,7 @@ mod tests {
         let s = Complex::new(1.3.unchecked_cast::<T>(), 260.unchecked_cast::<T>());
         let M = 9;
         let delta = 1.1.unchecked_cast::<T>();
-        let result = sum_trunc_dirichlet(s, N, M, delta);
+        let result = sum_trunc_dirichlet(s, 1, N, M, delta);
         for t in 0..=M {
             let mut sum = Complex::<T>::zero();
             let z = s + Complex::new(T::zero(), delta * t as f64);
