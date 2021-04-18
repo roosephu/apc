@@ -96,7 +96,8 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
         }
         println!(
             "c = {}, coeff = {}, # interp terms = {:}, l = {}, r = {}",
-            c, c_over_c_sinh,
+            c,
+            c_over_c_sinh,
             (r - l + 1.0).unchecked_cast::<i32>(),
             l.unchecked_cast::<i32>(),
             r.unchecked_cast::<i32>()
