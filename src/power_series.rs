@@ -60,7 +60,7 @@ impl<T: Copy + Num + NumAssignOps> MulAssign<&PowerSeries<T>> for PowerSeries<T>
         let mut data = vec![T::zero(); self.N];
         let new_n = min(self.n + rhs.n, self.N);
         for i in 0..self.n {
-            for j in 0..=min(new_n - i, rhs.n) {
+            for j in 0..min(new_n - i, rhs.n) {
                 data[i + j] += self.data[i] * rhs.data[j];
             }
         }
@@ -116,9 +116,32 @@ impl<T: Copy + Num + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
         self.n = self.N;
         self.data = series;
     }
+
+    fn compose2(&mut self, derivatives: &mut [T]) {
+        let x = self.data[0];
+        let mut series = vec![T::zero(); self.N];
+
+        series[0] = self.data[0];
+        self.data[0] = T::zero();
+        for i in (0..self.N).rev() {
+            // basically it's `ret = ret * D + f^{(i)}`
+            // We truncate the series to order n.
+            let n = self.N - i;
+            for j in (0..n).rev() {
+                let mut s = T::zero();
+                for k in 1..min(j + 1, self.n) {
+                    s += series[j - k] * self.data[k];
+                }
+                series[j] = s;
+            }
+            series[0] += derivatives[i];
+        }
+        self.n = self.N;
+        self.data = series;
+    }
 }
 
-impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
+impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps + std::fmt::Debug> PowerSeries<T> {
     pub fn cos_(&mut self) {
         let mut derivatives = vec![T::zero(); self.N];
         let (sin_x, cos_x) = self.data[0].sin_cos();
@@ -143,6 +166,17 @@ impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
         let exp = self.data[0].exp();
         let mut derivatives = vec![exp; self.N];
         self.compose(&mut derivatives);
+    }
+
+    pub fn recip_(&mut self) {
+        let mut derivatives = vec![T::zero(); self.N];
+        let v = self.data[0];
+        let mut d = T::one() / v;
+        for i in 0..self.N {
+            derivatives[i] = d;
+            d = -d / v;
+        }
+        self.compose2(&mut derivatives);
     }
 }
 

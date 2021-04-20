@@ -11,6 +11,7 @@
 
 pub mod bandwidth_interp;
 pub mod brentq;
+pub mod constants;
 pub mod context;
 pub mod f64xn;
 pub mod galway;

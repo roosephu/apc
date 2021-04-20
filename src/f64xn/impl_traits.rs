@@ -10,8 +10,9 @@ use num::{Complex, Float, FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 use num_traits::{AsPrimitive, FloatConst, Pow};
 
 use crate::{
+    constants::RS_GABCKE_GAMMA,
     f64x2,
-    traits::{Erfc, ExpPolyApprox, Sinc},
+    traits::{Erfc, ExpPolyApprox, GabckeExpansion, Sinc},
     unchecked_cast::{UncheckedCast, UncheckedFrom, UncheckedInto},
 };
 
@@ -283,7 +284,17 @@ impl Float for f64x2 {
     fn max(self, other: Self) -> Self { todo!() }
 
     #[inline]
-    fn min(self, other: Self) -> Self { todo!() }
+    fn min(self, other: Self) -> Self {
+        if self.hi > other.hi {
+            other
+        } else if self.hi < other.hi {
+            self
+        } else if self.lo > other.lo {
+            other
+        } else {
+            self
+        }
+    }
 
     #[inline]
     fn exp_m1(self) -> Self { todo!() }
@@ -746,5 +757,29 @@ impl Sinc for f64x2 {
         } else {
             self.sin() / self
         }
+    }
+}
+
+impl GabckeExpansion for f64x2 {
+    fn expand(a: Self, z: Self, K: usize, eps: f64) -> Self {
+        let mut expansion = Self::zero();
+        let t2_z = z * z * 2.0 - 1.0;
+        for k in 0..=K {
+            let m = RS_GABCKE_GAMMA[k].len();
+            let mut s = RS_GABCKE_GAMMA[k][0];
+
+            let mut pre = Self::one();
+            let mut cur = t2_z;
+            for j in 1..m {
+                s += RS_GABCKE_GAMMA[k][j] * cur;
+                (pre, cur) = (cur, cur * t2_z * 2.0 - pre);
+            }
+            if k % 2 == 1 {
+                s *= z;
+            }
+            expansion += s / a.powi(k as i64);
+            println!("k = {}, correction = {:?}", k, s);
+        }
+        expansion
     }
 }
