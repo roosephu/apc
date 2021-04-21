@@ -29,6 +29,10 @@ pub trait GabckeExpansion {
     fn expand(a: Self, z: Self, k: usize, eps: f64) -> Self;
 }
 
+pub trait HighPrecMod2PI {
+    fn mod_2pi(self) -> Self;
+}
+
 pub trait MyReal = Float
     + FloatConst
     + Signed

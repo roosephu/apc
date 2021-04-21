@@ -306,10 +306,13 @@ impl<'a, T: MyReal> RiemannSiegelTheta<'a, T> {
         Self { ctx, K, coeffs }
     }
 
+    // See [Sec 3.11, Pugh].
     pub fn theta(&self, t: T, eps: f64) -> T {
         // as it's typically used with RiemannSiegelZ, we hope it's not too small.
         assert!(t.unchecked_cast::<f64>() >= 200.0 && eps > 1e-33);
         const K: usize = 7;
+
+        // needs high precision base computation here.
         let mut ret = t / 2.0 * (t / 2.0 / T::PI() / T::E()).ln() - T::FRAC_PI_8();
         let mut tpow = t;
         let tsqr = t * t;
