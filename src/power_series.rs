@@ -83,7 +83,7 @@ impl<T: Copy + Num + NumAssignOps> DivAssign<&PowerSeries<T>> for PowerSeries<T>
     }
 }
 
-impl<T: Copy + Num + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
+impl<T: Copy + Num + NumAssignOps> PowerSeries<T> {
     /// function composition
     /// Assuming N is small, brute-forcing can typically be very fast.
     /// input = \sum_{i=0}^\infty a_i t^i
@@ -111,7 +111,9 @@ impl<T: Copy + Num + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
         self.n = self.N;
         self.data = series;
     }
+}
 
+impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps + std::fmt::Debug> PowerSeries<T> {
     fn divide_factorials(derivatives: &mut [T]) {
         let mut factorial = T::one();
         for i in 0..derivatives.len() {
@@ -119,9 +121,7 @@ impl<T: Copy + Num + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
             factorial *= T::unchecked_from(i as i32 + 1);
         }
     }
-}
 
-impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps + std::fmt::Debug> PowerSeries<T> {
     pub fn cos_(&mut self) {
         let mut derivatives = vec![T::zero(); self.N];
         let (sin_x, cos_x) = self.data[0].sin_cos();
