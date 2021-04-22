@@ -79,7 +79,6 @@ where
         }
 
         fcur = f(xcur);
-        println!("query {:?}, f = {}", xcur, fcur);
     }
     Some(xcur)
 }

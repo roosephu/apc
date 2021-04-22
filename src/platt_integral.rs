@@ -10,7 +10,7 @@ use num::Complex;
 type Expansion<T> = (T, T, Complex<T>, Complex<T>, PowerSeries<Complex<T>>);
 
 /// to compute $$\int x^s exp(lambda^2 s^2 / 2) / s dh$$ for $s = \sigma + ih$
-struct PlattIntegrator<T> {
+pub struct PlattIntegrator<T> {
     order: usize,
     eps: T,
     sigma: T,
@@ -20,7 +20,7 @@ struct PlattIntegrator<T> {
 }
 
 impl<T: MyReal> PlattIntegrator<T> {
-    fn new(x: T, sigma: T, lambda: T, max_order: usize, eps: f64) -> Self {
+    pub fn new(x: T, sigma: T, lambda: T, max_order: usize, eps: f64) -> Self {
         Self {
             ln_x: x.ln(),
             sigma,
@@ -121,10 +121,10 @@ impl<T: MyReal> PlattIntegrator<T> {
     }
 
     pub fn query(&mut self, mut t1: T, t2: T) -> Complex<T> {
-        debug!("[integral] query [{}, {}]", t1, t2);
+        // debug!("[integral] query [{}, {}]", t1, t2);
         if let Some((t0, radius, _, _, _)) = self.expansion.as_ref() {
             if (t1 - *t0).abs() < *radius && (t2 - t1).abs() < *radius {
-                debug!("[integral] easy case.");
+                // debug!("[integral] easy case.");
                 return self._query(t2) - self._query(t1);
             }
         }

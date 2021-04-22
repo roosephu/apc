@@ -6,7 +6,7 @@ use log::{debug, info};
 use num::integer::*;
 use num::Complex;
 
-pub struct Galway<'a, T, Z: FnZeta<T>> {
+pub struct Galway<'a, T, Z> {
     ctx: &'a Context<T>,
     fn_zeta: &'a mut Z,
     lambda: T,
@@ -17,7 +17,7 @@ pub struct Galway<'a, T, Z: FnZeta<T>> {
     x2: u64,
 }
 
-impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
+impl<T: MyReal, Z> Galway<'_, T, Z> {
     fn Phi(&self, p: T, eps: f64) -> T {
         (p / T::SQRT_2()).erfc(eps) / 2.0f64.unchecked_cast::<T>()
     }
@@ -73,8 +73,8 @@ impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
         let (x1, x2) = (self.x1, self.x2);
         let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
 
-        let primes = Galway::<T, Z>::linear_sieve(x2.sqrt());
-        for p in Galway::<T, Z>::sieve(&primes, x1, x2) {
+        let primes = Self::linear_sieve(x2.sqrt());
+        for p in Self::sieve(&primes, x1, x2) {
             ret -= self.phi((p as i64).unchecked_cast(), fx, eps);
             if p <= x {
                 ret += T::one();
@@ -99,7 +99,7 @@ impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
     }
 }
 
-impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
+impl<T: MyReal, Z> Galway<'_, T, Z> {
     fn init_F_taylor(&mut self, N: usize) {
         // [de Reyna]
         let pi = T::PI();
@@ -206,7 +206,7 @@ impl<'a, T: MyReal, Z: FnZeta<T>> Galway<'a, T, Z> {
     /// During planning, these hyperparameters (lambda, sigma, h, x1, x2, integral_limits)
     /// doesn't need to be very accurate
     /// as long as they satisfy the error bound.
-    fn plan(&mut self, x: f64, hints: GalwayHints) {
+    pub fn plan(&mut self, x: f64, hints: GalwayHints) {
         let sigma = 1.5;
         let lambda = hints.lambda.unwrap_or(1.0) / x.sqrt();
 

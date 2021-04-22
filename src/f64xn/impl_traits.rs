@@ -119,10 +119,30 @@ impl Rem for f64x2 {
 }
 
 impl Num for f64x2 {
-    type FromStrRadixErr = &'static str;
+    type FromStrRadixErr = ();
 
     #[inline]
-    fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> { todo!() }
+    fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+        let mut ret = f64x2::zero();
+        let mut after_point = false;
+        let mut pow = f64x2::one();
+        for &c in str.as_bytes() {
+            if c == b'.' {
+                after_point = true
+            } else {
+                if after_point {
+                    pow = pow / 10.0;
+                }
+                let d = (c - b'0') as f64;
+                if after_point {
+                    ret += pow * d;
+                } else {
+                    ret = ret * 10.0 + d;
+                }
+            }
+        }
+        Ok(ret)
+    }
 }
 
 impl ToPrimitive for f64x2 {

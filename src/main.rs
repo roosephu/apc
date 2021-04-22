@@ -3,6 +3,7 @@
 
 use analytic::*;
 use clap::{crate_authors, crate_version, Clap};
+use platt::PlattHints;
 
 type T = f64x2;
 
@@ -21,15 +22,18 @@ fn main() {
     let n = opts.n;
     println!("======= computing pi({}) ======", n);
 
-    let ctx = Context::<T>::new(100);
-    let mut zeta_galway = ZetaGalway::new(&ctx);
-    let mut galway = Galway::new(&ctx, &mut zeta_galway);
+    // let ctx = Context::<T>::new(100);
+    // let mut zeta_galway = ZetaGalway::new(&ctx);
+    // let mut galway = Galway::new(&ctx, &mut zeta_galway);
+    // let hints = GalwayHints { lambda: opts.lambda };
+    // let ans = galway.compute(n, hints);
+    // println!("[Galway] ans = {}", ans);
+    // println!("[ZetaGalway] complexity = {}", zeta_galway.complexity);
 
-    let hints = GalwayHints { lambda: opts.lambda };
-
-    let ans = galway.compute(n, hints);
-    println!("[Galway] ans = {}", ans);
-    println!("[ZetaGalway] complexity = {}", zeta_galway.complexity);
+    let mut platt = crate::platt::Platt::<T>::new();
+    let hints = PlattHints { lambda: opts.lambda };
+    let ans = platt.compute(n, hints);
+    println!("[Platt] ans = {}", ans);
 }
 
 #[cfg(test)]

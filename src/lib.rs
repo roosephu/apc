@@ -16,6 +16,7 @@ pub mod context;
 pub mod f64xn;
 pub mod galway;
 pub mod gamma;
+pub mod platt;
 mod platt_integral;
 pub mod power_series;
 pub mod riemann_siegel;
