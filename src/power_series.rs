@@ -119,7 +119,6 @@ impl<T: Copy + Num + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
             factorial *= T::unchecked_from(i as i32 + 1);
         }
     }
-
 }
 
 impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps + std::fmt::Debug> PowerSeries<T> {
