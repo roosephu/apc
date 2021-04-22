@@ -89,56 +89,37 @@ impl<T: Copy + Num + UncheckedFrom<i32> + NumAssignOps> PowerSeries<T> {
     /// input = \sum_{i=0}^\infty a_i t^i
     /// let x = a_0, D = \sum_{i=1}^\infty a_i t^i
     /// then f(x + D) = \sum_{i=0}^\infty f^{(i)}(x) D^i / i!
-    fn compose(&mut self, derivatives: &mut [T]) {
+    fn compose(&mut self, coeffs: &[T]) {
         let x = self.data[0];
         let mut series = vec![T::zero(); self.N];
+
+        series[0] = self.data[0];
+        self.data[0] = T::zero();
+        for i in (0..self.N).rev() {
+            // basically it's `ret = ret * D + f^{(i)}`
+            // We truncate the series to order n.
+            let n = self.N - i;
+            for j in (0..n).rev() {
+                let mut s = T::zero();
+                for k in 1..min(j + 1, self.n) {
+                    s += series[j - k] * self.data[k];
+                }
+                series[j] = s;
+            }
+            series[0] += coeffs[i];
+        }
+        self.n = self.N;
+        self.data = series;
+    }
+
+    fn divide_factorials(derivatives: &mut [T]) {
         let mut factorial = T::one();
-        for i in 0..self.N {
+        for i in 0..derivatives.len() {
             derivatives[i] /= factorial;
             factorial *= T::unchecked_from(i as i32 + 1);
         }
-
-        series[0] = self.data[0];
-        self.data[0] = T::zero();
-        for i in (0..self.N).rev() {
-            // basically it's `ret = ret * D + f^{(i)}`
-            // We truncate the series to order n.
-            let n = self.N - i;
-            for j in (0..n).rev() {
-                let mut s = T::zero();
-                for k in 1..min(j + 1, self.n) {
-                    s += series[j - k] * self.data[k];
-                }
-                series[j] = s;
-            }
-            series[0] += derivatives[i];
-        }
-        self.n = self.N;
-        self.data = series;
     }
 
-    fn compose2(&mut self, derivatives: &mut [T]) {
-        let x = self.data[0];
-        let mut series = vec![T::zero(); self.N];
-
-        series[0] = self.data[0];
-        self.data[0] = T::zero();
-        for i in (0..self.N).rev() {
-            // basically it's `ret = ret * D + f^{(i)}`
-            // We truncate the series to order n.
-            let n = self.N - i;
-            for j in (0..n).rev() {
-                let mut s = T::zero();
-                for k in 1..min(j + 1, self.n) {
-                    s += series[j - k] * self.data[k];
-                }
-                series[j] = s;
-            }
-            series[0] += derivatives[i];
-        }
-        self.n = self.N;
-        self.data = series;
-    }
 }
 
 impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps + std::fmt::Debug> PowerSeries<T> {
@@ -149,7 +130,8 @@ impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps + std::fmt::Debug> Powe
         for i in 0..self.N {
             derivatives[i] = table[i % 4];
         }
-        self.compose(&mut derivatives);
+        PowerSeries::divide_factorials(&mut derivatives);
+        self.compose(&derivatives);
     }
 
     pub fn sin_(&mut self) {
@@ -159,13 +141,15 @@ impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps + std::fmt::Debug> Powe
         for i in 0..self.N {
             derivatives[i] = table[i % 4];
         }
-        self.compose(&mut derivatives);
+        PowerSeries::divide_factorials(&mut derivatives);
+        self.compose(&derivatives);
     }
 
     pub fn exp_(&mut self) {
         let exp = self.data[0].exp();
         let mut derivatives = vec![exp; self.N];
-        self.compose(&mut derivatives);
+        PowerSeries::divide_factorials(&mut derivatives);
+        self.compose(&derivatives);
     }
 
     pub fn recip_(&mut self) {
@@ -176,7 +160,7 @@ impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps + std::fmt::Debug> Powe
             derivatives[i] = d;
             d = -d / v;
         }
-        self.compose2(&mut derivatives);
+        self.compose(&derivatives);
     }
 }
 
