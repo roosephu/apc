@@ -541,14 +541,29 @@ impl AsPrimitive<i64> for f64x2 {
 impl FromPrimitive for f64x2 {
     // TODO: might over flow
     #[inline]
-    fn from_i64(n: i64) -> Option<Self> { Some(Self { hi: n as f64, lo: 0.0 }) }
+    fn from_i64(n: i64) -> Option<Self> {
+        let hi = n as f64;
+        let lo = (n - hi as i64) as f64;
+        Some(Self { hi, lo })
+    }
 
     // TODO: might overflow
     #[inline]
-    fn from_u64(n: u64) -> Option<Self> { Some(Self { hi: n as f64, lo: 0.0 }) }
+    fn from_u64(n: u64) -> Option<Self> {
+        let hi = n as f64;
+        let lo = n.wrapping_sub(hi as u64) as i64 as f64;
+        Some(Self { hi, lo })
+    }
 
     #[inline]
     fn from_f64(n: f64) -> Option<Self> { Some(Self { hi: n, lo: 0.0 }) }
+
+    #[inline]
+    fn from_u128(n: u128) -> Option<Self> {
+        let hi = n as f64;
+        let lo = n.wrapping_sub(hi as u128) as i128 as f64;
+        Some(Self { hi, lo })
+    }
 }
 
 const COEFFS: [Complex<f64x2>; 28] = [

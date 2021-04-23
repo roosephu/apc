@@ -1,21 +1,60 @@
 use crate::brentq::brentq;
 use crate::{f64x2, platt_integral::PlattIntegrator};
 use crate::{traits::*, unchecked_cast::UncheckedCast};
+use byteorder::{LittleEndian, ReadBytesExt};
 use log::{debug, info};
 use num::integer::*;
 use num::{Num, One, Zero};
+use std::io::{self, Read};
 
-fn read_roots<T: Num>() -> Vec<T> {
+fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error> {
+    let data_files = [
+        "./data/zeros/zeros_14.dat",
+        "./data/zeros/zeros_5000.dat",
+        "./data/zeros/zeros_26000.dat",
+        "./data/zeros/zeros_236000.dat",
+        "./data/zeros/zeros_446000.dat",
+        "./data/zeros/zeros_2546000.dat",
+    ];
+    info!("Loading zeta zeros up to {}", limit);
+
+    let eps = 2.0.unchecked_cast::<T>().powi(-101);
+
     let mut ret = vec![];
-    for line in std::fs::read_to_string("./data/zeros.txt").unwrap().lines() {
-        let mut s = line.split_whitespace();
-        let _ = s.next();
-        let t = s.next().unwrap();
-        if let Ok(v) = T::from_str_radix(t, 10) {
-            ret.push(v);
+    for &file_name in data_files.iter() {
+        let mut file = std::fs::File::open(file_name)?;
+        let n_blocks = file.read_u64::<LittleEndian>()?;
+
+        for b in 0..n_blocks {
+            let t0 = file.read_f64::<LittleEndian>()?;
+            let t1 = file.read_f64::<LittleEndian>()?;
+            let n0 = file.read_u64::<LittleEndian>()?;
+            let n1 = file.read_u64::<LittleEndian>()?;
+            debug!(
+                "[LMFDB] loading {} block {}, from N({}) = {} to N({}) = {}",
+                file_name, b, t0, n0, t1, n1
+            );
+
+            let t0 = T::from_f64(t0).unwrap();
+            let mut z = 0u128;
+
+            for i in n0..n1 {
+                let z1 = file.read_u64::<LittleEndian>()? as u128;
+                let z2 = file.read_u32::<LittleEndian>()? as u128;
+                let z3 = file.read_u8()? as u128;
+                z = z + z1 + (z2 << 64) + (z3 << 96);
+
+                let zz = t0 + T::from_u128(z).unwrap() * eps;
+
+                if zz > limit {
+                    return Ok(ret);
+                }
+                // debug!("read zero: {}", z);
+                ret.push(zz);
+            }
         }
     }
-    ret
+    panic!("Insufficient zeta zeros data")
 }
 
 type T = f64x2;
@@ -35,10 +74,12 @@ pub struct Platt<T> {
 impl<T: MyReal> Platt<T> {
     pub fn new() -> Self { Self { lambda: T::zero(), integral_limit: T::zero(), x1: 0, x2: 0 } }
 
+    #[inline]
     fn Phi(&self, p: T, eps: f64) -> T {
         (p / T::SQRT_2()).erfc(eps) / 2.0f64.unchecked_cast::<T>()
     }
 
+    #[inline]
     fn phi(&self, u: T, x: T, eps: f64) -> T { self.Phi((u / x).ln() / self.lambda, eps) }
 
     fn linear_sieve(n: u64) -> Vec<u64> {
@@ -92,7 +133,7 @@ impl<T: MyReal> Platt<T> {
 
         let primes = Self::linear_sieve(x2.sqrt());
         for p in Self::sieve(&primes, x1, x2) {
-            ret -= self.phi((p as i64).unchecked_cast(), fx, eps);
+            ret -= self.phi((p as f64).unchecked_cast(), fx, eps);
             if p <= x {
                 ret += T::one();
             }
@@ -107,7 +148,7 @@ impl<T: MyReal> Platt<T> {
                 if power < x1 {
                     ret -= m.unchecked_cast::<T>().recip();
                 } else {
-                    ret -= self.phi((power as i64).unchecked_cast(), fx, eps)
+                    ret -= self.phi((power as f64).unchecked_cast(), fx, eps)
                         / m.unchecked_cast::<T>();
                 }
             }
@@ -172,9 +213,10 @@ impl<T: MyReal> Platt<T> {
         );
         let mut integral_critical = T::zero();
         let mut last_contribution = T::zero();
-        let roots: Vec<_> =
-            read_roots::<T>().into_iter().take_while(|&x| x < self.integral_limit).collect();
-        info!("largest zeta roots {}", roots.last().unwrap());
+
+        let roots = LMFDB_reader(self.integral_limit).unwrap();
+        info!("largest zeta roots {}, # zeros = {}", roots.last().unwrap(), roots.len());
+
         for i in 0..roots.len() - 1 {
             let a = roots[i];
             let b = roots[i + 1];
@@ -185,7 +227,7 @@ impl<T: MyReal> Platt<T> {
         }
         info!("integral critical = {}, last = {}", integral_critical, last_contribution);
 
-        let delta = self.calc_delta(n, 0.01);
+        let delta = self.calc_delta(n, 0.5);
         info!("delta = {}", delta);
         let ans =
             integral_offline - integral_critical * 2.0 - 2.0.unchecked_cast::<T>().ln() + delta;
