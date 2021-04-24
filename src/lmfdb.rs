@@ -3,23 +3,25 @@ use log::{debug, info};
 use crate::traits::MyReal;
 use byteorder::{LittleEndian, ReadBytesExt};
 
+/// https://stackoverflow.com/questions/40107797/can-array-lengths-be-inferred-in-rust
+macro_rules! arr {
+    ($id: ident $name: ident: [$ty: ty; _] = $value: expr) => {
+        $id $name: [$ty; $value.len()] = $value;
+    }
+}
+
+const LMFDB_DATA_PATH: &str = "./data/zeros";
+arr!(const LMFDB_CKPTS: [i64; _] = [14, 5000, 26000, 236000, 446000, 2546000, 4646000, 6746000, 8846000]);
+
 pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error> {
-    let data_files = [
-        "./data/zeros/zeros_14.dat",
-        "./data/zeros/zeros_5000.dat",
-        "./data/zeros/zeros_26000.dat",
-        "./data/zeros/zeros_236000.dat",
-        "./data/zeros/zeros_446000.dat",
-        "./data/zeros/zeros_2546000.dat",
-        "./data/zeros/zeros_4646000.dat",
-    ];
     info!("Loading zeta zeros up to {}", limit);
 
     let eps = 2.0.unchecked_cast::<T>().powi(-101);
 
     let mut ret = vec![];
-    for &file_name in data_files.iter() {
-        let file = std::fs::File::open(file_name)?;
+    for &ckpt in LMFDB_CKPTS.iter() {
+        let path = format!("{}/zeros_{}.dat", LMFDB_DATA_PATH, ckpt);
+        let file = std::fs::File::open(&path)?;
         let mut reader = std::io::BufReader::new(file);
 
         let n_blocks = reader.read_u64::<LittleEndian>()?;
@@ -31,7 +33,7 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error
             let n1 = reader.read_u64::<LittleEndian>()?;
             debug!(
                 "[LMFDB] loading {} block {}, from N({}) = {} to N({}) = {}",
-                file_name, b, t0, n0, t1, n1
+                path, b, t0, n0, t1, n1
             );
 
             let t0 = T::from_f64(t0).unwrap();
