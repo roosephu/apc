@@ -5,6 +5,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::let_and_return)]
+#![allow(clippy::approx_constant)]
 #![feature(trait_alias)]
 #![feature(destructuring_assignment)]
 #![feature(min_type_alias_impl_trait)]
@@ -19,6 +20,7 @@ pub mod gamma;
 pub mod platt;
 mod platt_integral;
 pub mod power_series;
+pub mod profiler;
 pub mod riemann_siegel;
 pub mod sum_trunc_dirichlet;
 pub(crate) mod test_utils;

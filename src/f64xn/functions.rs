@@ -248,6 +248,120 @@ impl f64x2 {
             self
         }
     }
+
+    fn erfc_1(self) -> Self { self.erfc_1_remez() + 1.0 }
+
+    fn erfc_1_5(self) -> Self {
+        debug_assert!(self.hi >= 0.0);
+        self.erfc_1_5_remez() / self.square().exp()
+    }
+
+    fn erfc_5_10(self) -> Self {
+        debug_assert!(self.hi >= 0.0);
+        self.erfc_5_10_remez() / self.square().exp() / self
+    }
+
+    fn erfc_eps_large(self, eps: f64) -> Self {
+        let z = self;
+        let h = f64::PI() / (6.0 / eps).ln().sqrt();
+        let K = ((1.0 / eps).ln().sqrt() / h).ceil() as i32;
+
+        let z_sq = z.square();
+        let mut ret = Self::one() / z_sq;
+
+        unsafe {
+            crate::profiler::ERFC_EPS_LARGE_K += K as usize;
+            crate::profiler::ERFC_EPS_LARGE_CNT += 1;
+        }
+
+        let h = h.unchecked_cast::<Self>();
+        let h_sq = h.square();
+        for k in 1..=K {
+            let w = h_sq * (k * k).unchecked_cast::<Self>();
+            ret += (-w).exp() * 2.0 / (z_sq + w);
+        }
+        ret * (-z_sq).exp() * h * z / Self::PI() + 2.0 / (Self::one() - (Self::TAU() * z / h).exp())
+    }
+
+    fn erfc_eps_small(self, eps: f64) -> Self {
+        let s;
+        let z;
+        if self.hi >= 0.0 {
+            s = 1;
+            z = self;
+        } else {
+            s = -1;
+            z = -self;
+        }
+
+        let eps0 = eps / 2.0;
+
+        let mut t = z;
+        let mut k = 0i32;
+        let mut S = Self::zero();
+        let z_sq = z.square();
+        loop {
+            let ds = t / (2 * k + 1) as f64;
+            S += ds;
+            if ds.abs().hi < eps0 {
+                break;
+            }
+            k += 1;
+            t *= -z_sq / k as f64;
+        }
+
+        unsafe {
+            crate::profiler::ERFC_EPS_SMALL_CNT += 1;
+            crate::profiler::ERFC_EPS_SMALL_K += k as usize;
+        }
+
+        if s == 1 {
+            Self::one() - S * Self::FRAC_2_SQRT_PI()
+        } else {
+            Self::one() + S * Self::FRAC_2_SQRT_PI()
+        }
+    }
+
+    fn erfc_eps_old(self, eps: f64) -> Self {
+        if self.hi.abs() < 2.0 {
+            self.erfc_eps_small(eps)
+        } else {
+            self.erfc_eps_large(eps)
+        }
+    }
+
+    pub fn erfc_eps(self, eps: f64) -> Self {
+        let x = self;
+        let x_abs = x.abs();
+
+        let ret = if x_abs.hi < 1.0 {
+            self.erfc_1()
+        } else {
+            let y;
+            if x_abs.hi < 2.0 {
+                y = x_abs.erfc_eps_small(1e-33)
+            } else if x_abs.hi < 5.0 {
+                y = x_abs.erfc_1_5()
+            } else if x_abs.hi < 10.0 {
+                y = x_abs.erfc_5_10()
+            } else {
+                y = Self::zero()
+            }
+
+            if x.hi > 0.0 {
+                y
+            } else {
+                Self { hi: 2.0, lo: 0.0 } - y
+            }
+        };
+
+        // let check = x.erfc_eps_old(1e-33);
+        // assert!((ret - check).abs().hi < 1e-30, "x = {}, ret = {}, check = {}", x, ret, check);
+
+        ret
+    }
+
+    fn erfc(self) -> Self { todo!() }
 }
 
 #[cfg(test)]

@@ -7,7 +7,7 @@ pub struct f64x2 {
 
 mod blocks;
 mod functions;
-mod impl_traits;
+pub mod impl_traits;
 mod remez;
 
 #[cfg(test)]

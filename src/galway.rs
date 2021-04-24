@@ -18,11 +18,9 @@ pub struct Galway<'a, T, Z> {
 }
 
 impl<T: MyReal, Z> Galway<'_, T, Z> {
-    fn Phi(&self, p: T, eps: f64) -> T {
-        (p / T::SQRT_2()).erfc(eps) / 2.0f64.unchecked_cast::<T>()
-    }
+    fn Phi(&self, p: T) -> T { (p / T::SQRT_2()) / 2.0f64.unchecked_cast::<T>() }
 
-    fn phi(&self, u: T, x: T, eps: f64) -> T { self.Phi((u / x).ln() / self.lambda, eps) }
+    fn phi(&self, u: T, x: T) -> T { self.Phi((u / x).ln() / self.lambda) }
 
     fn linear_sieve(n: u64) -> Vec<u64> {
         let mut mark = bit_vec::BitVec::from_elem(n as usize + 1, false);
@@ -75,7 +73,7 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
 
         let primes = Self::linear_sieve(x2.sqrt());
         for p in Self::sieve(&primes, x1, x2) {
-            ret -= self.phi((p as i64).unchecked_cast(), fx, eps);
+            ret -= self.phi((p as i64).unchecked_cast(), fx);
             if p <= x {
                 ret += T::one();
             }
@@ -90,8 +88,7 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
                 if power < x1 {
                     ret -= m.unchecked_cast::<T>().recip();
                 } else {
-                    ret -= self.phi((power as i64).unchecked_cast(), fx, eps)
-                        / m.unchecked_cast::<T>();
+                    ret -= self.phi((power as i64).unchecked_cast(), fx) / m.unchecked_cast::<T>();
                 }
             }
         }

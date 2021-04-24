@@ -34,6 +34,16 @@ fn main() {
     let hints = PlattHints { lambda: opts.lambda };
     let ans = platt.compute(n, hints);
     println!("[Platt] ans = {}", ans);
+
+    unsafe {
+        println!(
+            "[erfc] large = [count = {}, K = {}], small = [count = {}, K = {}]",
+            crate::profiler::ERFC_EPS_LARGE_CNT,
+            crate::profiler::ERFC_EPS_LARGE_K,
+            crate::profiler::ERFC_EPS_SMALL_CNT,
+            crate::profiler::ERFC_EPS_SMALL_K,
+        );
+    }
 }
 
 #[cfg(test)]

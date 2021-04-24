@@ -539,7 +539,6 @@ impl AsPrimitive<i64> for f64x2 {
 }
 
 impl FromPrimitive for f64x2 {
-    // TODO: might over flow
     #[inline]
     fn from_i64(n: i64) -> Option<Self> {
         let hi = n as f64;
@@ -547,7 +546,6 @@ impl FromPrimitive for f64x2 {
         Some(Self { hi, lo })
     }
 
-    // TODO: might overflow
     #[inline]
     fn from_u64(n: u64) -> Option<Self> {
         let hi = n as f64;
@@ -703,56 +701,7 @@ impl LowerExp for f64x2 {
 }
 
 impl Erfc for f64x2 {
-    fn erfc(self, eps: f64) -> Self {
-        if self.hi.abs() > 2.0 {
-            let z = self;
-            let h = f64::PI() / (6.0 / eps).ln().sqrt();
-            let K = ((1.0 / eps).ln().sqrt() / h).ceil() as i32;
-
-            let z_sq = z.square();
-            let mut ret = Self::one() / z_sq;
-
-            let h = h.unchecked_cast::<Self>();
-            let h_sq = h.square();
-            for k in 1..=K {
-                let w = h_sq * (k * k).unchecked_cast::<Self>();
-                ret += (-w).exp() * 2.0 / (z_sq + w);
-            }
-            ret * (-z_sq).exp() * h * z / Self::PI()
-                + 2.0.unchecked_cast::<Self>() / (Self::one() - (Self::TAU() * z / h).exp())
-        } else {
-            let s;
-            let z;
-            if self.hi >= 0.0 {
-                s = 1;
-                z = self;
-            } else {
-                s = -1;
-                z = -self;
-            }
-
-            let eps0 = eps / 2.0;
-
-            let mut t = z;
-            let mut k = 0i32;
-            let mut S = Self::zero();
-            let z_sq = z.square();
-            loop {
-                let ds = t / (2 * k + 1).unchecked_cast::<Self>();
-                S += ds;
-                if ds.abs().hi < eps0 {
-                    break;
-                }
-                k += 1;
-                t *= -z_sq / k.unchecked_cast::<Self>();
-            }
-            if s == 1 {
-                Self::one() - S * Self::FRAC_2_SQRT_PI()
-            } else {
-                Self::one() + S * Self::FRAC_2_SQRT_PI()
-            }
-        }
-    }
+    fn erfc(self, eps: f64) -> Self { self.erfc_eps(eps) }
 }
 
 impl UncheckedFrom<f64> for f64x2 {
