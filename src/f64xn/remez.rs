@@ -107,7 +107,7 @@ impl f64x2 {
 
     // |x| <= 0.34657359028 = ln(2) / 2
     #[inline]
-    pub(crate) fn exp_remez(self) -> Self {
+    pub(crate) fn expm1_remez(self) -> Self {
         const C2: f64x2 = f64x2 { hi: 0.16666666666666666, lo: 9.251858538542447e-18 };
         const C4: f64x2 = f64x2 { hi: -0.002777777777777778, lo: 1.0601087929995308e-19 };
         const C6: f64x2 = f64x2 { hi: 6.613756613756614e-5, lo: -4.460173646997389e-21 };
@@ -132,7 +132,7 @@ impl f64x2 {
         // r = 2.0 + r1 + r2 + r3;
         // r = x (exp(x) + 1) / (exp(x) - 1) => exp(x) = 1 + 2r / (r - x)
         let c = x - (r1 + r2 + r3);
-        1.0 + x + x * c / (2.0 - c)
+        x + x * c / (2.0 - c)
     }
 
     pub(crate) fn atan_remez(self) -> Self {

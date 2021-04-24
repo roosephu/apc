@@ -34,7 +34,7 @@ impl f64x2 {
         let rem = self - Self::LN_2() * factor2;
         let factor2: i64 = factor2.as_();
         let exp_factor2 = pow2(factor2 as i32);
-        let exp_rem = rem.exp_remez();
+        let exp_rem = rem.expm1_remez() + 1.0;
         Self { hi: exp_rem.hi * exp_factor2, lo: exp_rem.lo * exp_factor2 }
     }
 
@@ -137,11 +137,32 @@ impl f64x2 {
     #[inline]
     pub fn hypot(self, other: Self) -> Self { (self.square() + other.square()).sqrt() }
 
-    #[inline]
-    pub fn cosh(self) -> Self { (self.exp() + (-self).exp()) / 2.0 }
+    pub fn exp_m1(self) -> Self {
+        if -0.34657359028 <= self.hi && self.hi <= 0.34657359028 {
+            self.expm1_remez()
+        } else {
+            self.exp() - 1.0
+        }
+    }
 
-    #[inline]
-    pub fn sinh(self) -> Self { (self.exp() - (-self).exp()) / 2.0 }
+    #[inline(never)]
+    pub fn cosh(self) -> Self {
+        let t = self.exp();
+        (t + t.recip()) * 0.5
+    }
+
+    #[inline(never)]
+    pub fn sinh(self) -> Self {
+        let threshold = 0.34657359028; // ln(2) / 2
+        if -threshold <= self.hi && self.hi <= threshold {
+            let t = self.expm1_remez();
+            t - t * t / (t + 1.0) * 0.5
+            // (t + t / (t + 1.0)) * 0.5
+        } else {
+            let t = self.exp();
+            (t - t.recip()) * 0.5
+        }
+    }
 
     pub fn floor(self) -> Self {
         let ret = if self.hi.fract() == 0.0 {
@@ -248,7 +269,9 @@ impl f64x2 {
             self
         }
     }
+}
 
+impl f64x2 {
     fn erfc_1(self) -> Self { self.erfc_1_remez() + 1.0 }
 
     fn erfc_1_5(self) -> Self {
