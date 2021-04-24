@@ -339,7 +339,7 @@ impl f64x2 {
         } else {
             let y;
             if x_abs.hi < 2.0 {
-                y = x_abs.erfc_eps_small(1e-33)
+                y = x_abs.erfc_eps_small(eps)
             } else if x_abs.hi < 5.0 {
                 y = x_abs.erfc_1_5()
             } else if x_abs.hi < 10.0 {

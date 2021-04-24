@@ -17,6 +17,7 @@ pub mod context;
 pub mod f64xn;
 pub mod galway;
 pub mod gamma;
+pub(crate) mod lmfdb;
 pub mod platt;
 mod platt_integral;
 pub mod power_series;
