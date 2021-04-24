@@ -28,13 +28,12 @@ impl<T: MyReal> Platt<T> {
     pub fn new() -> Self { Self::default() }
 
     #[inline]
-    fn Phi(&self, p: T, eps: f64) -> T {
-        (p / T::SQRT_2()).erfc(eps) / 2.0f64.unchecked_cast::<T>()
-    }
+    fn Phi(&self, p: T, eps: f64) -> T { (p / T::SQRT_2()).erfc(eps) / 2.0f64 }
 
     #[inline]
     fn phi(&self, u: T, x: T, eps: f64) -> T { self.Phi((u / x).ln() / self.lambda, eps) }
 
+    #[inline(never)]
     fn linear_sieve(n: u64) -> Vec<u64> {
         let mut mark = bit_vec::BitVec::from_elem(n as usize + 1, false);
         let mut primes = vec![];
@@ -58,6 +57,7 @@ impl<T: MyReal> Platt<T> {
         primes
     }
 
+    #[inline(never)]
     fn sieve(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
         let mut mark = bit_vec::BitVec::from_elem((r - l + 1) as usize, false);
         for &p in primes {
@@ -78,6 +78,7 @@ impl<T: MyReal> Platt<T> {
         ret
     }
 
+    #[inline(never)]
     fn calc_delta(&self, x: u64, eps: f64) -> T {
         let mut ret = T::zero();
         let fx = (x as i64).unchecked_cast::<T>();
@@ -86,7 +87,7 @@ impl<T: MyReal> Platt<T> {
 
         let primes = Self::linear_sieve(x2.sqrt());
         for p in Self::sieve(&primes, x1, x2) {
-            ret -= self.phi((p as f64).unchecked_cast(), fx, eps);
+            ret -= self.phi((p as i64).unchecked_cast(), fx, eps);
             if p <= x {
                 ret += T::one();
             }
@@ -101,7 +102,7 @@ impl<T: MyReal> Platt<T> {
                 if power < x1 {
                     ret -= m.unchecked_cast::<T>().recip();
                 } else {
-                    ret -= self.phi((power as f64).unchecked_cast(), fx, eps)
+                    ret -= self.phi((power as i64).unchecked_cast(), fx, eps)
                         / m.unchecked_cast::<T>();
                 }
             }

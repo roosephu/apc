@@ -19,14 +19,16 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error
 
     let mut ret = vec![];
     for &file_name in data_files.iter() {
-        let mut file = std::fs::File::open(file_name)?;
-        let n_blocks = file.read_u64::<LittleEndian>()?;
+        let file = std::fs::File::open(file_name)?;
+        let mut reader = std::io::BufReader::new(file);
+
+        let n_blocks = reader.read_u64::<LittleEndian>()?;
 
         for b in 0..n_blocks {
-            let t0 = file.read_f64::<LittleEndian>()?;
-            let t1 = file.read_f64::<LittleEndian>()?;
-            let n0 = file.read_u64::<LittleEndian>()?;
-            let n1 = file.read_u64::<LittleEndian>()?;
+            let t0 = reader.read_f64::<LittleEndian>()?;
+            let t1 = reader.read_f64::<LittleEndian>()?;
+            let n0 = reader.read_u64::<LittleEndian>()?;
+            let n1 = reader.read_u64::<LittleEndian>()?;
             debug!(
                 "[LMFDB] loading {} block {}, from N({}) = {} to N({}) = {}",
                 file_name, b, t0, n0, t1, n1
@@ -36,9 +38,9 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error
             let mut z = 0u128;
 
             for i in n0..n1 {
-                let z1 = file.read_u64::<LittleEndian>()? as u128;
-                let z2 = file.read_u32::<LittleEndian>()? as u128;
-                let z3 = file.read_u8()? as u128;
+                let z1 = reader.read_u64::<LittleEndian>()? as u128;
+                let z2 = reader.read_u32::<LittleEndian>()? as u128;
+                let z3 = reader.read_u8()? as u128;
                 z = z + z1 + (z2 << 64) + (z3 << 96);
 
                 let zz = t0 + T::from_u128(z).unwrap() * eps;
