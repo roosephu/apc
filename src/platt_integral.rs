@@ -7,7 +7,7 @@ use crate::{
 use log::debug;
 use num::Complex;
 
-type Expansion<T> = (T, T, Complex<T>, Complex<T>, PowerSeries<Complex<T>>);
+type Expansion<T> = (T, T, (T, Complex<T>), Complex<T>, PowerSeries<Complex<T>>);
 
 /// to compute $$\int x^s exp(lambda^2 s^2 / 2) / s dh$$ for $s = \sigma + ih$
 pub struct PlattIntegrator<T> {
@@ -78,6 +78,22 @@ impl<T: MyReal> PlattIntegrator<T> {
         (a, b, c, ps_exp)
     }
 
+    /// we want to evaluate $$ \sum_i poly_i (c h)^i$$ for a real $h$, however, poly_i c^i might grow too fast...
+    /// Complex operations are slow.
+    /// trick: we prepare poly'_i = poly_i (c/|c|)^i, so it becomes $$\sum_i poly'_i (|c| h)^i$$
+    /// so it's numerically more stable.
+    fn normalize_(poly: &mut PowerSeries<Complex<T>>, c: Complex<T>) -> (T, Complex<T>) {
+        let c_norm = c.norm();
+        let c_dir = c / c_norm;
+        let mut c_dir_pow = Complex::<T>::one();
+        for i in 0..poly.N {
+            poly.data[i] *= c_dir_pow;
+            c_dir_pow *= c_dir;
+        }
+        (c_norm, c_dir)
+    }
+
+    #[inline(never)]
     fn prepare(&mut self, t: T) {
         let s0 = Complex::new(self.sigma, t);
         let (a, b, c, mut poly) = self.expand_at(s0, self.order);
@@ -103,23 +119,26 @@ impl<T: MyReal> PlattIntegrator<T> {
             / c.norm();
         debug!("[Integral] prepare {}, radius = {}", t, radius);
 
+        let c = Self::normalize_(&mut poly, c);
         self.expansion = Some((t, radius, c, mul_coeff, poly));
     }
 
     /// assuming the power series converges well at given point s.
     fn _query(&self, t: T) -> Complex<T> {
         let (t0, _, c, mul_coeff, ps) = self.expansion.as_ref().unwrap();
+        let &(c_norm, c_dir) = c;
 
-        let z = c * (t - *t0);
+        let z = c_norm * (t - *t0);
         let mut poly = Complex::<T>::zero();
-        let mut z_pow = Complex::<T>::one();
+        let mut z_pow = T::one();
         for i in 0..self.order {
-            poly += z_pow * ps.data[i];
+            poly += ps.data[i] * z_pow;
             z_pow *= z;
         }
-        mul_coeff * (poly * z.exp() - ps.data[0])
+        mul_coeff * (poly * (z * c_dir).exp() - ps.data[0])
     }
 
+    #[inline(never)]
     pub fn query(&mut self, mut t1: T, t2: T) -> Complex<T> {
         // debug!("[integral] query [{}, {}]", t1, t2);
         if let Some((t0, radius, _, _, _)) = self.expansion.as_ref() {
