@@ -17,6 +17,7 @@ pub struct PlattIntegrator<T> {
     lambda_sqr: T,
     ln_x: T,
     expansion: Option<Expansion<T>>,
+    cache: Option<(T, Complex<T>)>, // save the last query
 }
 
 impl<T: MyReal> PlattIntegrator<T> {
@@ -28,6 +29,7 @@ impl<T: MyReal> PlattIntegrator<T> {
             order: max_order,
             lambda_sqr: lambda * lambda,
             expansion: None,
+            cache: None,
         }
     }
 
@@ -119,12 +121,20 @@ impl<T: MyReal> PlattIntegrator<T> {
             / c.norm();
         debug!("[Integral] prepare {}, radius = {}", t, radius);
 
+        // we've expanded in a new t0, and should clear cache.
+        self.cache = None;
+
         let c = Self::normalize_(&mut poly, c);
         self.expansion = Some((t, radius, c, mul_coeff, poly));
     }
 
     /// assuming the power series converges well at given point s.
     fn _query(&self, t: T) -> Complex<T> {
+        if let Some((k, v)) = self.cache {
+            if k == t {
+                return v;
+            }
+        }
         let (t0, _, c, mul_coeff, ps) = self.expansion.as_ref().unwrap();
         let &(c_norm, c_dir) = c;
 
@@ -144,7 +154,11 @@ impl<T: MyReal> PlattIntegrator<T> {
         if let Some((t0, radius, _, _, _)) = self.expansion.as_ref() {
             if (t1 - *t0).abs() < *radius && (t2 - t1).abs() < *radius {
                 // debug!("[integral] easy case.");
-                return self._query(t2) - self._query(t1);
+
+                let f_t1 = self._query(t1);
+                let f_t2 = self._query(t2);
+                self.cache = Some((t2, f_t2));
+                return f_t2 - f_t1;
             }
         }
 
