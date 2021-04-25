@@ -35,65 +35,6 @@ impl<T: MyReal> Platt<T> {
     #[inline]
     fn phi(&self, u: T, x: T, eps: f64) -> T { self.Phi((u / x).ln() / self.lambda, eps) }
 
-    #[inline(never)]
-    fn linear_sieve(n: u64) -> Vec<u64> {
-        let mut mark = bit_vec::BitVec::from_elem(n as usize + 1, false);
-        let mut primes = vec![];
-
-        for i in 2..=n {
-            if !mark[i as usize] {
-                primes.push(i);
-            }
-            for &p in &primes {
-                let t = p * i;
-                if t > n {
-                    break;
-                }
-                mark.set(t as usize, true);
-                if i as u64 % p == 0 {
-                    break;
-                }
-            }
-        }
-
-        primes
-    }
-
-    #[inline(never)]
-    fn sieve(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
-        let l = l | 1;
-        let ub = (r - l) as usize;
-        let mut mark = bit_vec::BitVec::from_elem(ub + 1, false);
-        for &p in primes {
-            if p == 2 {
-                continue;
-            }
-            let mut x = std::cmp::max((l - 1) / p + 1, 2) * p;
-            if x % 2 == 0 {
-                x += p;
-            }
-            let mut y = (x - l) as usize;
-            while y <= ub {
-                mark.set(y, true);
-                y += 2 * p as usize;
-            }
-        }
-        let mut ret = vec![];
-        for (idx, &s) in mark.storage().iter().enumerate() {
-            let mut s = !s;
-            s &= 0x55555555u32;
-            while s != 0 {
-                let w = s & (s - 1);
-                let offset = (s ^ w).trailing_zeros();
-                let x = l + ((idx as u64) << 5) + offset as u64;
-                ret.push(x);
-                s = w;
-            }
-        }
-
-        ret
-    }
-
     /// let delta = 1/2^53 be the relative differencee by converting x from f64x2 to f64.
     /// let r = ln(u/x) / lambda
     /// Phi(r (1 + delta)) - Phi(r) \approx |Phi'(r)| delta = delta exp(-r^2) / sqrt(2pi) <= delta / 2.
@@ -103,7 +44,7 @@ impl<T: MyReal> Platt<T> {
         let mut ret = 0.0;
         let (x1, x2) = (self.x1, self.x2);
         let lambda: f64 = self.lambda.unchecked_cast();
-        let primes = Self::linear_sieve(x2.sqrt());
+        let primes = crate::sieve::linear_sieve(x2.sqrt());
 
         let c1 = -1.0 / lambda;
         let c2 = -1.0 / lambda / 2.0;
@@ -111,7 +52,7 @@ impl<T: MyReal> Platt<T> {
 
         // error analysis: we have ~(x2 - x1)/log(x) many p's.
         // for each p: the error by erfc is delta.
-        for p in Self::sieve(&primes, x1, x2) {
+        for p in crate::sieve::sieve(&primes, x1, x2) {
             // here we approximate r = ln(u / x) / lambda = ln(1 - (x-u)/x) / lambda.
             // Expad ln(1 - (x-u)/x) at u = x.
             let t = (x as i64 - p as i64) as f64 / x as f64;
@@ -217,8 +158,9 @@ impl<T: MyReal> Platt<T> {
         info!("delta = {}", delta);
         let ans =
             integral_offline - integral_critical * 2.0 - 2.0.unchecked_cast::<T>().ln() + delta;
-        info!("ans = {}", ans);
+        let n_ans = ans.round().unchecked_cast::<i64>();
+        info!("ans = {}, residue = {}", ans, ans - n_ans.unchecked_cast::<T>());
 
-        ans.round().unchecked_cast::<i64>() as u64
+        n_ans as u64
     }
 }

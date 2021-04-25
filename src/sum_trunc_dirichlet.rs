@@ -5,7 +5,7 @@ use rustfft::{FftNum, FftPlanner};
 use crate::traits::{ExpPolyApprox, MyReal};
 
 /// compute F(t) = \sum_{(a, g)} a exp(i t g) for t in [-m, m]
-pub fn sum_weighted_exp<T: ExpPolyApprox + MyReal + FftNum>(
+pub(crate) fn sum_weighted_exp<T: ExpPolyApprox + MyReal + FftNum>(
     a: &[Complex<T>],
     g: &[T],
     m: usize,
@@ -43,7 +43,7 @@ pub fn sum_weighted_exp<T: ExpPolyApprox + MyReal + FftNum>(
 }
 
 /// compute \sum_{j=n0}^n1 j^{-(s + i t delta)} for every 0 <= t <= m
-pub fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
+pub(crate) fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
     s: Complex<T>,
     n0: usize,
     n1: usize,
