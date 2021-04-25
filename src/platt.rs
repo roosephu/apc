@@ -101,27 +101,20 @@ impl<T: MyReal> Platt<T> {
     #[inline(never)]
     fn calc_delta_f64(&self, x: u64, eps: f64) -> T {
         let mut ret = 0.0;
-        let fx = x as f64;
         let (x1, x2) = (self.x1, self.x2);
-        let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
-        info!("delta eps = {:.e}", eps);
         let lambda: f64 = self.lambda.unchecked_cast();
         let primes = Self::linear_sieve(x2.sqrt());
 
-        let w = lambda * x as f64;
-        let c1 = -1.0 / (lambda * w);
-        let c2 = -0.5 / (lambda * w * w);
-        let c3 = -1.0 / 3.0 / (lambda * w * w * w);
+        let c1 = -1.0 / lambda;
+        let c2 = -1.0 / lambda / 2.0;
+        let c3 = -1.0 / lambda / 3.0;
 
         // error analysis: we have ~(x2 - x1)/log(x) many p's.
         // for each p: the error by erfc is delta.
         for p in Self::sieve(&primes, x1, x2) {
-            // here we approximate r = ln(u / x) / lambda.
-            // Define t = lambda (x - u), and we have r = ln(1 - t/(x lambda)) / lambda.
-            // typically t is not large, while x lambda is very large
-            // Expad ln(1 - t / (x lambda)) at t = 0.
-            // since x - p = O(sqrt(x)) so there is no precision loss.
-            let t = (x as i64 - p as i64) as f64 * lambda;
+            // here we approximate r = ln(u / x) / lambda = ln(1 - (x-u)/x) / lambda.
+            // Expad ln(1 - (x-u)/x) at u = x.
+            let t = (x as i64 - p as i64) as f64 / x as f64;
             let r = c1 * t + c2 * t * t + c3 * t * t * t;
             ret -= Phi(r);
             if p <= x {
@@ -140,8 +133,8 @@ impl<T: MyReal> Platt<T> {
                     ret -= 1.0 / m as f64;
                 } else {
                     // only (x2^1/2 - x1^1/2) + (x2^1/3 - x1^1/3) + ... many
-                    // The first term dominates, which is still O((x2 - x1)/sqrt(x)) = O(1).
-                    let r = ((power as f64) / fx).ln() / lambda;
+                    // The first term dominates, which is still O((x2 - x1)/sqrt(x)) = O(polylog(n)).
+                    let r = (power as f64 / x as f64).ln() / lambda;
                     ret -= Phi(r) / m as f64;
                 }
             }
@@ -158,14 +151,9 @@ impl<T: MyReal> Platt<T> {
         let (x1, x2) = self.plan_delta_bounds(lambda, x, 0.24);
         let integral_limit = self.plan_integral(lambda, x, 0.1);
         info!("lambda = {:.6}", lambda);
-        info!(
-            "delta range = [{}, {}], length = {}, est = {:.0}",
-            x1,
-            x2,
-            x2 - x1,
-            2.0 * lambda * x * (2.0 * (lambda * x).ln()).sqrt()
-        );
-        info!("integral limit = {:.6}", integral_limit,);
+        let delta_est = 2.0 * lambda * x * (2.0 * (lambda * x).ln()).sqrt();
+        info!("delta range = [{}, {}], length = {}, est = {:.0}", x1, x2, x2 - x1, delta_est,);
+        info!("integral limit = {:.6}", integral_limit);
 
         self.lambda = lambda.unchecked_cast();
         self.integral_limit = integral_limit.unchecked_cast();
@@ -178,7 +166,6 @@ impl<T: MyReal> Platt<T> {
 
     fn plan_delta_bounds(&mut self, lambda: f64, x: f64, eps: f64) -> (u64, u64) {
         let eps = eps / 2.0;
-        let Phi = |p| rgsl::error::erfc(p / std::f64::consts::SQRT_2) / 2.0;
         let Ep = |u: f64| {
             x * (lambda * lambda / 2.0).exp() * Phi((u / x).ln() / lambda - lambda)
                 - u * Phi((u / x).ln() / lambda)
@@ -188,8 +175,8 @@ impl<T: MyReal> Platt<T> {
                 - x * (lambda * lambda / 2.0).exp() * Phi(lambda - (u / x).ln() / lambda)
         };
 
-        let x1 = brentq(|u| Em(u) - 0.75 * eps, 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
-        let x2 = brentq(|u| Ep(u) - 0.75 * eps, x * 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
+        let x1 = brentq(|u| Em(u) - eps, 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
+        let x2 = brentq(|u| Ep(u) - eps, x * 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
 
         (x1.floor() as u64, x2.floor() as u64)
     }
