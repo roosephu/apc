@@ -24,6 +24,8 @@ impl<T: MyReal> Default for Platt<T> {
     fn default() -> Self { Self { lambda: T::zero(), integral_limit: T::zero(), x1: 0, x2: 0 } }
 }
 
+fn Phi(r: f64) -> f64 { rgsl::error::erfc(r / std::f64::consts::SQRT_2) / 2.0 }
+
 impl<T: MyReal> Platt<T> {
     pub fn new() -> Self { Self::default() }
 
@@ -59,19 +61,27 @@ impl<T: MyReal> Platt<T> {
 
     #[inline(never)]
     fn sieve(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
+        let l = l | 1;
         let ub = (r - l) as usize;
         let mut mark = bit_vec::BitVec::from_elem(ub + 1, false);
         for &p in primes {
-            let x = std::cmp::max((l - 1) / p + 1, 2) * p;
+            if p == 2 {
+                continue;
+            }
+            let mut x = std::cmp::max((l - 1) / p + 1, 2) * p;
+            if x % 2 == 0 {
+                x += p;
+            }
             let mut y = (x - l) as usize;
             while y <= ub {
                 mark.set(y, true);
-                y += p as usize;
+                y += 2 * p as usize;
             }
         }
         let mut ret = vec![];
         for (idx, &s) in mark.storage().iter().enumerate() {
             let mut s = !s;
+            s &= 0x55555555u32;
             while s != 0 {
                 let w = s & (s - 1);
                 let offset = (s ^ w).trailing_zeros();
@@ -81,38 +91,6 @@ impl<T: MyReal> Platt<T> {
             }
         }
 
-        ret
-    }
-
-    #[inline(never)]
-    fn calc_delta(&self, x: u64, eps: f64) -> T {
-        let mut ret = T::zero();
-        let fx = (x as i64).unchecked_cast::<T>();
-        let (x1, x2) = (self.x1, self.x2);
-        let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
-
-        let primes = Self::linear_sieve(x2.sqrt());
-        for p in Self::sieve(&primes, x1, x2) {
-            ret -= self.phi((p as i64).unchecked_cast(), fx, eps);
-            if p <= x {
-                ret += T::one();
-            }
-        }
-
-        for p in primes {
-            let mut m = 1i64;
-            let mut power = p;
-            while power < x2 / p {
-                m += 1;
-                power *= p;
-                if power < x1 {
-                    ret -= m.unchecked_cast::<T>();
-                } else {
-                    ret -= self.phi((power as i64).unchecked_cast(), fx, eps)
-                        / m.unchecked_cast::<T>();
-                }
-            }
-        }
         ret
     }
 
@@ -128,8 +106,7 @@ impl<T: MyReal> Platt<T> {
         let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
         info!("delta eps = {:.e}", eps);
         let lambda: f64 = self.lambda.unchecked_cast();
-
-        fn Phi(r: f64) -> f64 { rgsl::error::erfc(r / std::f64::consts::SQRT_2) / 2.0 }
+        let primes = Self::linear_sieve(x2.sqrt());
 
         let w = lambda * x as f64;
         let c1 = -1.0 / (lambda * w);
@@ -138,7 +115,6 @@ impl<T: MyReal> Platt<T> {
 
         // error analysis: we have ~(x2 - x1)/log(x) many p's.
         // for each p: the error by erfc is delta.
-        let primes = Self::linear_sieve(x2.sqrt());
         for p in Self::sieve(&primes, x1, x2) {
             // here we approximate r = ln(u / x) / lambda.
             // Define t = lambda (x - u), and we have r = ln(1 - t/(x lambda)) / lambda.
