@@ -16,7 +16,7 @@ pub(crate) fn linear_sieve(n: u64) -> Vec<u64> {
                 break;
             }
             mark.set(t as usize, true);
-            if i as u64 % p == 0 {
+            if i % p == 0 {
                 break;
             }
         }
@@ -85,7 +85,6 @@ pub(crate) fn sieve(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
             }
         }
 
-        // the last ~30 numbers
         while offset < n {
             mark.set(offset as usize >> 1, true);
             offset += p2;
@@ -107,44 +106,6 @@ pub(crate) fn sieve(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
         }
     }
     info!("found {} primes in the interval", ret.len());
-
-    ret
-}
-
-#[inline(never)]
-pub(crate) fn sieve2(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
-    let l = l | 1;
-    let ub = (r - l) as usize;
-    let mut mark = bit_vec::BitVec::from_elem(ub + 1, false);
-    for &p in primes {
-        if p == 2 {
-            continue;
-        }
-        let mut x = std::cmp::max((l - 1) / p + 1, 2) * p;
-        if x % 2 == 0 {
-            x += p;
-        }
-        let mut y = (x - l) as usize;
-        while y <= ub {
-            mark.set(y, true);
-            y += 2 * p as usize;
-        }
-    }
-    let mut ret = vec![];
-    for (idx, &s) in mark.storage().iter().enumerate() {
-        let mut s = !s;
-        s &= 0x55555555u32;
-        while s != 0 {
-            let w = s & (s - 1);
-            let offset = (s ^ w).trailing_zeros();
-            let x = l + ((idx as u64) << 5) + offset as u64;
-            if x <= r {
-                ret.push(x);
-            }
-            s = w;
-        }
-    }
-    info!("found {} primes in [{}, {}]", ret.len(), l, r);
 
     ret
 }

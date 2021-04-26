@@ -18,7 +18,7 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error
 
     let eps = 2.0.unchecked_cast::<T>().powi(-101);
 
-    let mut ret = vec![];
+    let mut roots = vec![];
     for &ckpt in LMFDB_CKPTS.iter() {
         let path = format!("{}/zeros_{}.dat", LMFDB_DATA_PATH, ckpt);
         let file = std::fs::File::open(&path)?;
@@ -48,10 +48,15 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error
                 let zz = t0 + T::from_u128(z).unwrap() * eps;
 
                 if zz > limit {
-                    return Ok(ret);
+                    info!(
+                        "largest zeta roots {}, # zeros = {}",
+                        roots.last().unwrap(),
+                        roots.len()
+                    );
+                    return Ok(roots);
                 }
                 // debug!("read zero: {}", z);
-                ret.push(zz);
+                roots.push(zz);
             }
         }
     }

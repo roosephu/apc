@@ -26,6 +26,58 @@ impl<T: MyReal> Default for Platt<T> {
 
 fn Phi(r: f64) -> f64 { rgsl::error::erfc(r / std::f64::consts::SQRT_2) / 2.0 }
 
+/// let delta = 1/2^53 be the relative differencee by converting x from f64x2 to f64.
+/// let r = ln(u/x) / lambda
+/// Phi(r (1 + delta)) - Phi(r) \approx |Phi'(r)| delta = delta exp(-r^2) / sqrt(2pi) <= delta / 2.
+/// note that it's fine if we estimate erfc(x) by
+#[inline(never)]
+fn calc_delta_f64(x: u64, eps: f64, lambda: f64, x1: u64, x2: u64) -> f64 {
+    let mut ret = 0.0;
+    let primes = crate::sieve::linear_sieve(x2.sqrt());
+
+    let c1 = -1.0 / lambda;
+    let c2 = -1.0 / lambda / 2.0;
+    let c3 = -1.0 / lambda / 3.0;
+
+    let mid1 = (x + x1) / 2;
+    let mid2 = (x + x2) / 2;
+
+    // error analysis: we have ~(x2 - x1)/log(x) many p's.
+    // for each p: the error by erfc is delta.
+    for p in crate::sieve::sieve(&primes, x1, x2) {
+        // here we approximate r = ln(u / x) / lambda = ln(1 - (x-u)/x) / lambda.
+        // Expad ln(1 - (x-u)/x) at u = x.
+        let t = (x as i64 - p as i64) as f64 / x as f64;
+        let r = c1 * t + c2 * t * t + c3 * t * t * t;
+        let f;
+        if p <= x {
+            f = 1.0 - Phi(r);
+        } else {
+            f = -Phi(r);
+        }
+        ret += f;
+    }
+
+    // error analysis: each has error delta, we have sqrt(x2) many, so in total is $delta sqrt(x2) << 1$.
+    for p in primes {
+        let mut m = 1i64;
+        let mut power = p;
+        while power < x2 / p {
+            m += 1;
+            power *= p;
+            if power < x1 {
+                ret -= 1.0 / m as f64;
+            } else {
+                // only (x2^1/2 - x1^1/2) + (x2^1/3 - x1^1/3) + ... many
+                // The first term dominates, which is still O((x2 - x1)/sqrt(x)) = O(polylog(n)).
+                let r = (power as f64 / x as f64).ln() / lambda;
+                ret -= Phi(r) / m as f64;
+            }
+        }
+    }
+    ret
+}
+
 impl<T: MyReal> Platt<T> {
     pub fn new() -> Self { Self::default() }
 
@@ -34,54 +86,6 @@ impl<T: MyReal> Platt<T> {
 
     #[inline]
     fn phi(&self, u: T, x: T, eps: f64) -> T { self.Phi((u / x).ln() / self.lambda, eps) }
-
-    /// let delta = 1/2^53 be the relative differencee by converting x from f64x2 to f64.
-    /// let r = ln(u/x) / lambda
-    /// Phi(r (1 + delta)) - Phi(r) \approx |Phi'(r)| delta = delta exp(-r^2) / sqrt(2pi) <= delta / 2.
-    /// note that it's fine if we estimate erfc(x) by
-    #[inline(never)]
-    fn calc_delta_f64(&self, x: u64, eps: f64) -> T {
-        let mut ret = 0.0;
-        let (x1, x2) = (self.x1, self.x2);
-        let lambda: f64 = self.lambda.unchecked_cast();
-        let primes = crate::sieve::linear_sieve(x2.sqrt());
-
-        let c1 = -1.0 / lambda;
-        let c2 = -1.0 / lambda / 2.0;
-        let c3 = -1.0 / lambda / 3.0;
-
-        // error analysis: we have ~(x2 - x1)/log(x) many p's.
-        // for each p: the error by erfc is delta.
-        for p in crate::sieve::sieve(&primes, x1, x2) {
-            // here we approximate r = ln(u / x) / lambda = ln(1 - (x-u)/x) / lambda.
-            // Expad ln(1 - (x-u)/x) at u = x.
-            let t = (x as i64 - p as i64) as f64 / x as f64;
-            let r = c1 * t + c2 * t * t + c3 * t * t * t;
-            ret -= Phi(r);
-            if p <= x {
-                ret += 1.0;
-            }
-        }
-
-        // error analysis: each has error delta, we have sqrt(x2) many, so in total is $delta sqrt(x2) << 1$.
-        for p in primes {
-            let mut m = 1i64;
-            let mut power = p;
-            while power < x2 / p {
-                m += 1;
-                power *= p;
-                if power < x1 {
-                    ret -= 1.0 / m as f64;
-                } else {
-                    // only (x2^1/2 - x1^1/2) + (x2^1/3 - x1^1/3) + ... many
-                    // The first term dominates, which is still O((x2 - x1)/sqrt(x)) = O(polylog(n)).
-                    let r = (power as f64 / x as f64).ln() / lambda;
-                    ret -= Phi(r) / m as f64;
-                }
-            }
-        }
-        ret.unchecked_cast()
-    }
 
     /// During planning, these hyperparameters (lambda, sigma, h, x1, x2, integral_limits)
     /// doesn't need to be very accurate
@@ -119,12 +123,17 @@ impl<T: MyReal> Platt<T> {
         let x1 = brentq(|u| Em(u) - eps, 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
         let x2 = brentq(|u| Ep(u) - eps, x * 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
 
+        // let x1 = x - (x - x1) * 0.7;
+        // let x2 = x + (x2 - x) * 0.7;
+        info!("x1 residue = {}, x2 residue = {}", Em(x1), Ep(x2));
+
         (x1.floor() as u64, x2.floor() as u64)
     }
 
     pub fn compute(&mut self, n: u64, hints: PlattHints) -> u64 {
         self.plan(n as f64, hints);
 
+        // the result = n / log(n) + o(n)
         let integral_offline =
             PlattIntegrator::<T>::new(T::from_u64(n).unwrap(), T::one(), self.lambda, 20, 0.01)
                 .query(T::zero(), self.integral_limit)
@@ -142,22 +151,25 @@ impl<T: MyReal> Platt<T> {
         let mut last_contribution = T::zero();
 
         let roots = crate::lmfdb::LMFDB_reader(self.integral_limit).unwrap();
-        info!("largest zeta roots {}, # zeros = {}", roots.last().unwrap(), roots.len());
 
+        let mut abs_integral = T::zero();
         for i in 0..roots.len() - 1 {
             let a = roots[i];
             let b = roots[i + 1];
             let integral = integrator_critical.query(a, b).im;
             integral_critical += integral * (i + 1) as f64;
+            abs_integral += integral.abs() / (n as f64).sqrt() * (i + 1) as f64;
             last_contribution = integral * (i + 1) as f64;
             // debug!("current zero: {}, integral = {}, est = {}", roots[i], integral, (-self.lambda * self.lambda * a * a / 2.0).exp() * (b - a));
         }
-        info!("integral critical = {}, last = {}", integral_critical, last_contribution);
+        info!(
+            "integral critical = {}, last = {}, abs = {}",
+            integral_critical, last_contribution, abs_integral
+        );
 
-        let delta = self.calc_delta_f64(n, 0.5);
+        let delta = calc_delta_f64(n, 0.5, self.lambda.unchecked_cast(), self.x1, self.x2);
         info!("delta = {}", delta);
-        let ans =
-            integral_offline - integral_critical * 2.0 - 2.0.unchecked_cast::<T>().ln() + delta;
+        let ans = integral_offline - integral_critical * 2.0 - 2.0.ln() + delta;
         let n_ans = ans.round().unchecked_cast::<i64>();
         info!("ans = {}, residue = {}", ans, ans - n_ans.unchecked_cast::<T>());
 
