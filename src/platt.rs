@@ -111,21 +111,24 @@ impl<T: MyReal> Platt<T> {
 
     fn plan_delta_bounds(&mut self, lambda: f64, x: f64, eps: f64) -> (u64, u64) {
         let eps = eps / 2.0;
-        let Ep = |u: f64| {
-            x * (lambda * lambda / 2.0).exp() * Phi((u / x).ln() / lambda - lambda)
-                - u * Phi((u / x).ln() / lambda)
+
+        // change of variable: t = ln(u/x) / lambda <=> u = x e^(t lambda).
+        let Ep = |t: f64| {
+            x * ((lambda * lambda / 2.0).exp() * Phi(t - lambda) - (t * lambda).exp() * Phi(t))
         };
-        let Em = |u: f64| {
-            u * Phi(-(u / x).ln() / lambda)
-                - x * (lambda * lambda / 2.0).exp() * Phi(lambda - (u / x).ln() / lambda)
+        let Em = |t: f64| {
+            x * ((t * lambda).exp() * Phi(-t) - (lambda * lambda / 2.0).exp() * Phi(lambda - t))
         };
 
-        let x1 = brentq(|u| Em(u) - eps, 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
-        let x2 = brentq(|u| Ep(u) - eps, x * 2.0, x, 0.0, 0.0, 100).unwrap_or(x);
+        let t1 = brentq(|t| Em(t) - eps, 0.0, -8.0, 0.0, 0.0, 100).unwrap_or(x);
+        let t2 = brentq(|t| Ep(t) - eps, 0.0, 8.0, 0.0, 0.0, 100).unwrap_or(x);
+
+        let x1 = x * (t1 * lambda).exp();
+        let x2 = x * (t2 * lambda).exp();
 
         // let x1 = x - (x - x1) * 0.7;
         // let x2 = x + (x2 - x) * 0.7;
-        info!("x1 residue = {}, x2 residue = {}", Em(x1), Ep(x2));
+        info!("x1 residue = {}, x2 residue = {}", Em(t1), Ep(t2));
 
         (x1.floor() as u64, x2.floor() as u64)
     }
@@ -152,6 +155,7 @@ impl<T: MyReal> Platt<T> {
 
         let roots = crate::lmfdb::LMFDB_reader(self.integral_limit).unwrap();
 
+        info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
         let mut abs_integral = T::zero();
         for i in 0..roots.len() - 1 {
             let a = roots[i];
