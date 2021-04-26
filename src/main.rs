@@ -1,5 +1,6 @@
 #![feature(trait_alias)]
 #![allow(non_snake_case)]
+#![feature(non_ascii_idents)]
 
 use analytic::*;
 use clap::{crate_authors, crate_version, Clap};
@@ -31,7 +32,7 @@ fn main() {
     // println!("[ZetaGalway] complexity = {}", zeta_galway.complexity);
 
     let mut platt = crate::platt::Platt::<T>::new();
-    let hints = PlattHints { lambda: opts.lambda };
+    let hints = PlattHints { λ: opts.lambda };
     let ans = platt.compute(n, hints);
     println!("[Platt] ans = {}", ans);
 

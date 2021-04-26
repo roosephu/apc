@@ -9,32 +9,32 @@ use num::Complex;
 
 type Expansion<T> = (T, T, (T, Complex<T>), Complex<T>, PowerSeries<Complex<T>>);
 
-/// to compute $$\int x^s exp(lambda^2 s^2 / 2) / s dh$$ for $s = \sigma + ih$
+/// to compute $$\int x^s exp(λ^2 s^2 / 2) / s dh$$ for $s = \σ + ih$
 pub struct PlattIntegrator<T> {
     order: usize,
     eps: T,
-    sigma: T,
-    lambda_sqr: T,
+    σ: T,
+    λ_sqr: T,
     ln_x: T,
     expansion: Option<Expansion<T>>,
     cache: Option<(T, Complex<T>)>, // save the last query
 }
 
 impl<T: MyReal> PlattIntegrator<T> {
-    pub fn new(x: T, sigma: T, lambda: T, max_order: usize, eps: f64) -> Self {
+    pub fn new(x: T, σ: T, λ: T, max_order: usize, eps: f64) -> Self {
         Self {
             ln_x: x.ln(),
-            sigma,
+            σ,
             eps: eps.unchecked_cast::<T>(),
             order: max_order,
-            lambda_sqr: lambda * lambda,
+            λ_sqr: λ * λ,
             expansion: None,
             cache: None,
         }
     }
 
     pub fn hat_phi(&self, s: Complex<T>) -> Complex<T> {
-        (self.lambda_sqr / 2.0.unchecked_cast::<T>() * s * s + s * self.ln_x).exp() / s
+        (self.λ_sqr / 2.0.unchecked_cast::<T>() * s * s + s * self.ln_x).exp() / s
     }
 
     /// expand exp(a z^2) at z = 0: 1 + (a / 1!) z^2 + (a^2 / 2!) z^4 + ..
@@ -70,8 +70,8 @@ impl<T: MyReal> PlattIntegrator<T> {
         s0: Complex<T>,
         order: usize,
     ) -> (Complex<T>, Complex<T>, Complex<T>, PowerSeries<Complex<T>>) {
-        let c = (self.lambda_sqr * s0 + self.ln_x).mul_i();
-        let a = self.lambda_sqr / -2.0 / c / c;
+        let c = (self.λ_sqr * s0 + self.ln_x).mul_i();
+        let a = self.λ_sqr / -2.0 / c / c;
         let b = -(T::one() / s0 / c).mul_i();
         let mut ps_exp = PlattIntegrator::expand_exp_term(order, a);
         let ps_recip = PlattIntegrator::expand_reciprocal_term(order, b);
@@ -97,7 +97,7 @@ impl<T: MyReal> PlattIntegrator<T> {
 
     #[inline(never)]
     fn prepare(&mut self, t: T) {
-        let s0 = Complex::new(self.sigma, t);
+        let s0 = Complex::new(self.σ, t);
         let (a, b, c, mut poly) = self.expand_at(s0, self.order);
         let mul_coeff = self.hat_phi(s0) / c;
 
@@ -192,10 +192,10 @@ mod tests {
         env_logger::init();
 
         type T = f64x2;
-        let sigma = 0.5.unchecked_cast::<T>();
+        let σ = 0.5.unchecked_cast::<T>();
         let x = 1e6.unchecked_cast::<T>();
-        let lambda = 0.003.unchecked_cast::<T>();
-        let mut integrator = PlattIntegrator::new(x, sigma, lambda, 20, 1e-20);
+        let λ = 0.003.unchecked_cast::<T>();
+        let mut integrator = PlattIntegrator::new(x, σ, λ, 20, 1e-20);
 
         let t1 = T::zero() + 14.0;
         let t2 = 8e3.unchecked_cast::<T>();

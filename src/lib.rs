@@ -9,6 +9,7 @@
 #![feature(trait_alias)]
 #![feature(destructuring_assignment)]
 #![feature(min_type_alias_impl_trait)]
+#![feature(non_ascii_idents)]
 
 pub mod bandwidth_interp;
 pub mod brentq;
