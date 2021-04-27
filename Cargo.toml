@@ -1,9 +1,9 @@
 [package]
-name = "analytic"
+name = "apc"
 version = "0.2.3"
 authors = ["Yuping Luo <roosephu@gmail.com>"]
 edition = "2018"
-description = "Prime counting, analytically"
+description = "Analytical Prime Counting"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]

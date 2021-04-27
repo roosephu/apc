@@ -2,9 +2,9 @@
 #![allow(non_snake_case)]
 #![feature(non_ascii_idents)]
 
-use analytic::*;
+use apc::*;
 use clap::{crate_authors, crate_version, Clap};
-use platt::PlattHints;
+use crate::platt::PlattHints;
 
 type T = f64x2;
 
@@ -49,9 +49,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use analytic::unchecked_cast::*;
-    use analytic::zeta::FnZeta;
-    use analytic::*;
+    use crate::unchecked_cast::*;
+    use crate::zeta::FnZeta;
+    use crate::*;
     use num::Complex;
 
     #[test]
