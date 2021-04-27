@@ -1,3 +1,4 @@
+use bit_vec::BitVec;
 use log::info;
 
 #[inline(never)]
@@ -27,13 +28,14 @@ pub(crate) fn linear_sieve(n: u64) -> Vec<u64> {
 
 /// sieve all primes number in [l, r), using primes in `primes`.
 #[inline(never)]
-pub(crate) fn sieve(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
-    let l = l | 1;
+pub(crate) fn sieve(primes: &[u64], l: u64, r: u64) -> BitVec {
+    assert!(l % 2 == 1);
+
     let n = r - l;
     info!("sieve primes in [{}, {}), interval length = {}", l, r, n);
 
     // reserve a little bit more space to avoid complicated boundary computation
-    let mut mark = bit_vec::BitVec::from_elem((n as usize >> 1) + 50, false);
+    let mut mark = BitVec::from_elem((n as usize >> 1) + 50, false);
     for &p in primes {
         if p <= 5 {
             continue;
@@ -90,6 +92,11 @@ pub(crate) fn sieve(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
             offset += p2;
         }
     }
+    mark
+}
+
+#[inline(never)]
+fn extract_primes(mark: BitVec, l: u64, r: u64) -> Vec<u64> {
     let mut ret = vec![];
     for (idx, &s) in mark.storage().iter().enumerate() {
         let mut s = !s;
@@ -106,6 +113,5 @@ pub(crate) fn sieve(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
         }
     }
     info!("found {} primes in the interval", ret.len());
-
     ret
 }

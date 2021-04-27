@@ -37,26 +37,62 @@ fn err_l(t: f64, x: f64, λ: f64) -> f64 {
     x * ((t * λ).exp() * Φ(-t) - (λ * λ / 2.0).exp() * Φ(λ - t))
 }
 
+fn segment(mut x1: u64, x2: u64, seg_size: u64) -> Vec<(u64, u64)> {
+    assert!(x1 <= x2);
+    let mut segments = vec![];
+    loop {
+        if x2 - x1 > seg_size {
+            segments.push((x1, x1 + seg_size));
+            x1 += seg_size;
+        } else {
+            segments.push((x1, x2));
+            break;
+        }
+    }
+    segments
+}
+
 #[inline(never)]
 fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     let c1 = -1.0 / λ;
     let c2 = -1.0 / λ / 2.0;
     let c3 = -1.0 / λ / 3.0;
 
+    let x1 = x1 | 1;
     let mut Δ_1 = 0.0;
-    for p in crate::sieve::sieve(&primes, x1, x2) {
-        // here we approximate r = ln(u / x) / λ = ln(1 - (x-u)/x) / λ.
-        // Expad ln(1 - (x-u)/x) at u = x.
-        let t = (x as i64 - p as i64) as f64 / x as f64;
-        let r = c1 * t + c2 * t * t + c3 * t * t * t;
-        let f;
-        if p <= x {
-            f = 1.0 - Φ(r);
-        } else {
-            f = -Φ(r);
+    let mut n_primes = 0;
+    for (l, r) in segment(x1, x2, 1u64 << 34) {
+        // 2^33 bits needed = 1GB memory
+        let mark = crate::sieve::sieve(&primes, x1, x2);
+        for (idx, &s) in mark.storage().iter().enumerate() {
+            let mut s = !s;
+            while s != 0 {
+                let w = s & (s - 1);
+                let offset = (s ^ w).trailing_zeros();
+                s = w;
+
+                // note that we skipped all odd numbers;
+                let p = l + ((idx as u64) << 6) + ((offset as u64) << 1);
+                if p % 3 != 0 && p % 5 != 0 && p <= r {
+                    n_primes += 1;
+
+                    // here we approximate r = ln(u / x) / λ = ln(1 - (x-u)/x) / λ.
+                    // Expad ln(1 - (x-u)/x) at u = x.
+                    let t = (x as i64 - p as i64) as f64 / x as f64;
+                    let r = c1 * t + c2 * t * t + c3 * t * t * t;
+                    let f;
+                    if p <= x {
+                        f = 1.0 - Φ(r);
+                    } else {
+                        f = -Φ(r);
+                    }
+                    Δ_1 += f;
+                }
+            }
         }
-        Δ_1 += f;
     }
+    info!("found {} primes in the interval", n_primes);
+
     Δ_1
 }
 
@@ -115,6 +151,7 @@ fn cramer_stats(x: f64, λ: f64, d: f64) -> (f64, f64, f64) {
     (mean, var, max)
 }
 
+/// exactly the same as Galway's paper.
 pub fn plan_Δ_bounds_strict(λ: f64, x: f64, eps: f64) -> (u64, u64) {
     let eps = eps / 2.0;
 
@@ -139,6 +176,9 @@ pub fn plan_Δ_bounds_strict(λ: f64, x: f64, eps: f64) -> (u64, u64) {
     (x1.floor() as u64, x2.floor() as u64)
 }
 
+/// Intuition: Galway bounds the difference by considering all numbers, but we only need prime numbers
+/// We simply apply Cramer's random model: only O(1/log(n)) numbers are prime numbers.
+/// Also see the comments for cramer_stats for .
 fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
     let τ = 20.0;
     let err = |d: f64| {
