@@ -1,7 +1,7 @@
 #![allow(clippy::suspicious_arithmetic_impl)]
 use std::ops::{Add, Div, Mul, Sub};
 
-use crate::f64xn::f64x2;
+use crate::f64x2;
 
 /// Algorithm 1
 #[inline]

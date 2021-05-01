@@ -110,11 +110,11 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
 #[cfg(test)]
 mod tests {
     use super::BandwidthInterp;
-    use crate::f64x2;
     use crate::test_utils::*;
     use crate::traits::MyReal;
     use num::traits::FloatConst;
     use num::{Complex, Zero};
+    use F64x2::f64x2;
 
     type T = f64x2;
 

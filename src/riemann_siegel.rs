@@ -459,6 +459,7 @@ mod tests {
     use num::Complex;
     use num::Zero;
     use riemann_siegel::RiemannSiegelTheta;
+    use F64x2::f64x2;
 
     #[test]
     fn rszeta() {

@@ -1,6 +1,6 @@
-use crate::f64xn::f64x2;
 use crate::traits::MyReal;
 use num::Complex;
+use F64x2::f64x2;
 
 pub fn assert_close(a: f64x2, b: f64x2, eps: f64) {
     let rel_abs = (a - b).abs() / b.abs();

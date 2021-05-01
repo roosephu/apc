@@ -354,7 +354,7 @@ impl<T: MyReal> FnZeta<T> for ZetaGalway<'_, T> {
     }
 }
 
-use crate::f64xn::f64x2;
+use F64x2::f64x2;
 
 #[test]
 fn test_zeta_galway() {

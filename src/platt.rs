@@ -1,10 +1,11 @@
 use crate::brentq::brentq;
-use crate::{f64x2, platt_integral::PlattIntegrator};
+use crate::platt_integral::PlattIntegrator;
 use crate::{traits::*, unchecked_cast::UncheckedCast};
 use log::{debug, info};
 use num::integer::*;
 use num::{Num, One, Zero};
 use std::io::{self, Read};
+use F64x2::f64x2;
 
 type T = f64x2;
 

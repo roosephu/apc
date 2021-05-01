@@ -1,8 +1,6 @@
-use crate::unchecked_cast::UncheckedCast;
-
 use super::{blocks::*, f64x2};
 use num::traits::FloatConst;
-use num::{Float, One, Zero};
+use num::{One, Zero};
 use num_traits::AsPrimitive;
 
 #[inline]
@@ -89,13 +87,13 @@ impl f64x2 {
 
         let p2 = pow2(e);
         let normalized = Self { hi: self.hi / p2, lo: self.lo / p2 };
-        normalized.ln_remez() + e.unchecked_cast::<Self>() * Self::LN_2()
+        normalized.ln_remez() + Self::from(e) * Self::LN_2()
     }
 
     pub fn cos(self) -> Self {
         let x = (self / Self::FRAC_PI_2()).floor();
         let y = self - x * Self::FRAC_PI_2();
-        let x: i64 = x.unchecked_cast();
+        let x: i64 = x.into();
         match x.rem_euclid(4) {
             0 => y.cos_remez(),
             1 => -y.sin_remez(),
@@ -109,7 +107,7 @@ impl f64x2 {
     pub fn sin(self) -> Self {
         let x = (self / Self::FRAC_PI_2()).floor();
         let y = self - x * Self::FRAC_PI_2();
-        let x: i64 = x.unchecked_cast();
+        let x: i64 = x.into();
         match x.rem_euclid(4) {
             0 => y.sin_remez(),
             1 => y.cos_remez(),
@@ -240,17 +238,17 @@ impl f64x2 {
             -(-self).atan2(other)
         } else if self.is_zero() {
             // y == 0
-            if other.is_sign_positive() {
+            if other.hi > 0.0 {
                 // x > 0, y = 0
                 Self::zero()
             } else {
                 // x <= 0, y = 0
                 Self::PI()
             }
-        } else if other.is_sign_negative() {
+        } else if other.hi < 0.0 {
             // y > 0, x < 0
             Self::PI() - (-self / other).atan()
-        } else if other.is_sign_positive() {
+        } else if other.hi > 0.0 {
             // y > 0, x > 0
             (self / other).atan()
         } else {
@@ -292,15 +290,10 @@ impl f64x2 {
         let z_sq = z.square();
         let mut ret = Self::one() / z_sq;
 
-        unsafe {
-            crate::profiler::ERFC_EPS_LARGE_K += K as usize;
-            crate::profiler::ERFC_EPS_LARGE_CNT += 1;
-        }
-
-        let h = h.unchecked_cast::<Self>();
+        let h = f64x2::from(h);
         let h_sq = h.square();
         for k in 1..=K {
-            let w = h_sq * (k * k).unchecked_cast::<Self>();
+            let w = h_sq * f64x2::from(k * k);
             ret += (-w).exp() * 2.0 / (z_sq + w);
         }
         ret * (-z_sq).exp() * h * z / Self::PI() + 2.0 / (Self::one() - (Self::TAU() * z / h).exp())
@@ -331,11 +324,6 @@ impl f64x2 {
             }
             k += 1;
             t *= -z_sq / k as f64;
-        }
-
-        unsafe {
-            crate::profiler::ERFC_EPS_SMALL_CNT += 1;
-            crate::profiler::ERFC_EPS_SMALL_K += k as usize;
         }
 
         if s == 1 {

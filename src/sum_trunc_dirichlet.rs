@@ -65,7 +65,8 @@ pub(crate) fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
 #[cfg(test)]
 mod tests {
     use crate::test_utils::*;
-    use crate::{f64x2, unchecked_cast::UncheckedCast};
+    use crate::unchecked_cast::UncheckedCast;
+    use F64x2::f64x2;
 
     use super::*;
 

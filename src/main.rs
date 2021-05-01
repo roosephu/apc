@@ -2,9 +2,10 @@
 #![allow(non_snake_case)]
 #![feature(non_ascii_idents)]
 
+use crate::platt::PlattHints;
 use apc::*;
 use clap::{crate_authors, crate_version, Clap};
-use crate::platt::PlattHints;
+use F64x2::f64x2;
 
 type T = f64x2;
 
@@ -53,6 +54,7 @@ mod tests {
     use crate::zeta::FnZeta;
     use crate::*;
     use num::Complex;
+    use F64x2::f64x2;
 
     #[test]
     fn test_tmp() {
