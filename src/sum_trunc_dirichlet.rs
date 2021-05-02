@@ -74,19 +74,22 @@ mod tests {
 
     #[test]
     fn test_sum_trunc_dirichlet() {
-        let N = 20;
-        let s = Complex::new(1.3.unchecked_cast::<T>(), 260.unchecked_cast::<T>());
-        let M = 9;
-        let delta = 1.1.unchecked_cast::<T>();
-        let result = sum_trunc_dirichlet(s, 1, N, M, delta);
-        for t in 0..=M {
-            let mut sum = Complex::<T>::zero();
-            let z = s + Complex::new(T::zero(), delta * t as f64);
-            for j in 1..=N {
-                sum += (-z * (j as f64).unchecked_cast::<T>().ln()).exp();
+        let res: Option<()> = try {
+            let N = 20;
+            let s = Complex::new( T::from_f64(1.3)?, 260.unchecked_cast::<T>());
+            let M = 9;
+            let delta = T::from_f64(1.1)?;
+            let result = sum_trunc_dirichlet(s, 1, N, M, delta);
+            for t in 0..=M {
+                let mut sum = Complex::<T>::zero();
+                let z = s + Complex::new(T::zero(), delta * t as f64);
+                for j in 1..=N {
+                    sum += (-z * T::from_f64(j as f64)?.ln()).exp();
+                }
+                println!("{:e} {:e}, diff = {:e}", sum, result[t], sum - result[t]);
+                assert_complex_close(sum, result[t], 1e-29);
             }
-            println!("{:e} {:e}, diff = {:e}", sum, result[t], sum - result[t]);
-            assert_complex_close(sum, result[t], 1e-29);
-        }
+        };
+        res.unwrap();
     }
 }

@@ -1,6 +1,7 @@
 #![feature(trait_alias)]
 #![allow(non_snake_case)]
 #![feature(non_ascii_idents)]
+#![feature(try_blocks)]
 
 use crate::platt::PlattHints;
 use apc::*;
