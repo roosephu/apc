@@ -1,7 +1,4 @@
-use crate::{
-    traits::{ComplexFunctions, MyReal},
-    unchecked_cast::UncheckedCast,
-};
+use crate::traits::{ComplexFunctions, MyReal};
 use log::{debug, info};
 use num_complex::Complex;
 
@@ -50,7 +47,7 @@ impl<T: MyReal> Context<T> {
     pub fn pow2(&self, n: usize) -> T { self.pow2[n] }
 
     #[inline]
-    pub fn two(&self) -> T { 2.0f64.unchecked_cast::<T>() }
+    pub fn two(&self) -> T { T::from_f64(2.0).unwrap() }
 }
 
 impl<T: MyReal> Context<T> {
@@ -67,7 +64,7 @@ impl<T: MyReal> Context<T> {
             panic!("you should normalize z first!, z = {:?}", ln_z);
             // 1.0 / (arg / 2.0).cos().pow(2 * n as i32)
         };
-        self.bernoulli(n * 2).unchecked_cast::<f64>().abs()
+        self.bernoulli(n * 2).to_f64().unwrap().abs()
             / ((2 * n) * (2 * n - 1)) as f64
             / norm.powi((2 * n - 1) as i32)
             * err_coef
@@ -78,16 +75,16 @@ impl<T: MyReal> Context<T> {
     pub fn loggamma(&self, mut z: Complex<T>, eps: f64) -> Complex<T> {
         const N: usize = 20;
 
-        assert!(z.re > (-20.0f64).unchecked_cast(), "beyond impl {:?}", z);
+        assert!(z.re > T::from_f64(-20.0f64).unwrap(), "beyond impl {:?}", z);
         let mut result = Complex::zero();
-        while z.re < (N as i64).unchecked_into() {
+        while z.re < T::from_usize(N).unwrap() {
             result -= z.ln();
             z += T::one();
         }
 
         let ln_z = z.ln();
 
-        result += (z - 0.5f64.unchecked_cast::<T>()) * ln_z - z + (T::PI() * 2.0).ln() / 2.0;
+        result += (z - T::from_f64(0.5).unwrap()) * ln_z - z + (T::PI() * 2.0).ln() / 2.0;
         let z2 = z * z;
         let mut zpow = z;
         for i in 1..N {
@@ -95,7 +92,7 @@ impl<T: MyReal> Context<T> {
             result += contrib;
 
             zpow *= z2;
-            if contrib.l1_norm().unchecked_cast::<f64>() * 10.0 < eps {
+            if contrib.l1_norm().to_f64().unwrap() * 10.0 < eps {
                 break;
             }
         }
@@ -126,7 +123,7 @@ impl<T: MyReal> Context<T> {
         info!("initialize factorial up to {}", n);
         let mut factorial = vec![T::one(); n + 1];
         for i in 1..=n {
-            factorial[i] = factorial[i - 1] * (i as i32).unchecked_cast::<T>();
+            factorial[i] = factorial[i - 1] * T::from_usize(i).unwrap();
         }
         self.factorial = factorial;
     }
@@ -147,7 +144,7 @@ impl<T: MyReal> Context<T> {
             bernoulli[2 * i] = (T::one() - b) / self.factorial(2 * i);
         }
         for i in 1..=n / 2 {
-            bernoulli[i * 2] *= self.factorial(2 * i) / 4i32.unchecked_cast::<T>().pow(i as i32);
+            bernoulli[i * 2] *= self.factorial(2 * i) / T::from_f64(4.0).unwrap().pow(i as i32);
         }
 
         debug!("bernoulli numbers = {:?}", &bernoulli[..10]);

@@ -1,9 +1,5 @@
 use crate::traits::ComplexFunctions;
-use crate::{
-    power_series::PowerSeries,
-    traits::MyReal,
-    unchecked_cast::{UncheckedCast, UncheckedInto},
-};
+use crate::{power_series::PowerSeries, traits::MyReal};
 use log::debug;
 use num::Complex;
 
@@ -25,7 +21,7 @@ impl<T: MyReal> PlattIntegrator<T> {
         Self {
             ln_x: x.ln(),
             σ,
-            eps: eps.unchecked_cast::<T>(),
+            eps: T::from_f64(eps).unwrap(),
             order: max_order,
             λ_sqr: λ * λ,
             expansion: None,
@@ -34,7 +30,7 @@ impl<T: MyReal> PlattIntegrator<T> {
     }
 
     pub fn hat_phi(&self, s: Complex<T>) -> Complex<T> {
-        (self.λ_sqr / 2.0.unchecked_cast::<T>() * s * s + s * self.ln_x).exp() / s
+        (self.λ_sqr / T::from_f64(2.0).unwrap() * s * s + s * self.ln_x).exp() / s
     }
 
     /// expand exp(a z^2) at z = 0: 1 + (a / 1!) z^2 + (a^2 / 2!) z^4 + ..
@@ -43,7 +39,7 @@ impl<T: MyReal> PlattIntegrator<T> {
         let mut coeff = Complex::one();
         for i in 0..(order + 1) / 2 {
             data[i * 2] = coeff;
-            coeff *= a / (i as f64 + 1.0).unchecked_cast::<T>();
+            coeff *= a / T::from_usize(i + 1).unwrap();
         }
         PowerSeries::from_vec(order, data)
     }
@@ -109,13 +105,13 @@ impl<T: MyReal> PlattIntegrator<T> {
         for i in 0..self.order {
             let mut signed_falling_factorial = T::one();
             for j in 0..i {
-                signed_falling_factorial *= -((i - j) as f64).unchecked_cast::<T>();
+                signed_falling_factorial *= -T::from_usize(i - j).unwrap();
                 let delta = poly.data[i] * signed_falling_factorial;
                 poly.data[i - j - 1] += delta;
             }
         }
 
-        let poly_eps = self.eps / mul_coeff.norm() / (self.order as f64).unchecked_cast::<T>();
+        let poly_eps = self.eps / mul_coeff.norm() / T::from_usize(self.order).unwrap();
         let radius = (poly_eps / poly.data[self.order - 1].norm())
             .powf(T::one() / (self.order as f64 - 1.0))
             / c.norm();
@@ -189,18 +185,18 @@ mod tests {
 
     #[test]
     fn test_platt_integral() {
-        env_logger::init();
+        // env_logger::init();
 
         type T = f64x2;
-        let σ = 0.5.unchecked_cast::<T>();
-        let x = 1e6.unchecked_cast::<T>();
-        let λ = 0.003.unchecked_cast::<T>();
+        let σ = T::from_f64(0.5).unwrap();
+        let x = T::from_f64(1e6).unwrap();
+        let λ = T::from_f64(0.003).unwrap();
         let mut integrator = PlattIntegrator::new(x, σ, λ, 20, 1e-20);
 
         let t1 = T::zero() + 14.0;
-        let t2 = 8e3.unchecked_cast::<T>();
+        let t2 = T::from_f64(8e3).unwrap();
         println!("{}", integrator.query(T::zero(), t2));
 
-        panic!();
+        // panic!();
     }
 }

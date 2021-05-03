@@ -1,4 +1,4 @@
-use crate::{brentq::brentq, context::Context, traits::MyReal, unchecked_cast::UncheckedCast};
+use crate::{brentq::brentq, context::Context, traits::MyReal};
 use crate::{
     sum_trunc_dirichlet::sum_trunc_dirichlet,
     traits::{ComplexFunctions, ExpPolyApprox},
@@ -33,7 +33,7 @@ fn ln_g_norm(z: Complex<f64>, s: Complex<f64>) -> f64 {
 
 /// z = O(n) + i O(ln(n)), s = O(1) + i t.
 fn f<T: MyReal>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
-    let z_im: f64 = z.im.unchecked_cast();
+    let z_im: f64 = z.im.to_f64().unwrap();
     if z_im > 100.0 {
         let a = z.scale(T::PI()).mul_i().exp();
         g(z, s) / a
@@ -57,7 +57,7 @@ fn ln_f_norm(z: Complex<f64>, s: Complex<f64>) -> f64 {
 }
 
 fn H<T: MyReal>(w: Complex<T>) -> Complex<T> {
-    if w.im < (-30.0f64).unchecked_cast() {
+    if w.im < T::from_f64(-30.0f64).unwrap() {
         Complex::<T>::zero()
     } else {
         T::one() / (T::one() - w.mul_i().scale(T::TAU()).exp())
@@ -92,7 +92,7 @@ impl<T: MyReal + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
         let mut m = 0;
         let h = self.h.unwrap();
         loop {
-            let s_approx = Complex::new(s.re, s.im + (m as i64).unchecked_cast::<T>() * h).approx();
+            let s_approx = Complex::new(s.re, s.im + T::from_usize(m).unwrap() * h).approx();
             let z_s = (s_approx / Complex64::new(0.0, PI * 2.0)).sqrt();
             let n2 = (z_s.re - z_s.im).floor().max(1.0) as f64;
             if n2 != n {
@@ -254,8 +254,8 @@ impl<T: MyReal + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
         if let Some(h) = self.h {
             let idx = (s.im - self.s0.im) / h;
             let round_idx = idx.round();
-            let int_idx = round_idx.unchecked_cast::<i64>() as usize;
-            assert!((idx - round_idx).abs().unchecked_cast::<f64>() <= 1e-8);
+            let int_idx = round_idx.to_usize().unwrap();
+            assert!((idx - round_idx).abs().to_f64().unwrap() <= 1e-8);
 
             plan.6 = Some(self.sum_trunc_dirichlet[int_idx]);
         }
@@ -279,8 +279,8 @@ impl<T: MyReal> ZetaGalway<'_, T> {
     fn I0(&self, s: Complex<T>, plan: Plan<T>) -> Complex<T> {
         let (n, m, n_l, n_r, h, z_1, plan_sum_trunc_dirichlet) = plan;
         // we don't care the precise value of z_1 and h, as it's only for correction.
-        let z_1 = Complex::<T>::new(z_1.re.unchecked_cast(), z_1.im.unchecked_cast());
-        let h = Complex::<T>::new(h.re.unchecked_cast(), h.im.unchecked_cast());
+        let z_1 = Complex::<T>::new(T::from_f64(z_1.re).unwrap(), T::from_f64(z_1.im).unwrap());
+        let h = Complex::<T>::new(T::from_f64(h.re).unwrap(), T::from_f64(h.im).unwrap());
 
         let mut s0;
         match plan_sum_trunc_dirichlet {
@@ -290,7 +290,7 @@ impl<T: MyReal> ZetaGalway<'_, T> {
             None => {
                 s0 = Complex::<T>::zero();
                 for i in 1..=n {
-                    s0 += (-s * i.unchecked_cast::<T>().ln()).exp();
+                    s0 += (-s * T::from_i64(i).unwrap().ln()).exp();
                 }
                 // panic!("why don't you use [FKBJ-OS]?");
             }
@@ -298,19 +298,19 @@ impl<T: MyReal> ZetaGalway<'_, T> {
 
         let mut s1 = Complex::<T>::zero();
         for i in 0..=m {
-            s1 += f(z_1 + h * i.unchecked_cast::<T>(), s);
-            // debug!("{:?}, {:?} {:?}", z_1 + h * i.unchecked_cast::<T>(), s, f(z_1 + h * i.unchecked_cast::<T>(), s));
+            s1 += f(z_1 + h * T::from_i64(i).unwrap(), s);
+            // debug!("{:?}, {:?} {:?}", z_1 + h * i.unwrap(), s, f(z_1 + h * i.unwrap(), s));
         }
 
         let mut s2 = Complex::<T>::zero();
         for i in n_l..=n {
-            let cast_i = i.unchecked_cast::<T>();
+            let cast_i = T::from_i64(i).unwrap();
             s2 += Complex::<T>::new(cast_i, T::zero()).powc(-s) * H((cast_i - z_1) / h);
         }
 
         let mut s3 = Complex::<T>::zero();
         for i in n + 1..=n_r {
-            let cast_i = i.unchecked_cast::<T>();
+            let cast_i = T::from_i64(i).unwrap();
             s3 += Complex::<T>::new(cast_i, T::zero()).powc(-s) * H((z_1 - cast_i) / h);
             // println!("{:?} {:?}", (z_1 - cast_i) / h, H((z_1 - cast_i) / h));
         }
@@ -322,11 +322,11 @@ impl<T: MyReal> ZetaGalway<'_, T> {
     }
 
     fn test(&mut self, s: Complex<T>, eps: f64) {
-        let log_chi = (s - 0.5f64.unchecked_cast::<T>()) * T::PI().ln()
-            + self.ctx.loggamma((T::one() - s) * 0.5f64.unchecked_cast::<T>(), eps)
-            - self.ctx.loggamma(s * 0.5f64.unchecked_cast::<T>(), eps);
-        let a = self.ctx.loggamma((T::one() - s) * 0.5f64.unchecked_cast::<T>(), eps);
-        let b = self.ctx.loggamma(s * 0.5f64.unchecked_cast::<T>(), eps);
+        let log_chi = (s - T::from_f64(0.5).unwrap()) * T::PI().ln()
+            + self.ctx.loggamma((T::one() - s) * T::from_f64(0.5).unwrap(), eps)
+            - self.ctx.loggamma(s * T::from_f64(0.5).unwrap(), eps);
+        let a = self.ctx.loggamma((T::one() - s) * T::from_f64(0.5).unwrap(), eps);
+        let b = self.ctx.loggamma(s * T::from_f64(0.5).unwrap(), eps);
         println!("a = {:?}, b = {:?}", a, b);
         println!("log chi = {:?}", log_chi);
     }
@@ -335,9 +335,9 @@ impl<T: MyReal> ZetaGalway<'_, T> {
 impl<T: MyReal> FnZeta<T> for ZetaGalway<'_, T> {
     fn zeta(&mut self, s: Complex<T>, eps: f64) -> Complex<T> {
         // println!("??? s = {}, eps = {}", s, eps);
-        let log_chi = (s - 0.5f64.unchecked_cast::<T>()) * T::PI().ln()
-            + self.ctx.loggamma((T::one() - s) * 0.5f64.unchecked_cast::<T>(), eps)
-            - self.ctx.loggamma(s * 0.5f64.unchecked_cast::<T>(), eps);
+        let log_chi = (s - T::from_f64(0.5).unwrap()) * T::PI().ln()
+            + self.ctx.loggamma((T::one() - s) * T::from_f64(0.5).unwrap(), eps)
+            - self.ctx.loggamma(s * T::from_f64(0.5).unwrap(), eps);
         assert!(!log_chi.re.is_nan(), "{:?} {}", s, eps);
         let chi = log_chi.exp();
 

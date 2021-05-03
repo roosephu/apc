@@ -6,10 +6,7 @@ use std::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::{
-    constants::EXP_POLY_EXP_F64,
-    unchecked_cast::{UncheckedCast, UncheckedFrom, UncheckedInto},
-};
+use crate::constants::EXP_POLY_EXP_F64;
 
 pub trait Erfc {
     fn erfc(self, eps: f64) -> Self;
@@ -45,13 +42,13 @@ pub trait MyReal = Float
     + Sub<f64, Output = Self>
     + Mul<f64, Output = Self>
     + Div<f64, Output = Self>
-    + UncheckedInto<f64>
-    + UncheckedFrom<f64>
-    + UncheckedFrom<i64>
-    + UncheckedInto<i64>
-    + UncheckedFrom<i32>
-    + UncheckedInto<i32>
-    + UncheckedCast
+    // + UncheckedInto<f64>
+    // + UncheckedFrom<f64>
+    // + UncheckedFrom<i64>
+    // + UncheckedInto<i64>
+    // + UncheckedFrom<i32>
+    // + UncheckedInto<i32>
+    // + UncheckedCast
     + Add<Complex<Self>, Output = Complex<Self>>
     + Sub<Complex<Self>, Output = Complex<Self>>
     + Mul<Complex<Self>, Output = Complex<Self>>
@@ -84,7 +81,7 @@ impl<T: MyReal> ComplexFunctions for Complex<T> {
 
     #[inline]
     fn approx(self) -> Complex<f64> {
-        Complex::<f64> { re: self.re.unchecked_cast(), im: self.im.unchecked_cast() }
+        Complex::<f64> { re: self.re.to_f64().unwrap(), im: self.im.to_f64().unwrap() }
     }
 }
 
@@ -241,36 +238,6 @@ impl ExpPolyApprox for f64x2 {
 impl Erfc for f64x2 {
     fn erfc(self, eps: f64) -> Self { self.erfc_eps(eps) }
 }
-
-impl UncheckedFrom<f64> for f64x2 {
-    fn unchecked_from(x: f64) -> Self { Self { hi: x, lo: 0.0 } }
-}
-
-impl UncheckedFrom<i64> for f64x2 {
-    fn unchecked_from(x: i64) -> Self {
-        let hi = x as f64;
-        let lo = (x - x as i64) as f64;
-        Self { hi, lo }
-    }
-}
-
-impl UncheckedFrom<i32> for f64x2 {
-    fn unchecked_from(x: i32) -> Self { Self { hi: x as f64, lo: 0.0 } }
-}
-
-impl UncheckedInto<f64> for f64x2 {
-    fn unchecked_into(self) -> f64 { self.hi }
-}
-
-impl UncheckedInto<i64> for f64x2 {
-    fn unchecked_into(self) -> i64 { self.hi as i64 + self.lo as i64 }
-}
-
-impl UncheckedInto<i32> for f64x2 {
-    fn unchecked_into(self) -> i32 { self.hi as i32 }
-}
-
-impl UncheckedCast for f64x2 {}
 
 impl Sinc for f64x2 {
     fn sinc(self) -> Self {

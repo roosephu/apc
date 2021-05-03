@@ -28,7 +28,6 @@ mod sieve;
 pub mod sum_trunc_dirichlet;
 pub(crate) mod test_utils;
 pub mod traits;
-pub mod unchecked_cast;
 pub mod zeta;
 
 pub use context::Context;
@@ -40,13 +39,12 @@ pub use zeta::ZetaGalway;
 mod tests {
     use crate::test_utils::*;
     use crate::traits::MyReal;
-    use crate::unchecked_cast::UncheckedCast;
     use num::Complex;
     use F64x2::f64x2;
 
     #[test]
     fn test_log() {
-        let s = 123.0.unchecked_cast::<f64x2>();
+        let s = f64x2 { hi: 123.0, lo: 0.0 };
         let x = s.ln();
         let gt = f64x2 { hi: 4.812184355372417, lo: 4.291407929980309e-16 };
         assert_close(x, gt, 1e-30);
@@ -54,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_sqrt() {
-        let s = 123.0.unchecked_cast::<f64x2>();
+        let s = f64x2 { hi: 123.0, lo: 0.0 };
         assert_close(s.sqrt(), f64x2 { hi: 11.090536506409418, lo: -5.209651269937913e-16 }, 1e-30);
     }
 
@@ -66,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_complex_log() {
-        let s1 = Complex::new(1.5.unchecked_cast::<f64x2>(), f64x2 { hi: 10.0, lo: 0.0 });
+        let s1 = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 10.0, lo: 0.0 });
         let gt = Complex::new(
             f64x2 { hi: 2.3137103974614557, lo: -1.1772777930167866e-16 },
             f64x2 { hi: 1.4219063791853994, lo: -4.7442629531916207e-17 },
@@ -90,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_complex_exp() {
-        let s1 = Complex::new(1.5.unchecked_cast::<f64x2>(), f64x2 { hi: 10.0, lo: 0.0 });
+        let s1 = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 10.0, lo: 0.0 });
         let gt = Complex::new(
             f64x2 { hi: -3.7604577010937845, lo: -1.9567327806486033e-16 },
             f64x2 { hi: -2.438133466706061, lo: -5.786232568383162e-17 },
@@ -110,7 +108,7 @@ mod tests {
 
     #[test]
     fn test_powc() {
-        let s = Complex::new(1.5.unchecked_cast::<f64x2>(), f64x2 { hi: 1.0, lo: 0.0 });
+        let s = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 1.0, lo: 0.0 });
         let b = Complex::new(f64x2 { hi: 10.0, lo: 0.0 }, f64x2::zero());
         let x = b.powc(s);
         let gt = Complex::new(
@@ -124,7 +122,7 @@ mod tests {
     #[test]
     fn test_truncated_dirichlet_series() {
         let n = 1000;
-        let s = Complex::new(1.5.unchecked_cast::<f64x2>(), f64x2 { hi: 1.0, lo: 0.0 });
+        let s = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 1.0, lo: 0.0 });
         let mut ans: Complex<f64x2> = Complex::zero();
         for i in 1..=n {
             let x = Complex::new(f64x2 { hi: i as f64, lo: 0.0 }, f64x2::zero()).powc(s);

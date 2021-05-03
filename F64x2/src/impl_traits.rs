@@ -153,7 +153,7 @@ impl ToPrimitive for f64x2 {
     fn to_i16(&self) -> Option<i16> { todo!() }
 
     #[inline]
-    fn to_i32(&self) -> Option<i32> { todo!() }
+    fn to_i32(&self) -> Option<i32> { Some(self.hi as i32 + self.lo as i32) }
 
     #[inline]
     fn to_i64(&self) -> Option<i64> { Some(self.as_()) }
@@ -174,13 +174,17 @@ impl ToPrimitive for f64x2 {
     fn to_u32(&self) -> Option<u32> { todo!() }
 
     #[inline]
-    fn to_u64(&self) -> Option<u64> { todo!() }
+    fn to_u64(&self) -> Option<u64> {
+        Some((self.hi as i64 + self.lo as i64) as u64)
+     }
 
     #[inline]
     fn to_u8(&self) -> Option<u8> { todo!() }
 
     #[inline]
-    fn to_usize(&self) -> Option<usize> { todo!() }
+    fn to_usize(&self) -> Option<usize> {
+        Some((self.hi as i64 + self.lo as i64) as usize)
+    }
 }
 
 impl num::traits::NumCast for f64x2 {

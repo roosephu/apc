@@ -3,10 +3,9 @@ use std::{
     ops::{AddAssign, DivAssign, MulAssign, SubAssign},
 };
 
+use num::{cast, FromPrimitive};
 use num::{Float, Num};
 use num_traits::NumAssignOps;
-
-use crate::unchecked_cast::UncheckedFrom;
 
 #[derive(Debug, Clone)]
 pub struct PowerSeries<T> {
@@ -113,12 +112,12 @@ impl<T: Copy + Num + NumAssignOps> PowerSeries<T> {
     }
 }
 
-impl<T: Copy + Float + UncheckedFrom<i32> + NumAssignOps + std::fmt::Debug> PowerSeries<T> {
+impl<T: Copy + Float + FromPrimitive + NumAssignOps> PowerSeries<T> {
     fn divide_factorials(derivatives: &mut [T]) {
         let mut factorial = T::one();
         for i in 0..derivatives.len() {
             derivatives[i] /= factorial;
-            factorial *= T::unchecked_from(i as i32 + 1);
+            factorial *= T::from_i32(i as i32 + 1).unwrap();
         }
     }
 

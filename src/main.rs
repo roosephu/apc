@@ -51,7 +51,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::unchecked_cast::*;
     use crate::zeta::FnZeta;
     use crate::*;
     use num::Complex;
@@ -65,10 +64,13 @@ mod tests {
 
         let ctx2 = Context::<f64x2>::new(100);
         let mut zeta_galway2 = ZetaGalway::new(&ctx2);
-        zeta_galway2.prepare_multi_eval(0.23939822958279525.unchecked_into(), 1e-10);
+        zeta_galway2.prepare_multi_eval(f64x2 { hi: 0.23939822958279525, lo: 0.0 }, 1e-10);
 
         let s1 = Complex::<f64>::new(1.5, 0.23939822958279525);
-        let s2 = Complex::<f64x2>::new(1.5.unchecked_into(), 0.23939822958279525.unchecked_into());
+        let s2 = Complex::<f64x2>::new(
+            f64x2 { hi: 1.5, lo: 0.0 },
+            f64x2 { hi: 0.23939822958279525, lo: 0.0 },
+        );
         let result1 = zeta_galway1.zeta(s1, 1e-10);
         let result2 = zeta_galway2.zeta(s2, 1e-10);
         println!("{:?}", result1);

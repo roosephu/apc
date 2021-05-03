@@ -1,10 +1,7 @@
 use num::Complex;
 
 use crate::sum_trunc_dirichlet::sum_trunc_dirichlet;
-use crate::{
-    traits::{MyReal, Sinc},
-    unchecked_cast::UncheckedCast,
-};
+use crate::traits::{MyReal, Sinc};
 use log::debug;
 
 /// a data structure for querying \sum_{t=1}^k n^{-sigma - i t}
@@ -35,19 +32,19 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
     /// query = O(k0 + c (tau/gap + 1))
     pub fn new(k: usize, sigma: T) -> Self {
         let k0_int = std::cmp::min(4, k);
-        let k0 = (k0_int as f64).unchecked_cast::<T>();
-        let k1 = (k as f64).unchecked_cast::<T>();
+        let k0 = T::from_f64(k0_int as f64).unwrap();
+        let k1 = T::from_f64(k as f64).unwrap();
         let tau = (k1 / k0).ln();
         let gap = tau * 0.5;
         let beta = tau + gap * 2.0;
         let alpha = (k0 * k1).ln() / 2.0;
-        let max_c = 80.0f64.unchecked_cast::<T>();
+        let max_c = T::from_f64(80.0).unwrap();
         let min_t = T::PI() * 2.0 * k1 * k1;
         let max_t = T::PI() * 2.0 * (k1 + 1.0) * (k1 + 1.0);
         let t0 = min_t - max_c / gap;
         let t1 = max_t + max_c / gap;
         let delta = T::PI() / beta;
-        let m = ((t1 - t0) / delta).unchecked_cast::<i64>() as usize;
+        let m = ((t1 - t0) / delta).to_usize().unwrap();
         let data = sum_trunc_dirichlet(Complex::new(sigma, t0), k0_int, k, m, delta);
         let data = data
             .iter()
@@ -72,7 +69,7 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
     /// G1(dt) = G(dt + t0) = e^{i alpha (t0 + dt)} \sum_{n=k0}^{k1} n^{-sigma - i(t0 + dt)}
     /// for dt multipliers of delta = pi/beta
     pub fn query(&self, t: T, eps: f64) -> Complex<T> {
-        let c = find_c(eps / 10.0).unchecked_cast::<T>();
+        let c = T::from_f64(find_c(eps / 10.0)).unwrap();
         let c_over_c_sinh = c / c.sinh();
 
         let dt = t - self.t0;
@@ -82,7 +79,7 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
         let l = ((dt - c / self.gap) / delta).ceil();
 
         let mut ret = Complex::<T>::zero();
-        for a in l.unchecked_cast::<i32>()..=r.unchecked_cast::<i32>() {
+        for a in l.to_i32().unwrap()..=r.to_i32().unwrap() {
             ret += self.data[a as usize]
                 * self.h(c, dt - delta * (a as f64))
                 * (self.beta * dt - T::PI() * (a as f64)).sinc();
@@ -92,15 +89,15 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
 
         let s = Complex::new(self.sigma, t);
         for n in 1..self.k0 {
-            ret += (-s * (n as f64).unchecked_cast::<T>().ln()).exp();
+            ret += (-s * T::from_i32(n as i32).unwrap().ln()).exp();
         }
         println!(
             "c = {}, coeff = {}, # interp terms = {:}, l = {}, r = {}",
             c,
             c_over_c_sinh,
-            (r - l + 1.0).unchecked_cast::<i32>(),
-            l.unchecked_cast::<i32>(),
-            r.unchecked_cast::<i32>()
+            (r - l + 1.0).to_i32().unwrap(),
+            l.to_i32().unwrap(),
+            r.to_i32().unwrap(),
         );
 
         ret
@@ -121,7 +118,7 @@ mod tests {
     #[test]
     fn test_bandwidth_limited_interp() {
         let k = 100;
-        let sigma = 0.5.unchecked_cast::<T>();
+        let sigma = T::from_f64(0.5).unwrap();
         let eps = 1e-26;
         let ds = BandwidthInterp::<T>::new(k, sigma);
         let t = T::PI() * 2.0 * 10100.0;
@@ -129,7 +126,7 @@ mod tests {
         let mut gt = Complex::<T>::zero();
         let s = Complex::new(sigma, t);
         for i in 1..=k {
-            gt += (-s * (i as f64).unchecked_cast::<T>().ln()).exp();
+            gt += (-s * T::from_f64(i as f64).unwrap().ln()).exp();
         }
         println!("ds params: alpha = {}, beta = {}, tau = {}", ds.alpha, ds.beta, ds.tau);
 

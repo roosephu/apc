@@ -16,7 +16,7 @@ arr!(const LMFDB_CKPTS: [i64; _] = [14, 5000, 26000, 236000, 446000, 2546000, 46
 pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error> {
     info!("Loading zeta zeros up to {}", limit);
 
-    let eps = 2.0.unchecked_cast::<T>().powi(-101);
+    let eps = T::from_f64(2.0).unwrap().powi(-101);
 
     let mut roots = vec![];
     for &ckpt in LMFDB_CKPTS.iter() {

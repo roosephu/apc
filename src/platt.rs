@@ -1,6 +1,6 @@
 use crate::brentq::brentq;
 use crate::platt_integral::PlattIntegrator;
-use crate::{traits::*, unchecked_cast::UncheckedCast};
+use crate::traits::*;
 use log::{debug, info};
 use num::integer::*;
 use num::{Num, One, Zero};
@@ -213,8 +213,8 @@ impl<T: MyReal> Platt<T> {
         let integral_limit = self.plan_integral(λ, x, 0.1);
         info!("integral limit = {:.6}", integral_limit);
 
-        self.λ = λ.unchecked_cast();
-        self.integral_limit = integral_limit.unchecked_cast();
+        self.λ = T::from_f64(λ).unwrap();
+        self.integral_limit = T::from_f64(integral_limit).unwrap();
         self.x1 = x1;
         self.x2 = x2;
     }
@@ -255,11 +255,11 @@ impl<T: MyReal> Platt<T> {
             integral_critical, last_contribution, abs_integral
         );
 
-        let Δ = calc_Δ_f64(n, 0.5, self.λ.unchecked_cast(), self.x1, self.x2);
+        let Δ = calc_Δ_f64(n, 0.5, self.λ.to_f64().unwrap(), self.x1, self.x2);
         info!("Δ = {}", Δ);
         let ans = integral_offline - integral_critical * 2.0 - 2.0.ln() + Δ;
-        let n_ans = ans.round().unchecked_cast::<i64>();
-        info!("ans = {}, residue = {}", ans, ans - n_ans.unchecked_cast::<T>());
+        let n_ans = ans.round().to_u64().unwrap();
+        info!("ans = {}, residue = {}", ans, ans - T::from_u64(n_ans).unwrap());
 
         n_ans as u64
     }

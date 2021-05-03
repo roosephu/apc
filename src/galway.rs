@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use crate::{brentq::brentq, unchecked_cast::UncheckedCast, zeta::FnZeta};
+use crate::{brentq::brentq, zeta::FnZeta};
 use crate::{context::Context, traits::MyReal};
 use log::{debug, info};
 use num::integer::*;
@@ -18,7 +18,7 @@ pub struct Galway<'a, T, Z> {
 }
 
 impl<T: MyReal, Z> Galway<'_, T, Z> {
-    fn Phi(&self, p: T) -> T { (p / T::SQRT_2()) / 2.0f64.unchecked_cast::<T>() }
+    fn Phi(&self, p: T) -> T { (p / T::SQRT_2()) / T::from_f64(2.0).unwrap() }
 
     fn phi(&self, u: T, x: T) -> T { self.Phi((u / x).ln() / self.lambda) }
 
@@ -67,13 +67,13 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
 
     fn calc_delta(&self, x: u64, eps: f64) -> T {
         let mut ret = T::zero();
-        let fx = (x as i64).unchecked_cast::<T>();
+        let fx = T::from_u64(x).unwrap();
         let (x1, x2) = (self.x1, self.x2);
         let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
 
         let primes = Self::linear_sieve(x2.sqrt());
         for p in Self::sieve(&primes, x1, x2) {
-            ret -= self.phi((p as i64).unchecked_cast(), fx);
+            ret -= self.phi(T::from_u64(p).unwrap(), fx);
             if p <= x {
                 ret += T::one();
             }
@@ -86,9 +86,9 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
                 m += 1;
                 power *= p;
                 if power < x1 {
-                    ret -= m.unchecked_cast::<T>().recip();
+                    ret -= T::from_i64(m).unwrap().recip();
                 } else {
-                    ret -= self.phi((power as i64).unchecked_cast(), fx) / m.unchecked_cast::<T>();
+                    ret -= self.phi(T::from_u64(power).unwrap(), fx) / T::from_i64(m).unwrap();
                 }
             }
         }
@@ -104,7 +104,7 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
         for n in 0..=(N / 2) {
             let mut s1 = Complex::zero();
             for k in 0..=n {
-                s1 += 4.0f64.unchecked_cast::<T>().pow((n - k) as i32) * ctx.euler(n - k)
+                s1 += T::from_f64(4.0).unwrap().pow((n - k) as i32) * ctx.euler(n - k)
                     / ctx.factorial(2 * k)
                     / ctx.factorial(2 * (n - k));
             }
@@ -115,7 +115,7 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
                     * Complex::i().powu((n - j) as u32)
                     * pi.pow((n + j) as i32)
                     / ctx.factorial(n - j)
-                    * 2.0f64.unchecked_cast::<T>().pow((n - j + 1) as i32);
+                    * T::from_f64(2.0).unwrap().pow((n - j + 1) as i32);
             }
         }
     }
@@ -125,7 +125,7 @@ impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
     /// a little bit different from Galway's definition
     /// I divied it by x^sigma.
     fn Psi(&mut self, s: Complex<T>, ln_x: T, eps: f64) -> Complex<T> {
-        ((self.lambda * s).powi(2) / 2.0f64.unchecked_cast::<T>()
+        ((self.lambda * s).powi(2) / T::from_f64(2.0).unwrap()
             + Complex::new(T::zero(), s.im * ln_x))
         .exp()
             * self.fn_zeta.zeta(s, eps).ln()
@@ -133,19 +133,19 @@ impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
     }
 
     fn calc_pi_star(&mut self, x: T, eps: f64) -> T {
-        let n_total_evals: i64 = (self.integral_limit / self.h).ceil().unchecked_cast();
+        let n_total_evals = (self.integral_limit / self.h).ceil().to_i64().unwrap();
 
         let eps = eps
             / 4.0
-            / x.unchecked_cast::<f64>().powf(self.sigma.unchecked_cast())
-            / x.unchecked_cast::<f64>().ln()
+            / x.to_f64().unwrap().powf(self.sigma.to_f64().unwrap())
+            / x.to_f64().unwrap().ln()
             / n_total_evals as f64;
         let ln_x = x.ln();
 
         let mut ans = Complex::<T>::zero();
 
         for t in 1..=n_total_evals {
-            let s = Complex::new(self.sigma, self.h * t.unchecked_cast::<T>());
+            let s = Complex::new(self.sigma, self.h * T::from_i64(t).unwrap());
             ans += self.Psi(s, ln_x, eps);
             // println!("s = {}, Psi = {}, eps = {}", s, self.Psi(s, ln_x, eps), eps);
             if t % (n_total_evals / 100).max(1) == 0 || t == n_total_evals {
@@ -153,7 +153,7 @@ impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
                     "n total evals = {}, progress = {}, height = {:.6}, ans = {:.16}, Psi = {:.6e}",
                     n_total_evals,
                     t,
-                    self.h * t.unchecked_cast::<T>(),
+                    self.h * T::from_i64(t).unwrap(),
                     ans,
                     self.Psi(s, ln_x, eps)
                 );
@@ -161,8 +161,7 @@ impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
         }
         // multiply the result by x^sigma, as noted in Psi.
         self.h / T::PI()
-            * (self.Psi(Complex::new(self.sigma, T::zero()), ln_x, eps)
-                / 2.0f64.unchecked_cast::<T>()
+            * (self.Psi(Complex::new(self.sigma, T::zero()), ln_x, eps) / T::from_f64(2.0).unwrap()
                 + ans)
                 .re
             * x.powf(self.sigma)
@@ -192,12 +191,12 @@ impl<'a, T: MyReal, Z: FnZeta<T>> Galway<'a, T, Z> {
         self.plan(x as f64, hints);
 
         let eps = 0.4;
-        let pi_star = self.calc_pi_star((x as i64).unchecked_cast(), eps / 2.0);
+        let pi_star = self.calc_pi_star(T::from_u64(x).unwrap(), eps / 2.0);
         info!("pi^* = {:.6}", pi_star);
         let delta = self.calc_delta(x, eps / 2.0);
         info!("delta = {:.6}", delta);
         info!("sum = {:.6}", pi_star + delta);
-        (pi_star + delta).round().unchecked_cast::<i64>() as u64
+        (pi_star + delta).round().to_u64().unwrap()
     }
 
     /// During planning, these hyperparameters (lambda, sigma, h, x1, x2, integral_limits)
@@ -220,10 +219,10 @@ impl<'a, T: MyReal, Z: FnZeta<T>> Galway<'a, T, Z> {
             (integral_limit / h).ceil()
         );
 
-        self.sigma = sigma.unchecked_cast();
-        self.lambda = lambda.unchecked_cast();
-        self.h = h.unchecked_cast();
-        self.integral_limit = integral_limit.unchecked_cast();
+        self.sigma = T::from_f64(sigma).unwrap();
+        self.lambda = T::from_f64(lambda).unwrap();
+        self.h = T::from_f64(h).unwrap();
+        self.integral_limit = T::from_f64(integral_limit).unwrap();
         self.x1 = x1;
         self.x2 = x2;
         self.fn_zeta.prepare_multi_eval(self.h, 0.0);
