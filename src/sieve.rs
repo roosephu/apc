@@ -1,5 +1,7 @@
 use bit_vec::BitVec;
 use log::info;
+use num::ToPrimitive;
+use primesieve_sys::INT64_PRIMES;
 
 #[inline(never)]
 pub(crate) fn linear_sieve(n: u64) -> Vec<u64> {
@@ -114,4 +116,22 @@ fn extract_primes(mark: BitVec, l: u64, r: u64) -> Vec<u64> {
     }
     info!("found {} primes in the interval", ret.len());
     ret
+}
+
+// https://github.com/pthariensflame/primesieve.rs/blob/master/primesieve-rs/src/lib.rs#L422-L437
+pub fn sieve_primesieve(start: u64, stop: u64) -> Vec<u64> {
+    let mut size: libc::size_t = 0;
+    unsafe {
+        primesieve_sys::primesieve_set_num_threads(1);
+        let raw_arr = primesieve_sys::primesieve_generate_primes(
+            start,
+            stop,
+            &mut size,
+            primesieve_sys::INT64_PRIMES,
+        );
+        let result =
+            std::slice::from_raw_parts(raw_arr as *mut u64, size.to_usize().unwrap()).to_owned();
+        primesieve_sys::primesieve_free(raw_arr);
+        result
+    }
 }

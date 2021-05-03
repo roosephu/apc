@@ -64,37 +64,45 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
 
     let mut fast_phi = crate::adaptive_interp::FastPhi::new(eps / (x2 - x1) as f64);
 
+    let mut calc = |p: u64| -> f64 {
+        // here we approximate r = ln(u / x) / λ = ln(1 - (x-u)/x) / λ.
+        // Expand ln(1 - (x-u)/x) at u = x.
+        let t = (x as i64 - p as i64) as f64 / x as f64;
+        let r = c1 * t + c2 * t * t + c3 * t * t * t;
+        if p <= x {
+            fast_phi.query(-r) // 1 - Φ(r) = Φ(-r)
+        } else {
+            -fast_phi.query(r)
+        }
+    };
+
     let x1 = x1 | 1;
     let mut Δ_1 = 0.0;
     let mut n_primes = 0;
+
     for (l, r) in segment(x1, x2, 1u64 << 34) {
         // 2^33 bits needed = 1GB memory
-        let mark = crate::sieve::sieve(&primes, x1, x2);
-        for (idx, &s) in mark.storage().iter().enumerate() {
-            let mut s = !s;
-            while s != 0 {
-                let w = s & (s - 1);
-                let offset = (s ^ w).trailing_zeros();
-                s = w;
+        // let mark = crate::sieve::sieve(&primes, x1, x2);
+        // for (idx, &s) in mark.storage().iter().enumerate() {
+        //     let mut s = !s;
+        //     while s != 0 {
+        //         let w = s & (s - 1);
+        //         let offset = (s ^ w).trailing_zeros();
+        //         s = w;
 
-                // note that we skipped all odd numbers;
-                let p = l + ((idx as u64) << 6) + ((offset as u64) << 1);
-                if p % 3 != 0 && p % 5 != 0 && p <= r {
-                    n_primes += 1;
+        //         // note that we skipped all odd numbers;
+        //         let p = l + ((idx as u64) << 6) + ((offset as u64) << 1);
+        //         if p % 3 != 0 && p % 5 != 0 && p <= r {
+        //             n_primes += 1;
 
-                    // here we approximate r = ln(u / x) / λ = ln(1 - (x-u)/x) / λ.
-                    // Expand ln(1 - (x-u)/x) at u = x.
-                    let t = (x as i64 - p as i64) as f64 / x as f64;
-                    let r = c1 * t + c2 * t * t + c3 * t * t * t;
-                    let f;
-                    if p <= x {
-                        f = fast_phi.query(-r); // 1 - Φ(r) = Φ(-r)
-                    } else {
-                        f = -fast_phi.query(r);
-                    }
-                    Δ_1 += f;
-                }
-            }
+        //             Δ_1 += calc(p);
+        //         }
+        //     }
+        // }
+
+        for p in crate::sieve::sieve_primesieve(x1, x2) {
+            n_primes += 1;
+            Δ_1 += calc(p);
         }
     }
     info!("found {} primes in the interval", n_primes);

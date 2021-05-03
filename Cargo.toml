@@ -1,6 +1,6 @@
 [package]
 name = "apc"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Yuping Luo <roosephu@gmail.com>"]
 edition = "2018"
 description = "Analytical Prime Counting"
@@ -24,6 +24,8 @@ rand = "0.8.3"
 clap = "3.0.0-beta.2"
 byteorder = "1.4.3"
 F64x2 = { path = "./F64x2" }
+primesieve-sys = "0.2.3"
+libc = "0.2.94"
 
 [features]
 verify_fast_phi = []
