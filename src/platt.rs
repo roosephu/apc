@@ -55,9 +55,14 @@ fn segment(mut x1: u64, x2: u64, seg_size: u64) -> Vec<(u64, u64)> {
 
 #[inline(never)]
 fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
+    let approx_n_primes = (x2 - x1) as f64 / (x1 as f64).ln();
+    assert!(f64::EPSILON * approx_n_primes < 0.1, "too many primes for f64 approx");
+
     let c1 = -1.0 / λ;
     let c2 = -1.0 / λ / 2.0;
     let c3 = -1.0 / λ / 3.0;
+
+    let mut fast_phi = crate::adaptive_interp::FastPhi::new(eps / (x2 - x1) as f64);
 
     let x1 = x1 | 1;
     let mut Δ_1 = 0.0;
@@ -78,14 +83,14 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
                     n_primes += 1;
 
                     // here we approximate r = ln(u / x) / λ = ln(1 - (x-u)/x) / λ.
-                    // Expad ln(1 - (x-u)/x) at u = x.
+                    // Expand ln(1 - (x-u)/x) at u = x.
                     let t = (x as i64 - p as i64) as f64 / x as f64;
                     let r = c1 * t + c2 * t * t + c3 * t * t * t;
                     let f;
                     if p <= x {
-                        f = 1.0 - Φ(r);
+                        f = fast_phi.query(-r); // 1 - Φ(r) = Φ(-r)
                     } else {
-                        f = -Φ(r);
+                        f = -fast_phi.query(r);
                     }
                     Δ_1 += f;
                 }
@@ -93,6 +98,14 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
         }
     }
     info!("found {} primes in the interval", n_primes);
+
+    let (hit, miss) = fast_phi.stat();
+    info!(
+        "[FastPhi] hit = {}, miss = {}, miss ratio = {:.6}",
+        hit,
+        miss,
+        miss as f64 / (hit + miss) as f64
+    );
 
     Δ_1
 }

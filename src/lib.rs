@@ -12,6 +12,7 @@
 #![feature(non_ascii_idents)]
 #![feature(try_blocks)]
 
+mod adaptive_interp;
 pub mod bandwidth_interp;
 pub mod brentq;
 pub mod constants;
