@@ -84,9 +84,9 @@ impl<T: MyReal> PlattIntegrator<T> {
     /// Complex operations are slow.
     /// trick: we prepare poly'_i = poly_i (c/|c|)^i, so it becomes $$\sum_i poly'_i (|c| h)^i$$
     /// so it's numerically more stable.
-    fn normalize_(poly: &mut PowerSeries<Complex<T>>, c: Complex<T>) -> (T, Complex<T>) {
-        let c_norm = c.norm();
-        let c_dir = c / c_norm;
+    fn normalize_(poly: &mut PowerSeries<Complex<T>>, w: Complex<T>) -> (T, Complex<T>) {
+        let c_norm = w.norm();
+        let c_dir = w / c_norm;
         let mut c_dir_pow = Complex::<T>::one();
         for i in 0..poly.N {
             poly.coeffs[i] *= c_dir_pow;
@@ -98,8 +98,8 @@ impl<T: MyReal> PlattIntegrator<T> {
     #[inline(never)]
     fn prepare(&mut self, t: T) {
         let s0 = Complex::new(self.σ, t);
-        let (a, b, c, mut poly) = self.expand_at(s0, self.order);
-        let mul_coeff = self.hat_phi(s0) / c;
+        let (a, b, w, mut poly) = self.expand_at(s0, self.order);
+        let mul_coeff = self.hat_phi(s0) / w;
 
         // now the integral becomes $\hat_\phi(s_0) / c \int exp(z) exp(a z^2) / (1 - b z) d z$
         // and we have $exp(a z^2) / (1 - bz) \approx poly(z)$
@@ -118,14 +118,14 @@ impl<T: MyReal> PlattIntegrator<T> {
         let poly_eps = self.eps / mul_coeff.norm() / T::from_usize(self.order).unwrap();
         let radius = (poly_eps / poly.coeffs[self.order - 1].norm())
             .powf(T::one() / (self.order as f64 - 1.0))
-            / c.norm();
+            / w.norm();
         debug!("[Integral] prepare {}, radius = {}", t, radius);
 
         // we've expanded in a new t0, and should clear cache.
         self.cache = None;
 
-        let c = Self::normalize_(&mut poly, c);
-        self.expansion = Some((t, radius, c, mul_coeff, poly));
+        let w = Self::normalize_(&mut poly, w);
+        self.expansion = Some((t, radius, w, mul_coeff, poly));
     }
 
     /// assuming the power series converges well at given point s.
@@ -135,17 +135,17 @@ impl<T: MyReal> PlattIntegrator<T> {
                 return v;
             }
         }
-        let (t0, _, c, mul_coeff, ps) = self.expansion.as_ref().unwrap();
-        let &(c_norm, c_dir) = c;
+        let (t0, _, w, mul_coeff, ps) = self.expansion.as_ref().unwrap();
+        let &(w_norm, w_dir) = w;
 
-        let z = c_norm * (t - *t0);
+        let z = w_norm * (t - *t0);
         let mut poly = Complex::<T>::zero();
         let mut z_pow = T::one();
         for i in 0..self.order {
             poly += ps.coeffs[i] * z_pow;
             z_pow *= z;
         }
-        mul_coeff * (poly * (z * c_dir).exp_simul() - ps.coeffs[0])
+        mul_coeff * (poly * (z * w_dir).exp_simul() - ps.coeffs[0])
     }
 
     #[inline(never)]
