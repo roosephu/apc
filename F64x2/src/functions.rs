@@ -91,7 +91,7 @@ impl f64x2 {
     }
 
     pub fn cos(self) -> Self {
-        let x = (self / Self::FRAC_PI_2()).floor();
+        let x = (self / Self::FRAC_PI_2()).round();
         let y = self - x * Self::FRAC_PI_2();
         let x: i64 = x.into();
         match x.rem_euclid(4) {
@@ -105,7 +105,7 @@ impl f64x2 {
 
     #[inline]
     pub fn sin(self) -> Self {
-        let x = (self / Self::FRAC_PI_2()).floor();
+        let x = (self / Self::FRAC_PI_2()).round();
         let y = self - x * Self::FRAC_PI_2();
         let x: i64 = x.into();
         match x.rem_euclid(4) {
@@ -113,6 +113,21 @@ impl f64x2 {
             1 => y.cos_remez(),
             2 => -y.sin_remez(),
             3 => -y.cos_remez(),
+            _ => unreachable!(),
+        }
+    }
+
+    #[inline]
+    pub fn sin_cos(self) -> (Self, Self) {
+        let x = (self / Self::FRAC_PI_2()).round();
+        let y = self - x * Self::FRAC_PI_2();
+        let x: i64 = x.into();
+        let (sin_y, cos_y) = y.sin_cos_remez();
+        match x.rem_euclid(4) {
+            0 => (sin_y, cos_y),
+            1 => (cos_y, -sin_y),
+            2 => (-sin_y, -cos_y),
+            3 => (-cos_y, sin_y),
             _ => unreachable!(),
         }
     }

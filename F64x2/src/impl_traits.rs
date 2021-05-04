@@ -357,7 +357,7 @@ impl Float for f64x2 {
     fn sin(self) -> Self { self.sin() }
 
     #[inline]
-    fn sin_cos(self) -> (Self, Self) { (self.sin(), self.cos()) }
+    fn sin_cos(self) -> (Self, Self) { self.sin_cos() }
 
     #[inline]
     fn sinh(self) -> Self { self.sinh() }

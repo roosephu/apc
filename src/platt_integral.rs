@@ -55,9 +55,9 @@ impl<T: MyReal> PlattIntegrator<T> {
         PowerSeries::from_vec(order, data)
     }
 
-    /// expand $\hat_\phi(s)$ at s0
+    /// expand $\hat_\phi(s)$ at s0 = σ + i t.
     /// more specifically, $\hat_\phi(s_0 + ih) = \hat_\phi(s_0) exp(c h) exp(a (c h)^2) / (1 - b (c h))$
-    // for a = ..., b = ..., c = ...
+    // for a = (-2 λ^2 / c^2), b = -i / s0 / c, c = i (λ^2 s0 + ln x) = i (λ^2 σ + ln x) - λ^2 t.
     /// so the integration becomes $\hat_\phi(s_0)/c \int exp(c h) exp(a (c h)^2) / (1 - b (c h)) d (c h)$
     /// which is $\hat_\phi(s_0) / c \int exp(z) exp(a z^2) / (1 - b z) d z$ for z = c h
     /// now we expand of exp(a z^2) and 1/(1 - b z) separately.
@@ -141,7 +141,7 @@ impl<T: MyReal> PlattIntegrator<T> {
             poly += ps.data[i] * z_pow;
             z_pow *= z;
         }
-        mul_coeff * (poly * (z * c_dir).exp() - ps.data[0])
+        mul_coeff * (poly * (z * c_dir).exp_simul() - ps.data[0])
     }
 
     #[inline(never)]

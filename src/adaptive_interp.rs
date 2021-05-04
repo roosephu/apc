@@ -18,8 +18,9 @@ impl<T: Copy, U, I: Interpolation<T, U>> AdaptiveInterp<T, U, I> {
         Self { interpolator: None, eps, _marker: PhantomData, hit: 0, miss: 0 }
     }
 
+    #[inline(never)] // for flamegraph
     pub fn query(&mut self, x: T) -> U {
-        if let Some(interpolator) = self.interpolator.as_ref() {
+        if let Some(ref interpolator) = self.interpolator {
             if let Some(y) = interpolator.query(x) {
                 self.hit += 1;
                 return y;

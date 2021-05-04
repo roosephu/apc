@@ -1,6 +1,6 @@
 [package]
 name = "apc"
-version = "0.2.5"
+version = "0.2.6"
 authors = ["Yuping Luo <roosephu@gmail.com>"]
 edition = "2018"
 description = "Analytical Prime Counting"
@@ -8,6 +8,14 @@ description = "Analytical Prime Counting"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]
 debug = true
+
+[[bin]]
+name = "profile"
+path = "src/main.rs"
+
+[[bin]]
+name = "apc"
+path = "src/main.rs"
 
 [dependencies]
 rug = "1.11.0"
