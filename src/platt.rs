@@ -9,6 +9,7 @@ use std::io::{self, Read};
 #[derive(Default)]
 pub struct PlattHints {
     pub λ: Option<f64>,
+    pub poly_order: Option<usize>,
 }
 
 pub struct Platt<T> {
@@ -219,7 +220,7 @@ impl<T: MyReal> Platt<T> {
     /// doesn't need to be very accurate
     /// as long as they satisfy the error bound.
     pub fn plan(&mut self, x: f64, hints: PlattHints) {
-        let λ = hints.λ.unwrap_or(1.0) / x.sqrt();
+        let λ = hints.λ.unwrap_or(30.0) / x.sqrt();
         info!("λ = {:.6e}", λ);
 
         let (x1, x2) = plan_Δ_bounds_heuristic(λ, x, 0.24);
@@ -241,17 +242,23 @@ impl<T: MyReal> Platt<T> {
     }
 
     pub fn compute(&mut self, n: u64, hints: PlattHints) -> u64 {
+        let max_order = hints.poly_order.unwrap_or(15);
         self.plan(n as f64, hints);
 
         // the result = n / log(n) + o(n)
         let mut integrator_offline =
-            PlattIntegrator::<T>::new(T::from_u64(n).unwrap(), T::one(), self.λ, 20, 0.01);
+            PlattIntegrator::<T>::new(T::from_u64(n).unwrap(), T::one(), self.λ, max_order, 0.01);
         let integral_offline = integrator_offline.query(T::zero(), self.integral_limit).im;
         info!("offline integral = {}", integral_offline);
         integrator_offline.stat.show("IntegratorOffline");
 
-        let mut integrator_critical =
-            PlattIntegrator::<T>::new(T::from_u64(n).unwrap(), T::one() / 2.0, self.λ, 20, 1e-20);
+        let mut integrator_critical = PlattIntegrator::<T>::new(
+            T::from_u64(n).unwrap(),
+            T::one() / 2.0,
+            self.λ,
+            max_order,
+            1e-20,
+        );
         let mut integral_critical = T::zero();
         let mut last_contribution = T::zero();
 

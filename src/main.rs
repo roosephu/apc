@@ -16,6 +16,8 @@ struct Opts {
     n: u64,
     #[clap(long)]
     lambda: Option<f64>,
+    #[clap(long)]
+    poly_order: Option<usize>,
 }
 
 fn main() {
@@ -34,7 +36,7 @@ fn main() {
     // println!("[ZetaGalway] complexity = {}", zeta_galway.complexity);
 
     let mut platt = crate::platt::Platt::<T>::new();
-    let hints = PlattHints { λ: opts.lambda };
+    let hints = PlattHints { λ: opts.lambda, poly_order: opts.poly_order };
     let ans = platt.compute(n, hints);
     println!("[Platt] ans = {}", ans);
 
