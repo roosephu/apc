@@ -1,9 +1,10 @@
+use crate::cache_stat::CacheStat;
 use crate::traits::ComplexFunctions;
 use crate::{power_series::PowerSeries, traits::MyReal};
 use log::debug;
 use num::Complex;
 
-type Expansion<T> = (T, T, (T, Complex<T>), Complex<T>, PowerSeries<Complex<T>>);
+type Expansion<T> = (T, T, T, Complex<T>, PowerSeries<Complex<T>>);
 
 /// to compute $$\int x^s exp(λ^2 s^2 / 2) / s dh$$ for $s = \σ + ih$
 pub struct PlattIntegrator<T> {
@@ -14,8 +15,7 @@ pub struct PlattIntegrator<T> {
     ln_x: T,
     expansion: Option<Expansion<T>>,
     cache: Option<(T, Complex<T>)>, // save the last query
-    hit: usize,
-    miss: usize,
+    pub stat: CacheStat,
 }
 
 impl<T: MyReal> PlattIntegrator<T> {
@@ -28,8 +28,7 @@ impl<T: MyReal> PlattIntegrator<T> {
             λ_sqr: λ * λ,
             expansion: None,
             cache: None,
-            hit: 0,
-            miss: 0,
+            stat: CacheStat::new(),
         }
     }
 
@@ -37,15 +36,16 @@ impl<T: MyReal> PlattIntegrator<T> {
         (self.λ_sqr / T::from_f64(2.0).unwrap() * s * s + s * self.ln_x).exp() / s
     }
 
-    /// expand exp(a z^2) at z = 0: 1 + (a / 1!) z^2 + (a^2 / 2!) z^4 + ..
-    fn expand_exp_term(order: usize, a: Complex<T>) -> PowerSeries<Complex<T>> {
-        let mut data = vec![Complex::zero(); order];
-        let mut coeff = Complex::one();
-        for i in 0..(order + 1) / 2 {
-            data[i * 2] = coeff;
-            coeff *= a / T::from_usize(i + 1).unwrap();
+    /// expand exp(a z^2 + c z) at z = 0
+    fn expand_exp_term(order: usize, a: Complex<T>, c: Complex<T>) -> PowerSeries<Complex<T>> {
+        let mut poly = PowerSeries::<Complex<T>>::from_vec(order, vec![Complex::<T>::zero(), c, a]);
+        let mut derivatives = vec![Complex::<T>::one(); order];
+        for i in 1..order {
+            derivatives[i] = derivatives[i - 1] / T::from_u32(i as u32).unwrap();
         }
-        PowerSeries::from_vec(order, data)
+        poly.compose_(&derivatives);
+
+        poly
     }
 
     /// expand 1/(1 - bz)  at z = 0: 1 + b z + b^2 z^2 + ...
@@ -59,53 +59,45 @@ impl<T: MyReal> PlattIntegrator<T> {
         PowerSeries::from_vec(order, data)
     }
 
-    /// expand $\hat_\phi(s)$ at s0 = σ + i t.
-    /// more specifically, $\hat_\phi(s_0 + ih) = \hat_\phi(s_0) exp(c h) exp(a (c h)^2) / (1 - b (c h))$
-    // for a = (-2 λ^2 / c^2), b = -i / s0 / c, c = i (λ^2 s0 + ln x) = i (λ^2 σ + ln x) - λ^2 t.
-    /// so the integration becomes $\hat_\phi(s_0)/c \int exp(c h) exp(a (c h)^2) / (1 - b (c h)) d (c h)$
-    /// which is $\hat_\phi(s_0) / c \int exp(z) exp(a z^2) / (1 - b z) d z$ for z = c h
-    /// now we expand of exp(a z^2) and 1/(1 - b z) separately.
-    fn expand_at(
-        &self,
-        s0: Complex<T>,
-        order: usize,
-    ) -> (Complex<T>, Complex<T>, Complex<T>, PowerSeries<Complex<T>>) {
-        let w = (self.λ_sqr * s0 + self.ln_x).mul_i();
-        let a = self.λ_sqr / -2.0 / w / w;
-        let b = -(T::one() / s0 / w).mul_i();
-        let mut ps_exp = PlattIntegrator::expand_exp_term(order, a);
+    /// See Readme
+    /// Expand f(w h) = exp(-λ^2 h^2 / 2 + i h λ^2 s_0) / (1 + i h / s_0) with w = i ln x.
+    /// another option is to expand f(w h) = exp(-λ^2 h^2 / 2) / (1 + i h / s_0) with w = i (λ^2 s_0 + ln x).
+    fn expand_at(&self, s0: Complex<T>, order: usize) -> (T, PowerSeries<Complex<T>>) {
+        let w = self.ln_x;
+        let a = self.λ_sqr / 2.0 / w / w;
+        let b = -T::one() / s0 / self.ln_x;
+        let c = s0 * (self.λ_sqr / self.ln_x);
+        let mut ps_exp =
+            PlattIntegrator::expand_exp_term(order, Complex::<T>::new(a, T::zero()), c);
         let ps_recip = PlattIntegrator::expand_reciprocal_term(order, b);
         ps_exp *= &ps_recip;
 
-        (a, b, w, ps_exp)
+        (w, ps_exp)
     }
 
-    /// we want to evaluate $$ \sum_i poly_i (c h)^i$$ for a real $h$, however, poly_i c^i might grow too fast...
+    /// we want to evaluate $$ \sum_i poly_i (w h)^i$$ for a real $h$, however, poly_i c^i might grow too fast...
     /// Complex operations are slow.
     /// trick: we prepare poly'_i = poly_i (c/|c|)^i, so it becomes $$\sum_i poly'_i (|c| h)^i$$
     /// so it's numerically more stable.
     fn normalize_(poly: &mut PowerSeries<Complex<T>>, w: Complex<T>) -> (T, Complex<T>) {
-        let c_norm = w.norm();
-        let c_dir = w / c_norm;
-        let mut c_dir_pow = Complex::<T>::one();
+        let w_norm = w.norm();
+        let w_dir = w / w_norm;
+        let mut w_dir_pow = Complex::<T>::one();
         for i in 0..poly.N {
-            poly.coeffs[i] *= c_dir_pow;
-            c_dir_pow *= c_dir;
+            poly.coeffs[i] *= w_dir_pow;
+            w_dir_pow *= w_dir;
         }
-        (c_norm, c_dir)
+        (w_norm, w_dir)
     }
 
     #[inline(never)]
     fn prepare(&mut self, t: T) {
-        let s0 = Complex::new(self.σ, t);
-        let (a, b, w, mut poly) = self.expand_at(s0, self.order);
-        let mul_coeff = self.hat_phi(s0) / w;
+        self.stat.miss();
 
-        // now the integral becomes $\hat_\phi(s_0) / c \int exp(z) exp(a z^2) / (1 - b z) d z$
-        // and we have $exp(a z^2) / (1 - bz) \approx poly(z)$
-        // by integrating by parts: \int exp(z) poly(z) d z = exp(z) poly(z) - \int poly'(z) exp(z) d z
-        // so the integration is $\hat_\phi(s_0) / c \times exp(z) (poly(z) - poly'(z) + poly''(z)...)$
-        // now we're initializing the last term: f(z) = poly(z) - poly'(z) + poly''(z)...
+        let s0 = Complex::new(self.σ, t);
+        let (w, mut poly) = self.expand_at(s0, self.order);
+        let mul_coeff = self.hat_phi(s0) / Complex::<T>::new(T::zero(), w);
+
         for i in 0..self.order {
             let mut signed_falling_factorial = T::one();
             for j in 0..i {
@@ -118,34 +110,39 @@ impl<T: MyReal> PlattIntegrator<T> {
         let poly_eps = self.eps / mul_coeff.norm() / T::from_usize(self.order).unwrap();
         let radius = (poly_eps / poly.coeffs[self.order - 1].norm())
             .powf(T::one() / (self.order as f64 - 1.0))
-            / w.norm();
+            / w;
         debug!("[Integral] prepare {}, radius = {}", t, radius);
 
         // we've expanded in a new t0, and should clear cache.
         self.cache = None;
 
-        let w = Self::normalize_(&mut poly, w);
+        Self::normalize_(&mut poly, Complex::<T>::new(T::zero(), w));
         self.expansion = Some((t, radius, w, mul_coeff, poly));
     }
 
     /// assuming the power series converges well at given point s.
-    fn _query(&self, t: T) -> Complex<T> {
+    #[inline(never)]
+    fn _query(&mut self, t: T) -> Complex<T> {
         if let Some((k, v)) = self.cache {
             if k == t {
                 return v;
             }
         }
-        let (t0, _, w, mul_coeff, ps) = self.expansion.as_ref().unwrap();
-        let &(w_norm, w_dir) = w;
 
-        let z = w_norm * (t - *t0);
+        self.stat.hit();
+        let (t0, _, w, mul_coeff, ps) = self.expansion.as_ref().unwrap();
+        let &w = w;
+
+        let z = w * (t - *t0);
         let mut poly = Complex::<T>::zero();
         let mut z_pow = T::one();
         for i in 0..self.order {
             poly += ps.coeffs[i] * z_pow;
             z_pow *= z;
         }
-        mul_coeff * (poly * (z * w_dir).exp_simul() - ps.coeffs[0])
+        let (sin_z, cos_z) = z.sin_cos();
+        let exp_i_z = Complex::new(cos_z, sin_z);
+        mul_coeff * (poly * exp_i_z - ps.coeffs[0])
     }
 
     #[inline(never)]

@@ -1,3 +1,4 @@
+use crate::cache_stat::CacheStat;
 use std::marker::PhantomData;
 
 pub trait Interpolation<T, U> {
@@ -8,32 +9,29 @@ pub trait Interpolation<T, U> {
 pub struct AdaptiveInterp<T: Copy, U, I: Interpolation<T, U>> {
     interpolator: Option<I>,
     eps: f64,
-    hit: usize,
-    miss: usize,
+    pub stat: CacheStat,
     _marker: PhantomData<(T, U)>,
 }
 
 impl<T: Copy, U, I: Interpolation<T, U>> AdaptiveInterp<T, U, I> {
     pub fn new(eps: f64) -> Self {
-        Self { interpolator: None, eps, _marker: PhantomData, hit: 0, miss: 0 }
+        Self { interpolator: None, eps, _marker: PhantomData, stat: CacheStat::new() }
     }
 
     #[inline(never)] // for flamegraph
     pub fn query(&mut self, x: T) -> U {
         if let Some(ref interpolator) = self.interpolator {
             if let Some(y) = interpolator.query(x) {
-                self.hit += 1;
+                self.stat.hit();
                 return y;
             }
         }
-        self.miss += 1;
+        self.stat.miss();
         let interpolator = I::new(x, self.eps);
         let y = interpolator.query(x).unwrap();
         self.interpolator = Some(interpolator);
         y
     }
-
-    pub fn stat(&self) -> (usize, usize) { (self.hit, self.miss) }
 }
 
 pub struct FastPhiInterp {

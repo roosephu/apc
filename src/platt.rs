@@ -106,13 +106,7 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
     }
     info!("found {} primes in the interval", n_primes);
 
-    let (hit, miss) = fast_phi.stat();
-    info!(
-        "[FastPhi] hit = {}, miss = {}, miss ratio = {:.6}",
-        hit,
-        miss,
-        miss as f64 / (hit + miss) as f64
-    );
+    fast_phi.stat.show("FastPhi");
 
     Δ_1
 }
@@ -242,17 +236,19 @@ impl<T: MyReal> Platt<T> {
     /// we are integrating N(h) \hat_\phi(s), which is approximately x^σ exp(-λ^2 h^2 / 2) with σ = 0.5 or 1.
     /// |N(h) \hat_\phi(0.5 + ih)| \approx \log(h) x^0.5 exp(-λ^2 h^2 / 2)
     /// |\hat_\phi(1 + ih)| ≈ x^0.5 \exp(-λ^2 h^2 / 2)
-    fn plan_integral(&mut self, λ: f64, x: f64, eps: f64) -> f64 { (x.ln() + x.ln().ln()).sqrt() / λ }
+    fn plan_integral(&mut self, λ: f64, x: f64, eps: f64) -> f64 {
+        (x.ln() + x.ln().ln()).sqrt() / λ
+    }
 
     pub fn compute(&mut self, n: u64, hints: PlattHints) -> u64 {
         self.plan(n as f64, hints);
 
         // the result = n / log(n) + o(n)
-        let integral_offline =
-            PlattIntegrator::<T>::new(T::from_u64(n).unwrap(), T::one(), self.λ, 20, 0.01)
-                .query(T::zero(), self.integral_limit)
-                .im;
+        let mut integrator_offline =
+            PlattIntegrator::<T>::new(T::from_u64(n).unwrap(), T::one(), self.λ, 20, 0.01);
+        let integral_offline = integrator_offline.query(T::zero(), self.integral_limit).im;
         info!("offline integral = {}", integral_offline);
+        integrator_offline.stat.show("IntegratorOffline");
 
         let mut integrator_critical =
             PlattIntegrator::<T>::new(T::from_u64(n).unwrap(), T::one() / 2.0, self.λ, 20, 1e-20);
@@ -276,6 +272,7 @@ impl<T: MyReal> Platt<T> {
             "integral critical = {}, last = {}, abs = {}",
             integral_critical, last_contribution, abs_integral
         );
+        integrator_critical.stat.show("IntegratorCritical");
 
         let Δ = calc_Δ_f64(n, 0.5, self.λ.to_f64().unwrap(), self.x1, self.x2);
         info!("Δ = {}", Δ);

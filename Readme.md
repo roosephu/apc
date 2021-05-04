@@ -16,6 +16,12 @@ $$
  & = \hat\phi(s_0) \frac{\exp(-\lambda^2 h^2/2)}{1 + \frac{i}{s_0}h} \exp(ih (\lambda^2 s_0 + \ln x)),
 \end{aligned}
 $$
+Let $f(z)$ be a function of $z$ with very fast converging power series. By applying integration by parts repeatedly, the integral of $f(z) \exp(z)$ can be calculated by
+$$
+\int f(z) \exp(z) \d z = \exp(z) \sum_{k=0}^\infty f^{(k)}(z) (-1)^k \approx \exp(i z) \sum_{k=0}^K f^{k}(z) (-1)^k.
+$$
+
+
 For brevity, we define $w = i(\lambda^2 s_0 + \ln x)$ and $a = -\lambda^2 / 2w^2$, $b = -\frac{i}{s_0 w}$, so it becomes: for $z = wh$,
 $$
 \hat\phi(s_0 + ih) = \hat\phi(s_0) \frac{\exp(az^2)}{1 - bz} \exp(z).
@@ -33,17 +39,19 @@ Now what we do is:
 1. compute $P(z)$ and $\delta$ such that $\left|P(z) - \frac{\exp(cz^2)}{1 - bz} \right| \leq \varepsilon$ for $|z| \leq \delta$. 
 2. compute $Q(z) = \sum\limits_{k=0}^{\infty} P^{(k)}(z) (-1)^k$.
 
+See git commit 9cdcea2. 
+
 ## Further optimization
 
 The drawback in previous method is that $\exp(z)$ for complex is slow... Now we'd like to optimize it so that only $\exp(ih)$ for a real $h$ is computed. The optimization is simple: also expand $\exp(ih \lambda^2 s_0)$. 
 $$
 \hat\phi(s_0 + ih)  = \hat\phi \frac{\exp(-\lambda^2 h^2/2 + ih \lambda^2 s_0)}{1 + \frac{i}{s_0}h} \exp(ih \ln x).
 $$
-Note that $|\lambda^2 s_0|$ is typically very small as $\lambda = O(x^{-1/2})$ and $|s_0| = O(x^{1/2})$.
+Note that $|i \lambda^2 s_0|$ is typically very small as $\lambda = O(x^{-1/2})$ and $|s_0| = O(x^{1/2})$.
 
-We simply set $w = i \ln x$, $a = -\lambda^2 / 2w^2$, $b = -\frac{i}{s_0 w}$ and $c = i h \lambda^2 s_0/w$, so 
+We simply set $w = i \ln x$, $a = \lambda^2 / w^2$, $b = -\frac{i}{s_0 w}$ and $c = i \lambda^2 s_0/w$, so 
 $$
-\hat\phi(s) = \hat\phi(s_0) \frac{\exp(a z^2 + cz)}{1 - bz} \exp(z),
+\hat\phi(s) = \hat\phi(s_0) \frac{\exp(a z^2 / 2 + cz)}{1 - bz} \exp(z),
 $$
-and everything else can continue.
+and everything else can continue. 
 

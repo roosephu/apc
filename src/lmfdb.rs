@@ -33,7 +33,6 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error
             let n0 = reader.read_u64::<LittleEndian>()?;
             let n1 = reader.read_u64::<LittleEndian>()?;
 
-
             let t0 = T::from_f64(t0).unwrap();
             let mut z = 0u128;
 

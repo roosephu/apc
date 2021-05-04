@@ -88,7 +88,7 @@ impl<T: Copy + Num + NumAssignOps> PowerSeries<T> {
     /// input = \sum_{i=0}^\infty a_i t^i
     /// let x = a_0, D = \sum_{i=1}^\infty a_i t^i
     /// then f(x + D) = \sum_{i=0}^\infty f^{(i)}(x) D^i / i!
-    fn compose(&mut self, coeffs: &[T]) {
+    pub fn compose_(&mut self, coeffs: &[T]) {
         let x = self.coeffs[0];
         let mut series = vec![T::zero(); self.N];
 
@@ -129,7 +129,7 @@ impl<T: Copy + Float + FromPrimitive + NumAssignOps> PowerSeries<T> {
             derivatives[i] = table[i % 4];
         }
         PowerSeries::divide_factorials(&mut derivatives);
-        self.compose(&derivatives);
+        self.compose_(&derivatives);
     }
 
     pub fn sin_(&mut self) {
@@ -140,14 +140,14 @@ impl<T: Copy + Float + FromPrimitive + NumAssignOps> PowerSeries<T> {
             derivatives[i] = table[i % 4];
         }
         PowerSeries::divide_factorials(&mut derivatives);
-        self.compose(&derivatives);
+        self.compose_(&derivatives);
     }
 
     pub fn exp_(&mut self) {
         let exp = self.coeffs[0].exp();
         let mut derivatives = vec![exp; self.N];
         PowerSeries::divide_factorials(&mut derivatives);
-        self.compose(&derivatives);
+        self.compose_(&derivatives);
     }
 
     pub fn recip_(&mut self) {
@@ -158,7 +158,7 @@ impl<T: Copy + Float + FromPrimitive + NumAssignOps> PowerSeries<T> {
             derivatives[i] = d;
             d = -d / v;
         }
-        self.compose(&derivatives);
+        self.compose_(&derivatives);
     }
 }
 

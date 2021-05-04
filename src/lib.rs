@@ -15,6 +15,7 @@
 mod adaptive_interp;
 pub mod bandwidth_interp;
 pub mod brentq;
+mod cache_stat;
 pub mod constants;
 pub mod context;
 pub mod galway;
