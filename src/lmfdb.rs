@@ -23,6 +23,7 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error
         let path = format!("{}/zeros_{}.dat", LMFDB_DATA_PATH, ckpt);
         let file = std::fs::File::open(&path)?;
         let mut reader = std::io::BufReader::new(file);
+        debug!("[LMFDB] loading {}", path);
 
         let n_blocks = reader.read_u64::<LittleEndian>()?;
 
@@ -31,10 +32,7 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error
             let t1 = reader.read_f64::<LittleEndian>()?;
             let n0 = reader.read_u64::<LittleEndian>()?;
             let n1 = reader.read_u64::<LittleEndian>()?;
-            debug!(
-                "[LMFDB] loading {} block {}, from N({}) = {} to N({}) = {}",
-                path, b, t0, n0, t1, n1
-            );
+
 
             let t0 = T::from_f64(t0).unwrap();
             let mut z = 0u128;

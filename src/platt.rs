@@ -100,7 +100,8 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
         //     }
         // }
 
-        let sieve_result = crate::sieve::sieve_primesieve(x1, x2);
+        debug!("sieving [{}, {}]", l, r);
+        let sieve_result = crate::sieve::sieve_primesieve(l, r);
         for &p in sieve_result.primes {
             n_primes += 1;
             Δ_1 += calc(p);
@@ -241,8 +242,10 @@ impl<T: MyReal> Platt<T> {
         self.x2 = x2;
     }
 
-    /// we are integrating \hat_\phi(s), which is approximately x^sigma (-\λ^2 h^2 / 2) with sigma = 0.5 or 1.
-    fn plan_integral(&mut self, λ: f64, x: f64, eps: f64) -> f64 { 6.0 / λ }
+    /// we are integrating N(h) \hat_\phi(s), which is approximately x^σ exp(-λ^2 h^2 / 2) with σ = 0.5 or 1.
+    /// |N(h) \hat_\phi(0.5 + ih)| \approx \log(h) x^0.5 exp(-λ^2 h^2 / 2)
+    /// |\hat_\phi(1 + ih)| ≈ x^0.5 \exp(-λ^2 h^2 / 2)
+    fn plan_integral(&mut self, λ: f64, x: f64, eps: f64) -> f64 { (x.ln() + x.ln().ln()).sqrt() / λ }
 
     pub fn compute(&mut self, n: u64, hints: PlattHints) -> u64 {
         self.plan(n as f64, hints);
