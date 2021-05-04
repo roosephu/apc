@@ -11,7 +11,7 @@ use num_traits::NumAssignOps;
 pub struct PowerSeries<T> {
     pub n: usize,
     pub N: usize,
-    pub data: Vec<T>,
+    pub coeffs: Vec<T>,
 }
 
 impl<T: Copy + Num> PowerSeries<T> {
@@ -19,12 +19,12 @@ impl<T: Copy + Num> PowerSeries<T> {
         let mut data = vec![T::zero(); max_order];
         data[0] = x;
         data[1] = T::one();
-        Self { n: 2, N: max_order, data }
+        Self { n: 2, N: max_order, coeffs: data }
     }
 
     pub fn from_vec(max_order: usize, mut data: Vec<T>) -> Self {
         data.resize(max_order, T::zero());
-        Self { n: data.len(), N: max_order, data }
+        Self { n: data.len(), N: max_order, coeffs: data }
     }
 }
 
@@ -32,7 +32,7 @@ impl<T: Copy + NumAssignOps> AddAssign<&PowerSeries<T>> for PowerSeries<T> {
     fn add_assign(&mut self, rhs: &Self) {
         self.n = max(self.n, rhs.n);
         for i in 0..self.n {
-            self.data[i] += rhs.data[i];
+            self.coeffs[i] += rhs.coeffs[i];
         }
     }
 }
@@ -41,7 +41,7 @@ impl<T: Copy + NumAssignOps> SubAssign<&PowerSeries<T>> for PowerSeries<T> {
     fn sub_assign(&mut self, rhs: &Self) {
         self.n = max(self.n, rhs.n);
         for i in 0..self.n {
-            self.data[i] -= rhs.data[i];
+            self.coeffs[i] -= rhs.coeffs[i];
         }
     }
 }
@@ -49,7 +49,7 @@ impl<T: Copy + NumAssignOps> SubAssign<&PowerSeries<T>> for PowerSeries<T> {
 impl<T: Copy + Num + NumAssignOps> MulAssign<T> for PowerSeries<T> {
     fn mul_assign(&mut self, rhs: T) {
         for i in 0..self.n {
-            self.data[i] *= rhs;
+            self.coeffs[i] *= rhs;
         }
     }
 }
@@ -60,23 +60,23 @@ impl<T: Copy + Num + NumAssignOps> MulAssign<&PowerSeries<T>> for PowerSeries<T>
         let new_n = min(self.n + rhs.n, self.N);
         for i in 0..self.n {
             for j in 0..min(new_n - i, rhs.n) {
-                data[i + j] += self.data[i] * rhs.data[j];
+                data[i + j] += self.coeffs[i] * rhs.coeffs[j];
             }
         }
         self.n = new_n;
-        self.data.clone_from_slice(&data);
+        self.coeffs.clone_from_slice(&data);
     }
 }
 
 impl<T: Copy + Num + NumAssignOps> DivAssign<&PowerSeries<T>> for PowerSeries<T> {
     fn div_assign(&mut self, rhs: &Self) {
-        let mut data = self.data.clone();
+        let mut data = self.coeffs.clone();
         let N = self.N;
         for i in 0..N {
-            let d = data[i] / rhs.data[0];
-            self.data[i] = d;
+            let d = data[i] / rhs.coeffs[0];
+            self.coeffs[i] = d;
             for j in 0..N - i {
-                data[i + j] -= d * rhs.data[j];
+                data[i + j] -= d * rhs.coeffs[j];
             }
         }
     }
@@ -89,11 +89,11 @@ impl<T: Copy + Num + NumAssignOps> PowerSeries<T> {
     /// let x = a_0, D = \sum_{i=1}^\infty a_i t^i
     /// then f(x + D) = \sum_{i=0}^\infty f^{(i)}(x) D^i / i!
     fn compose(&mut self, coeffs: &[T]) {
-        let x = self.data[0];
+        let x = self.coeffs[0];
         let mut series = vec![T::zero(); self.N];
 
-        series[0] = self.data[0];
-        self.data[0] = T::zero();
+        series[0] = self.coeffs[0];
+        self.coeffs[0] = T::zero();
         for i in (0..self.N).rev() {
             // basically it's `ret = ret * D + f^{(i)}`
             // We truncate the series to order n.
@@ -101,14 +101,14 @@ impl<T: Copy + Num + NumAssignOps> PowerSeries<T> {
             for j in (0..n).rev() {
                 let mut s = T::zero();
                 for k in 1..min(j + 1, self.n) {
-                    s += series[j - k] * self.data[k];
+                    s += series[j - k] * self.coeffs[k];
                 }
                 series[j] = s;
             }
             series[0] += coeffs[i];
         }
         self.n = self.N;
-        self.data = series;
+        self.coeffs = series;
     }
 }
 
@@ -123,7 +123,7 @@ impl<T: Copy + Float + FromPrimitive + NumAssignOps> PowerSeries<T> {
 
     pub fn cos_(&mut self) {
         let mut derivatives = vec![T::zero(); self.N];
-        let (sin_x, cos_x) = self.data[0].sin_cos();
+        let (sin_x, cos_x) = self.coeffs[0].sin_cos();
         let table = [cos_x, -sin_x, -cos_x, sin_x];
         for i in 0..self.N {
             derivatives[i] = table[i % 4];
@@ -134,7 +134,7 @@ impl<T: Copy + Float + FromPrimitive + NumAssignOps> PowerSeries<T> {
 
     pub fn sin_(&mut self) {
         let mut derivatives = vec![T::zero(); self.N];
-        let (sin_x, cos_x) = self.data[0].sin_cos();
+        let (sin_x, cos_x) = self.coeffs[0].sin_cos();
         let table = [sin_x, cos_x, -sin_x, -cos_x];
         for i in 0..self.N {
             derivatives[i] = table[i % 4];
@@ -144,7 +144,7 @@ impl<T: Copy + Float + FromPrimitive + NumAssignOps> PowerSeries<T> {
     }
 
     pub fn exp_(&mut self) {
-        let exp = self.data[0].exp();
+        let exp = self.coeffs[0].exp();
         let mut derivatives = vec![exp; self.N];
         PowerSeries::divide_factorials(&mut derivatives);
         self.compose(&derivatives);
@@ -152,7 +152,7 @@ impl<T: Copy + Float + FromPrimitive + NumAssignOps> PowerSeries<T> {
 
     pub fn recip_(&mut self) {
         let mut derivatives = vec![T::zero(); self.N];
-        let v = self.data[0];
+        let v = self.coeffs[0];
         let mut d = T::one() / v;
         for i in 0..self.N {
             derivatives[i] = d;
@@ -196,7 +196,7 @@ mod tests {
             -0.0026737163058292426,
         ];
         for i in 0..10 {
-            assert!((gt[i] - numer.data[i]).abs() < 1e-14);
+            assert!((gt[i] - numer.coeffs[i]).abs() < 1e-14);
         }
     }
 }

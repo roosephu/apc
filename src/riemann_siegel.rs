@@ -48,9 +48,9 @@ fn gen_rs_power_series<T: MyReal>(z: T, N: usize) -> PowerSeries<Complex<T>> {
     imag_series /= &denom;
 
     let data: Vec<_> = real_series
-        .data
+        .coeffs
         .iter()
-        .zip(imag_series.data.iter())
+        .zip(imag_series.coeffs.iter())
         .map(|(&re, &im)| Complex::new(re, im))
         .collect();
     PowerSeries::<Complex<T>>::from_vec(N, data)
@@ -219,7 +219,7 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
         for k in 0..=K {
             let mut s = Complex::<T>::zero();
             for j in 0..=3 * k / 2 {
-                s += ps.data[3 * k - 2 * j].mul_pow_i(4 - j % 4) * coeffs[k][j];
+                s += ps.coeffs[3 * k - 2 * j].mul_pow_i(4 - j % 4) * coeffs[k][j];
             }
             ret += s / a.powi(k as i32);
         }

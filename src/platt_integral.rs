@@ -14,6 +14,8 @@ pub struct PlattIntegrator<T> {
     ln_x: T,
     expansion: Option<Expansion<T>>,
     cache: Option<(T, Complex<T>)>, // save the last query
+    hit: usize,
+    miss: usize,
 }
 
 impl<T: MyReal> PlattIntegrator<T> {
@@ -26,6 +28,8 @@ impl<T: MyReal> PlattIntegrator<T> {
             λ_sqr: λ * λ,
             expansion: None,
             cache: None,
+            hit: 0,
+            miss: 0,
         }
     }
 
@@ -85,7 +89,7 @@ impl<T: MyReal> PlattIntegrator<T> {
         let c_dir = c / c_norm;
         let mut c_dir_pow = Complex::<T>::one();
         for i in 0..poly.N {
-            poly.data[i] *= c_dir_pow;
+            poly.coeffs[i] *= c_dir_pow;
             c_dir_pow *= c_dir;
         }
         (c_norm, c_dir)
@@ -106,13 +110,13 @@ impl<T: MyReal> PlattIntegrator<T> {
             let mut signed_falling_factorial = T::one();
             for j in 0..i {
                 signed_falling_factorial *= -T::from_usize(i - j).unwrap();
-                let delta = poly.data[i] * signed_falling_factorial;
-                poly.data[i - j - 1] += delta;
+                let delta = poly.coeffs[i] * signed_falling_factorial;
+                poly.coeffs[i - j - 1] += delta;
             }
         }
 
         let poly_eps = self.eps / mul_coeff.norm() / T::from_usize(self.order).unwrap();
-        let radius = (poly_eps / poly.data[self.order - 1].norm())
+        let radius = (poly_eps / poly.coeffs[self.order - 1].norm())
             .powf(T::one() / (self.order as f64 - 1.0))
             / c.norm();
         debug!("[Integral] prepare {}, radius = {}", t, radius);
@@ -138,10 +142,10 @@ impl<T: MyReal> PlattIntegrator<T> {
         let mut poly = Complex::<T>::zero();
         let mut z_pow = T::one();
         for i in 0..self.order {
-            poly += ps.data[i] * z_pow;
+            poly += ps.coeffs[i] * z_pow;
             z_pow *= z;
         }
-        mul_coeff * (poly * (z * c_dir).exp_simul() - ps.data[0])
+        mul_coeff * (poly * (z * c_dir).exp_simul() - ps.coeffs[0])
     }
 
     #[inline(never)]

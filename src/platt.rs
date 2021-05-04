@@ -5,9 +5,6 @@ use log::{debug, info};
 use num::integer::*;
 use num::{Num, One, Zero};
 use std::io::{self, Read};
-use F64x2::f64x2;
-
-type T = f64x2;
 
 #[derive(Default)]
 pub struct PlattHints {
