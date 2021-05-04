@@ -16,9 +16,9 @@ $$
  & = \hat\phi(s_0) \frac{\exp(-\lambda^2 h^2/2)}{1 + \frac{i}{s_0}h} \exp(ih (\lambda^2 s_0 + \ln x)),
 \end{aligned}
 $$
-For brevity, we define $c = i(\lambda^2 s_0 + \ln x)$ and $a = -\lambda^2 / 2c^2$, $b = -\frac{i}{s_0 c}$, so it becomes: for $z = ch$,
+For brevity, we define $w = i(\lambda^2 s_0 + \ln x)$ and $a = -\lambda^2 / 2w^2$, $b = -\frac{i}{s_0 w}$, so it becomes: for $z = wh$,
 $$
-\hat\phi(s_0 + ih) = \hat\phi(s_0) \frac{\exp(a (ch)^2)}{1 - b(ch)} \exp(ch) = \hat\phi(s_0) \frac{\exp(az^2)}{1 - bz} \exp(z).
+\hat\phi(s_0 + ih) = \hat\phi(s_0) \frac{\exp(az^2)}{1 - bz} \exp(z).
 $$
 Next, we find a polynomial $P(z)$ such that $P(z) \approx \frac{\exp(cz^2)}{1 - bz}$ for $|z| \leq \delta$. Simple truncated Taylor series should suffice. Now we are focusing on the integral:
 $$
@@ -41,9 +41,9 @@ $$
 $$
 Note that $|\lambda^2 s_0|$ is typically very small as $\lambda = O(x^{-1/2})$ and $|s_0| = O(x^{1/2})$.
 
-We simply set $c = i \ln x$, $a = -\lambda^2 / 2c^2$, $b = -\frac{i}{s_0 c}$ and $d = i h \lambda^2 s_0/c$, so 
+We simply set $w = i \ln x$, $a = -\lambda^2 / 2w^2$, $b = -\frac{i}{s_0 w}$ and $c = i h \lambda^2 s_0/w$, so 
 $$
-\hat\phi(s) = \hat\phi(s_0) \frac{\exp(a z^2 + dz)}{1 - bz} \exp(z),
+\hat\phi(s) = \hat\phi(s_0) \frac{\exp(a z^2 + cz)}{1 - bz} \exp(z),
 $$
 and everything else can continue.
 

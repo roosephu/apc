@@ -70,14 +70,14 @@ impl<T: MyReal> PlattIntegrator<T> {
         s0: Complex<T>,
         order: usize,
     ) -> (Complex<T>, Complex<T>, Complex<T>, PowerSeries<Complex<T>>) {
-        let c = (self.λ_sqr * s0 + self.ln_x).mul_i();
-        let a = self.λ_sqr / -2.0 / c / c;
-        let b = -(T::one() / s0 / c).mul_i();
+        let w = (self.λ_sqr * s0 + self.ln_x).mul_i();
+        let a = self.λ_sqr / -2.0 / w / w;
+        let b = -(T::one() / s0 / w).mul_i();
         let mut ps_exp = PlattIntegrator::expand_exp_term(order, a);
         let ps_recip = PlattIntegrator::expand_reciprocal_term(order, b);
         ps_exp *= &ps_recip;
 
-        (a, b, c, ps_exp)
+        (a, b, w, ps_exp)
     }
 
     /// we want to evaluate $$ \sum_i poly_i (c h)^i$$ for a real $h$, however, poly_i c^i might grow too fast...
