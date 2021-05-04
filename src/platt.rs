@@ -100,7 +100,8 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
         //     }
         // }
 
-        for p in crate::sieve::sieve_primesieve(x1, x2) {
+        let sieve_result = crate::sieve::sieve_primesieve(x1, x2);
+        for &p in sieve_result.primes {
             n_primes += 1;
             Δ_1 += calc(p);
         }
