@@ -20,10 +20,7 @@ pub struct Platt {
     integral_limit: f64,
     x1: u64,
     x2: u64,
-}
-
-impl Default for Platt {
-    fn default() -> Self { Self { λ: 0.0, integral_limit: 0.0, x1: 0, x2: 0 } }
+    poly_order: usize,
 }
 
 fn Φ(r: f64) -> f64 { rgsl::error::erfc(r / std::f64::consts::SQRT_2) / 2.0 }
@@ -240,29 +237,22 @@ fn integrate_offline<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) -
 fn plan_integral(λ: f64, x: f64, eps: f64) -> f64 { (x.ln() + x.ln().ln()).sqrt() / λ }
 
 impl Platt {
-    pub fn new() -> Self { Self::default() }
-
     /// During planning, these hyperparameters (λ, sigma, h, x1, x2, integral_limits)
     /// doesn't need to be very accurate
     /// as long as they satisfy the error bound.
-    pub fn plan(&mut self, x: f64, hints: PlattHints) {
+    pub fn new(x: u64, hints: PlattHints) -> Self {
+        let x = x as f64;
         let λ = (hints.λ.unwrap_or(50.0) * x.ln() / x).sqrt();
-        info!("λ = {:.6e}", λ);
-
         let (x1, x2) = plan_Δ_bounds_heuristic(λ, x, 0.24);
-
         let integral_limit = plan_integral(λ, x, 0.1);
+        info!("λ = {:.6e}", λ);
         info!("integral limit = {:.6}", integral_limit);
 
-        self.λ = λ;
-        self.integral_limit = integral_limit;
-        self.x1 = x1;
-        self.x2 = x2;
+        Self { λ, integral_limit, x1, x2, poly_order: hints.poly_order.unwrap_or(15) }
     }
 
-    pub fn compute<T: MyReal>(&mut self, x: u64, hints: PlattHints) -> u64 {
-        let max_order = hints.poly_order.unwrap_or(15);
-        self.plan(x as f64, hints);
+    pub fn compute<T: MyReal>(&mut self, x: u64) -> u64 {
+        let max_order = self.poly_order;
 
         // this requires high precision: result ≈ # primes
         let integral_offline = integrate_offline::<T>(x, self.λ, self.integral_limit, max_order);
