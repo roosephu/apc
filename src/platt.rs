@@ -62,7 +62,8 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
     let mut calc = |p: u64| -> f64 {
         let t = (p - x) as i64 as f64 / x as f64;
         // Expand ln(1 + u)/λ at u = x.
-        let ρ = (((c[3] * t + c[2]) * t + c[1]) * t + c[0]) * t;
+        // let ρ = (((c[3] * t + c[2]) * t + c[1]) * t + c[0]) * t;
+        let ρ = t.ln_1p() / λ;
         if p <= x {
             1.0 - fast_phi.query(ρ)
         } else {
@@ -123,11 +124,11 @@ fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
 }
 
 fn cramer_stats(x: f64, λ: f64, d: f64) -> (f64, f64, f64) {
-    let integral_l = err_l((1.0 - d / x).ln() / λ, x, λ);
-    let integral_r = err_r((1.0 + d / x).ln() / λ, x, λ);
+    let integral_l = err_l(-d, x, λ);
+    let integral_r = err_r(d, x, λ);
     let p = 1.0 / x.ln();
     let mean = (integral_r - integral_l) * p;
-    let max = 1.0 - Φ((1.0 - d / x).ln() / λ);
+    let max = Φ(d);
 
     let var = p * (1.0 - p) * (integral_l + integral_r) * max;
 
@@ -169,15 +170,23 @@ fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
         mean + (max * τ) + (max * max * τ * τ + 2.0 * τ * var).sqrt()
     };
 
-    let w = brentq(|w| err(w) - eps, 0.0, 8.0 * λ * x, 0.0, 0.0, 100).unwrap_or(0.0);
-    let w = w.ceil();
+    let max_d = (x.ln() + x.ln().ln()).sqrt() * 2.0;
+    let d = brentq(|d| err(d) - eps, 0.0, max_d, 0.0, 0.0, 20).unwrap_or(0.0);
+    let x1 = (x * (-d * λ).exp()).floor();
+    let x2 = (x * (d * λ).exp()).ceil();
+    let residue = err(d);
+    assert!(residue <= 0.3);
 
-    let x1 = x - w;
-    let x2 = x + w;
+    info!(
+        "Δ range = [{:.0}, {:.0}], length = {:.0}, residue = {:.6}, d = {:.6}",
+        x1,
+        x2,
+        x2 - x1,
+        err(d),
+        d,
+    );
 
-    info!("[heuristic] Δ length = {:.0}, residue = {:.6}", 2.0 * w, err(w));
-
-    (x1.floor() as u64, x2.floor() as u64)
+    (x1 as u64, x2 as u64)
 }
 
 impl<T: MyReal> Platt<T> {
@@ -270,7 +279,6 @@ mod tests {
 
         let (w1, w2) = plan_Δ_bounds_strict(λ, x, eps);
         let (d1, d2) = plan_Δ_bounds_heuristic(λ, x, eps);
-        let d = x - d1 as f64; // also = d2 - x
         info!("   strict bounds = x + [{}, {}]", w1 as i64 - x as i64, w2 - x as u64);
         info!("heuristic bounds = x + [{}, {}]", d1 as i64 - x as i64, d2 - x as u64);
 

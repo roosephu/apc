@@ -25,7 +25,7 @@ fn main() {
 
     let n = opts.n;
     println!("======= computing pi({}) ======", n);
-    assert!(n >= 100000);
+    // assert!(n >= 100000);
 
     // let ctx = Context::<T>::new(100);
     // let mut zeta_galway = ZetaGalway::new(&ctx);
