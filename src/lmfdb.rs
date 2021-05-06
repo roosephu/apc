@@ -30,11 +30,12 @@ pub fn LMFDB_read_ckpt_list() -> Result<Vec<i64>, std::io::Error> {
     Ok(indices)
 }
 
-pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error> {
+pub(crate) fn LMFDB_reader<T: MyReal>(limit: f64) -> Result<Vec<T>, std::io::Error> {
     info!("Loading zeta zeros up to {}", limit);
     let ckpts = LMFDB_read_ckpt_list()?;
 
     let eps = T::from_f64(2.0).unwrap().powi(-101);
+    let limit = T::from_f64(limit).unwrap();
 
     let mut roots = vec![];
     for &ckpt in ckpts.iter() {

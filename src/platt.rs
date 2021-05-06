@@ -4,7 +4,10 @@ use crate::traits::*;
 use log::{debug, info};
 use num::integer::*;
 use num::{Num, One, Zero};
-use std::io::{self, Read};
+use std::{
+    io::{self, Read},
+    marker::PhantomData,
+};
 
 #[derive(Default)]
 pub struct PlattHints {
@@ -12,15 +15,15 @@ pub struct PlattHints {
     pub poly_order: Option<usize>,
 }
 
-pub struct Platt<T> {
-    λ: T,
-    integral_limit: T,
+pub struct Platt {
+    λ: f64,
+    integral_limit: f64,
     x1: u64,
     x2: u64,
 }
 
-impl<T: MyReal> Default for Platt<T> {
-    fn default() -> Self { Self { λ: T::zero(), integral_limit: T::zero(), x1: 0, x2: 0 } }
+impl Default for Platt {
+    fn default() -> Self { Self { λ: 0.0, integral_limit: 0.0, x1: 0, x2: 0 } }
 }
 
 fn Φ(r: f64) -> f64 { rgsl::error::erfc(r / std::f64::consts::SQRT_2) / 2.0 }
@@ -187,7 +190,56 @@ fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
     (x1 as u64, x2 as u64)
 }
 
-impl<T: MyReal> Platt<T> {
+/// Problem: How to bound the abs integral here?
+fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) -> T {
+    let mut integrator = PlattIntegrator::new(
+        T::from_u64(x).unwrap(),
+        T::one() / 2.0,
+        T::from_f64(λ).unwrap(),
+        max_order,
+        1e-20,
+    );
+    let mut result = T::zero();
+    let mut last_contribution = T::zero();
+
+    let roots = crate::lmfdb::LMFDB_reader::<T>(limit).unwrap();
+
+    info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
+    let mut int_abs = T::zero();
+    for i in 1..roots.len() {
+        let a = roots[i - 1];
+        let b = roots[i];
+        let integral = integrator.query(a, b).im;
+        result += integral * i as f64;
+        last_contribution = integral * i as f64;
+        int_abs += integral.abs() * i as f64;
+    }
+    info!("integral critical = {}, last = {}, int |f| = {}", result, last_contribution, int_abs,);
+    integrator.stat.show("IntegratorCritical");
+    // assert!(abs_integral.to_f64().unwrap() <= 1e12);
+
+    result
+}
+
+fn integrate_offline<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) -> T {
+    // the result = n / log(n) + o(n)
+    let mut integrator_offline = PlattIntegrator::<T>::new(
+        T::from_u64(x).unwrap(),
+        T::one(),
+        T::from_f64(λ).unwrap(),
+        max_order,
+        0.01,
+    );
+    let result = integrator_offline.query(T::zero(), T::from_f64(limit).unwrap()).im;
+    info!("offline integral = {}", result);
+    integrator_offline.stat.show("IntegratorOffline");
+
+    result
+}
+
+fn plan_integral(λ: f64, x: f64, eps: f64) -> f64 { (x.ln() + x.ln().ln()).sqrt() / λ }
+
+impl Platt {
     pub fn new() -> Self { Self::default() }
 
     /// During planning, these hyperparameters (λ, sigma, h, x1, x2, integral_limits)
@@ -199,65 +251,30 @@ impl<T: MyReal> Platt<T> {
 
         let (x1, x2) = plan_Δ_bounds_heuristic(λ, x, 0.24);
 
-        let integral_limit = self.plan_integral(λ, x, 0.1);
+        let integral_limit = plan_integral(λ, x, 0.1);
         info!("integral limit = {:.6}", integral_limit);
 
-        self.λ = T::from_f64(λ).unwrap();
-        self.integral_limit = T::from_f64(integral_limit).unwrap();
+        self.λ = λ;
+        self.integral_limit = integral_limit;
         self.x1 = x1;
         self.x2 = x2;
     }
 
-    fn plan_integral(&mut self, λ: f64, x: f64, eps: f64) -> f64 {
-        (x.ln() + x.ln().ln()).sqrt() / λ
-    }
-
-    pub fn compute(&mut self, n: u64, hints: PlattHints) -> u64 {
+    pub fn compute<T: MyReal>(&mut self, x: u64, hints: PlattHints) -> u64 {
         let max_order = hints.poly_order.unwrap_or(15);
-        self.plan(n as f64, hints);
+        self.plan(x as f64, hints);
 
-        // the result = n / log(n) + o(n)
-        let mut integrator_offline =
-            PlattIntegrator::<T>::new(T::from_u64(n).unwrap(), T::one(), self.λ, max_order, 0.01);
-        let integral_offline = integrator_offline.query(T::zero(), self.integral_limit).im;
-        info!("offline integral = {}", integral_offline);
-        integrator_offline.stat.show("IntegratorOffline");
+        // this requires high precision: result ≈ # primes
+        let integral_offline = integrate_offline::<T>(x, self.λ, self.integral_limit, max_order);
 
-        let mut integrator_critical = PlattIntegrator::<T>::new(
-            T::from_u64(n).unwrap(),
-            T::one() / 2.0,
-            self.λ,
-            max_order,
-            1e-20,
-        );
-        let mut integral_critical = T::zero();
-        let mut last_contribution = T::zero();
+        // maybe this only requires low precision, e.g., f64?
+        let integral_critical = integrate_critical::<T>(x, self.λ, self.integral_limit, max_order);
 
-        let roots = crate::lmfdb::LMFDB_reader(self.integral_limit).unwrap();
-
-        info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
-        let mut abs_integral = T::zero();
-        for i in 1..roots.len() {
-            let a = roots[i - 1];
-            let b = roots[i];
-            let integral = integrator_critical.query(a, b).im;
-            integral_critical += integral * i as f64;
-            abs_integral += integral.abs() / (n as f64).sqrt() * i as f64;
-            last_contribution = integral * i as f64;
-            // debug!("current zero: {}, integral = {}, est = {}", roots[i], integral, (-self.λ * self.λ * a * a / 2.0).exp() * (b - a));
-        }
-        info!(
-            "integral critical = {}, last = {}, abs = {}",
-            integral_critical, last_contribution, abs_integral
-        );
-        integrator_critical.stat.show("IntegratorCritical");
-        drop(roots);
-
-        let Δ = calc_Δ_f64(n, 0.5, self.λ.to_f64().unwrap(), self.x1, self.x2);
+        let Δ = calc_Δ_f64(x, 0.5, self.λ, self.x1, self.x2);
         info!("Δ = {}", Δ);
         let ans = integral_offline - integral_critical * 2.0 - 2.0.ln() + Δ;
         let n_ans = ans.round().to_u64().unwrap();
-        info!("ans = {}, residue = {}", ans, ans - T::from_u64(n_ans).unwrap());
+        info!("ans = {}, rounding error = {}", ans, ans - T::from_u64(n_ans).unwrap());
 
         n_ans as u64
     }
@@ -265,8 +282,10 @@ impl<T: MyReal> Platt<T> {
 
 #[cfg(test)]
 mod tests {
+    use super::integrate_critical;
     use super::{calc_Δ1_f64, cramer_stats, plan_Δ_bounds_heuristic, plan_Δ_bounds_strict};
     use log::info;
+    use F64x2::f64x2;
 
     #[test]
     fn test_Δ_bounds_heuristic() {
@@ -292,5 +311,17 @@ mod tests {
         info!("diff = {}", diff);
 
         assert!(diff < 0.1);
+    }
+
+    #[test]
+    fn test_integrate_critical() {
+        env_logger::init();
+
+        let x = 1_000_000_000_000_000u64;
+        let λ = 3.324516e-7;
+        let limit = 19130220.241455;
+        let b = integrate_critical::<f64x2>(x, λ, limit, 15);
+        println!("b = {}", b);
+        panic!();
     }
 }

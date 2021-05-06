@@ -35,8 +35,8 @@ fn main() {
     // println!("[Galway] ans = {}", ans);
     // println!("[ZetaGalway] complexity = {}", zeta_galway.complexity);
 
-    let mut platt = Platt::<T>::new();
+    let mut platt = Platt::new();
     let hints = PlattHints { λ: opts.lambda_hint, poly_order: opts.poly_order };
-    let ans = platt.compute(n, hints);
+    let ans = platt.compute::<T>(n, hints);
     println!("[Platt] ans = {}", ans);
 }
