@@ -45,11 +45,7 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error
                 let zz = t0 + T::from_u128(z).unwrap() * eps;
 
                 if zz > limit {
-                    info!(
-                        "largest zeta roots {}, # zeros = {}",
-                        roots.last().unwrap(),
-                        roots.len()
-                    );
+                    info!("largest zeta roots {:?}, # zeros = {}", roots.last(), roots.len());
                     return Ok(roots);
                 }
                 // debug!("read zero: {}", z);

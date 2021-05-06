@@ -42,13 +42,6 @@ pub trait MyReal = Float
     + Sub<f64, Output = Self>
     + Mul<f64, Output = Self>
     + Div<f64, Output = Self>
-    // + UncheckedInto<f64>
-    // + UncheckedFrom<f64>
-    // + UncheckedFrom<i64>
-    // + UncheckedInto<i64>
-    // + UncheckedFrom<i32>
-    // + UncheckedInto<i32>
-    // + UncheckedCast
     + Add<Complex<Self>, Output = Complex<Self>>
     + Sub<Complex<Self>, Output = Complex<Self>>
     + Mul<Complex<Self>, Output = Complex<Self>>

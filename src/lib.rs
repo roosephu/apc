@@ -10,30 +10,29 @@
 #![feature(destructuring_assignment)]
 #![feature(min_type_alias_impl_trait)]
 #![feature(non_ascii_idents)]
-#![feature(try_blocks)]
 
-mod adaptive_interp;
-pub mod bandwidth_interp;
-pub mod brentq;
+mod bandwidth_interp;
+mod brentq;
 mod cache_stat;
-pub mod constants;
-pub mod context;
-pub mod galway;
-pub mod gamma;
+mod constants;
+mod context;
+mod fast_phi;
+mod galway;
+mod gamma;
 mod lmfdb;
-pub mod platt;
+mod platt;
 mod platt_integral;
-pub mod power_series;
-pub mod profiler;
-pub mod riemann_siegel;
+mod power_series;
+mod riemann_siegel;
 mod sieve;
-pub mod sum_trunc_dirichlet;
-pub(crate) mod test_utils;
-pub mod traits;
-pub mod zeta;
+mod sum_trunc_dirichlet;
+mod test_utils;
+mod traits;
+mod zeta;
 
 pub use context::Context;
 pub use galway::{Galway, GalwayHints};
+pub use platt::{Platt, PlattHints};
 pub use riemann_siegel::{RiemannSiegelZ, RiemannSiegelZeta};
 pub use zeta::ZetaGalway;
 

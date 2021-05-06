@@ -56,48 +56,24 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
     let approx_n_primes = (x2 - x1) as f64 / (x1 as f64).ln();
     assert!(f64::EPSILON * approx_n_primes < 0.1, "too many primes for f64 approx");
 
-    let c1 = -1.0 / λ;
-    let c2 = -1.0 / λ / 2.0;
-    let c3 = -1.0 / λ / 3.0;
-
-    let mut fast_phi = crate::adaptive_interp::FastPhi::new(eps / (x2 - x1) as f64);
+    let mut fast_phi = crate::fast_phi::PhiFn::new(eps / (x2 - x1) as f64);
+    let c = [1.0 / λ, -1.0 / λ / 2.0, 1.0 / λ / 3.0, -1.0 / λ / 4.0];
 
     let mut calc = |p: u64| -> f64 {
-        // here we approximate r = ln(u / x) / λ = ln(1 - (x-u)/x) / λ.
-        // Expand ln(1 - (x-u)/x) at u = x.
-        let t = (x as i64 - p as i64) as f64 / x as f64;
-        let r = c1 * t + c2 * t * t + c3 * t * t * t;
+        let t = (p - x) as i64 as f64 / x as f64;
+        // Expand ln(1 + u)/λ at u = x.
+        let ρ = (((c[3] * t + c[2]) * t + c[1]) * t + c[0]) * t;
         if p <= x {
-            fast_phi.query(-r) // 1 - Φ(r) = Φ(-r)
+            1.0 - fast_phi.query(ρ)
         } else {
-            -fast_phi.query(r)
+            -fast_phi.query(ρ)
         }
     };
 
-    let x1 = x1 | 1;
     let mut Δ_1 = 0.0;
     let mut n_primes = 0;
 
     for (l, r) in segment(x1, x2, 1u64 << 34) {
-        // 2^33 bits needed = 1GB memory
-        // let mark = crate::sieve::sieve(&primes, x1, x2);
-        // for (idx, &s) in mark.storage().iter().enumerate() {
-        //     let mut s = !s;
-        //     while s != 0 {
-        //         let w = s & (s - 1);
-        //         let offset = (s ^ w).trailing_zeros();
-        //         s = w;
-
-        //         // note that we skipped all odd numbers;
-        //         let p = l + ((idx as u64) << 6) + ((offset as u64) << 1);
-        //         if p % 3 != 0 && p % 5 != 0 && p <= r {
-        //             n_primes += 1;
-
-        //             Δ_1 += calc(p);
-        //         }
-        //     }
-        // }
-
         debug!("sieving [{}, {}]", l, r);
         let sieve_result = crate::sieve::sieve_primesieve(l, r);
         for &p in sieve_result.primes {
@@ -107,7 +83,7 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
     }
     info!("found {} primes in the interval", n_primes);
 
-    fast_phi.stat.show("FastPhi");
+    fast_phi.stat().show("FastPhi");
 
     Δ_1
 }
@@ -136,7 +112,7 @@ fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
             if power < x1 {
                 ret -= 1.0 / m as f64;
             } else {
-                // only (x2^1/2 - x1^1/2) + (x2^1/3 - x1^1/3) + ... many
+                // only (x_2^1/2 - x_1^1/2) + (x_2^1/3 - x_1^1/3) + ... many
                 // The first term dominates, which is still O((x2 - x1)/sqrt(x)) = O(polylog(n)).
                 let r = (power as f64 / x as f64).ln() / λ;
                 ret -= Φ(r) / m as f64;
@@ -146,22 +122,13 @@ fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     ret
 }
 
-/// Cramer's random model
-/// let w be a sufficiently large number (typically = O(\sqrt(\log x) λx)) such that
-/// the sum of Phi(n) over [1, x - w)U[x + w, Inf) is small.
-/// each number in [x - w, x - d)U(x + d, x + w] has probability of 1/log(n) to be prime
-/// so each number n contributes B(1/log(n)) * ϕ(n).
-/// use Berstein's inequality to bound it..
 fn cramer_stats(x: f64, λ: f64, d: f64) -> (f64, f64, f64) {
     let integral_l = err_l((1.0 - d / x).ln() / λ, x, λ);
     let integral_r = err_r((1.0 + d / x).ln() / λ, x, λ);
     let p = 1.0 / x.ln();
-    let mean = (integral_l - integral_r).abs() * p;
+    let mean = (integral_r - integral_l) * p;
     let max = 1.0 - Φ((1.0 - d / x).ln() / λ);
 
-    // variance should be p(1-p) \int_{u=u0}^\infty \Phi(u)^2 d u
-    // but it's hard to integrate erfc^2(x) e^x
-    // so we upper bound it: Phi(u)^2 <= Phi(u) Phi(u0).
     let var = p * (1.0 - p) * (integral_l + integral_r) * max;
 
     (mean, var, max)
@@ -234,9 +201,6 @@ impl<T: MyReal> Platt<T> {
         self.x2 = x2;
     }
 
-    /// we are integrating N(h) \hat_\phi(s), which is approximately x^σ exp(-λ^2 h^2 / 2) with σ = 0.5 or 1.
-    /// |N(h) \hat_\phi(0.5 + ih)| \approx \log(h) x^0.5 exp(-λ^2 h^2 / 2)
-    /// |\hat_\phi(1 + ih)| ≈ x^0.5 \exp(-λ^2 h^2 / 2)
     fn plan_integral(&mut self, λ: f64, x: f64, eps: f64) -> f64 {
         (x.ln() + x.ln().ln()).sqrt() / λ
     }
@@ -266,13 +230,13 @@ impl<T: MyReal> Platt<T> {
 
         info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
         let mut abs_integral = T::zero();
-        for i in 0..roots.len() - 1 {
-            let a = roots[i];
-            let b = roots[i + 1];
+        for i in 1..roots.len() {
+            let a = roots[i - 1];
+            let b = roots[i];
             let integral = integrator_critical.query(a, b).im;
-            integral_critical += integral * (i + 1) as f64;
-            abs_integral += integral.abs() / (n as f64).sqrt() * (i + 1) as f64;
-            last_contribution = integral * (i + 1) as f64;
+            integral_critical += integral * i as f64;
+            abs_integral += integral.abs() / (n as f64).sqrt() * i as f64;
+            last_contribution = integral * i as f64;
             // debug!("current zero: {}, integral = {}, est = {}", roots[i], integral, (-self.λ * self.λ * a * a / 2.0).exp() * (b - a));
         }
         info!(
@@ -303,7 +267,6 @@ mod tests {
         let x = 1e11f64;
         let λ = 3e-5;
         let eps = 0.24;
-        let τ = 20.0;
 
         let (w1, w2) = plan_Δ_bounds_strict(λ, x, eps);
         let (d1, d2) = plan_Δ_bounds_heuristic(λ, x, eps);
@@ -320,6 +283,7 @@ mod tests {
             diff += calc_Δ1_f64(&primes, x as u64, eps, λ, d2, w2);
         }
         let diff = diff.abs();
+        info!("diff = {}", diff);
 
         assert!(diff < 0.1);
     }
