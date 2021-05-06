@@ -2,6 +2,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![allow(unused_imports)]
+#![allow(confusable_idents)]
+#![allow(uncommon_codepoints)]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::let_and_return)]

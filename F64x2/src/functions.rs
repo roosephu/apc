@@ -158,13 +158,11 @@ impl f64x2 {
         }
     }
 
-    #[inline(never)]
     pub fn cosh(self) -> Self {
         let t = self.exp();
         (t + t.recip()) * 0.5
     }
 
-    #[inline(never)]
     pub fn sinh(self) -> Self {
         let threshold = 0.34657359028; // ln(2) / 2
         if -threshold <= self.hi && self.hi <= threshold {

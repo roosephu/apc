@@ -52,22 +52,19 @@ fn segment(mut x1: u64, x2: u64, seg_size: u64) -> Vec<(u64, u64)> {
 }
 
 #[inline(never)]
-fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
+fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     let approx_n_primes = (x2 - x1) as f64 / (x1 as f64).ln();
     assert!(f64::EPSILON * approx_n_primes < 0.1, "too many primes for f64 approx");
 
-    let mut fast_phi = crate::fast_phi::PhiFn::new(eps / (x2 - x1) as f64);
+    let mut ϕ = crate::fast_phi::LittlePhiFn::new(λ, eps / (x2 - x1) as f64);
     let c = [1.0 / λ, -1.0 / λ / 2.0, 1.0 / λ / 3.0, -1.0 / λ / 4.0];
 
     let mut calc = |p: u64| -> f64 {
         let t = (p - x) as i64 as f64 / x as f64;
-        // Expand ln(1 + u)/λ at u = x.
-        // let ρ = (((c[3] * t + c[2]) * t + c[1]) * t + c[0]) * t;
-        let ρ = t.ln_1p() / λ;
         if p <= x {
-            1.0 - fast_phi.query(ρ)
+            1.0 - ϕ.query(t)
         } else {
-            -fast_phi.query(ρ)
+            -ϕ.query(t)
         }
     };
 
@@ -84,7 +81,7 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
     }
     info!("found {} primes in the interval", n_primes);
 
-    fast_phi.stat().show("FastPhi");
+    ϕ.stat().show("Fast ϕ");
 
     Δ_1
 }
@@ -96,15 +93,16 @@ fn calc_Δ1_f64(primes: &[u64], x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> 
 #[inline(never)]
 fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     let mut ret = 0.0;
-    let primes = crate::sieve::linear_sieve(x2.sqrt());
+    // let primes = crate::sieve::linear_sieve(x2.sqrt());
+    let primes = crate::sieve::sieve_primesieve(1, x2.sqrt());
 
     // error analysis: we have ~(x2 - x1)/log(x) many p's.
     // for each p: the error by erfc is delta.
-    let Δ_1 = calc_Δ1_f64(&primes, x, eps, λ, x1, x2);
+    let Δ_1 = calc_Δ1_f64(x, eps, λ, x1, x2);
     ret += Δ_1;
 
     // error analysis: each has error delta, we have sqrt(x2) many, so in total is $delta sqrt(x2) << 1$.
-    for p in primes {
+    for &p in primes.primes {
         let mut m = 1i64;
         let mut power = p;
         while power < x2 / p {
@@ -282,13 +280,12 @@ mod tests {
         info!("   strict bounds = x + [{}, {}]", w1 as i64 - x as i64, w2 - x as u64);
         info!("heuristic bounds = x + [{}, {}]", d1 as i64 - x as i64, d2 - x as u64);
 
-        let primes = crate::sieve::linear_sieve(x.sqrt() as u64 + 100);
         let mut diff = 0.0;
         if w1 < d1 {
-            diff += calc_Δ1_f64(&primes, x as u64, eps, λ, w1, d1);
+            diff += calc_Δ1_f64(x as u64, eps, λ, w1, d1);
         }
         if d2 < w2 {
-            diff += calc_Δ1_f64(&primes, x as u64, eps, λ, d2, w2);
+            diff += calc_Δ1_f64(x as u64, eps, λ, d2, w2);
         }
         let diff = diff.abs();
         info!("diff = {}", diff);
