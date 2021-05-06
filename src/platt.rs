@@ -72,7 +72,7 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     let mut n_primes = 0;
 
     for (l, r) in segment(x1, x2, 1u64 << 34) {
-        debug!("sieving [{}, {}]", l, r);
+        info!("sieving [{}, {}]", l, r);
         let sieve_result = crate::sieve::sieve_primesieve(l, r);
         for &p in sieve_result.primes {
             n_primes += 1;
@@ -194,7 +194,7 @@ impl<T: MyReal> Platt<T> {
     /// doesn't need to be very accurate
     /// as long as they satisfy the error bound.
     pub fn plan(&mut self, x: f64, hints: PlattHints) {
-        let λ = hints.λ.unwrap_or(30.0) / x.sqrt();
+        let λ = (hints.λ.unwrap_or(50.0) * x.ln() / x).sqrt();
         info!("λ = {:.6e}", λ);
 
         let (x1, x2) = plan_Δ_bounds_heuristic(λ, x, 0.24);
@@ -251,6 +251,7 @@ impl<T: MyReal> Platt<T> {
             integral_critical, last_contribution, abs_integral
         );
         integrator_critical.stat.show("IntegratorCritical");
+        drop(roots);
 
         let Δ = calc_Δ_f64(n, 0.5, self.λ.to_f64().unwrap(), self.x1, self.x2);
         info!("Δ = {}", Δ);

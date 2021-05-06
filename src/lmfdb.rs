@@ -1,3 +1,5 @@
+use std::io::BufRead;
+
 use log::{debug, info};
 
 use crate::traits::MyReal;
@@ -13,13 +15,29 @@ macro_rules! arr {
 const LMFDB_DATA_PATH: &str = "./data/zeros";
 arr!(const LMFDB_CKPTS: [i64; _] = [14, 5000, 26000, 236000, 446000, 2546000, 4646000, 6746000, 8846000]);
 
+pub fn LMFDB_read_ckpt_list() -> Result<Vec<i64>, std::io::Error> {
+    let file = std::fs::File::open(format!("{}/md5.txt", LMFDB_DATA_PATH))?;
+    let reader = std::io::BufReader::new(file);
+    let mut indices = vec![];
+    for line in reader.lines() {
+        let line = line?;
+        let length = line.len();
+        let index = &line[40..line.len() - 4];
+        let index = index.parse::<i64>().unwrap();
+        indices.push(index);
+    }
+    indices.sort_unstable();
+    Ok(indices)
+}
+
 pub(crate) fn LMFDB_reader<T: MyReal>(limit: T) -> Result<Vec<T>, std::io::Error> {
     info!("Loading zeta zeros up to {}", limit);
+    let ckpts = LMFDB_read_ckpt_list()?;
 
     let eps = T::from_f64(2.0).unwrap().powi(-101);
 
     let mut roots = vec![];
-    for &ckpt in LMFDB_CKPTS.iter() {
+    for &ckpt in ckpts.iter() {
         let path = format!("{}/zeros_{}.dat", LMFDB_DATA_PATH, ckpt);
         let file = std::fs::File::open(&path)?;
         let mut reader = std::io::BufReader::new(file);
