@@ -7,7 +7,7 @@ type T = f64x2;
 #[derive(Clap, Debug)]
 #[clap(version = crate_version!(), author = crate_authors!())]
 struct Opts {
-    n: u64,
+    n: String,
     #[clap(long)]
     lambda_hint: Option<f64>,
     #[clap(long)]
@@ -18,7 +18,7 @@ fn main() {
     env_logger::builder().format_timestamp_micros().init();
     let opts: Opts = Opts::parse();
 
-    let n = opts.n;
+    let n = parse_int::parse::<u64>(opts.n.as_str()).unwrap();
     println!("======= computing pi({}) ======", n);
     // assert!(n >= 100000);
 
