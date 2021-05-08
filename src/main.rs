@@ -15,7 +15,7 @@ struct Opts {
 }
 
 fn main() {
-    env_logger::init();
+    env_logger::builder().format_timestamp_micros().init();
     let opts: Opts = Opts::parse();
 
     let n = opts.n;
