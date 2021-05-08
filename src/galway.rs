@@ -22,64 +22,20 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
 
     fn phi(&self, u: T, x: T) -> T { self.Phi((u / x).ln() / self.lambda) }
 
-    fn linear_sieve(n: u64) -> Vec<u64> {
-        let mut mark = bit_vec::BitVec::from_elem(n as usize + 1, false);
-        let mut primes = vec![];
-
-        for i in 2..=n {
-            if !mark[i as usize] {
-                primes.push(i);
-            }
-            for &p in &primes {
-                let t = p * i;
-                if t > n {
-                    break;
-                }
-                mark.set(t as usize, true);
-                if i as u64 % p == 0 {
-                    break;
-                }
-            }
-        }
-
-        primes
-    }
-
-    fn sieve(primes: &[u64], l: u64, r: u64) -> Vec<u64> {
-        let mut mark = bit_vec::BitVec::from_elem((r - l + 1) as usize, false);
-        for &p in primes {
-            let mut x = std::cmp::max((l - 1) / p + 1, 2) * p;
-            while x <= r {
-                mark.set((x - l) as usize, true);
-                // might overflow!
-                x += p;
-            }
-        }
-        let mut ret = vec![];
-        for x in l..=r {
-            if !mark[(x - l) as usize] {
-                ret.push(x);
-            }
-        }
-
-        ret
-    }
-
     fn calc_delta(&self, x: u64, eps: f64) -> T {
         let mut ret = T::zero();
         let fx = T::from_u64(x).unwrap();
         let (x1, x2) = (self.x1, self.x2);
         let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
 
-        let primes = Self::linear_sieve(x2.sqrt());
-        for p in Self::sieve(&primes, x1, x2) {
+        for &p in crate::sieve::sieve_primesieve(x1, x2).primes {
             ret -= self.phi(T::from_u64(p).unwrap(), fx);
             if p <= x {
                 ret += T::one();
             }
         }
 
-        for p in primes {
+        for &p in crate::sieve::sieve_primesieve(1, x2.sqrt()).primes {
             let mut m = 1i64;
             let mut power = p;
             while power < x2 / p {

@@ -18,12 +18,10 @@ name = "profile"
 path = "src/main.rs"
 
 [dependencies]
-rug = "1.11.0"
 num = "0.4.0"
 rustfft =  { path = "../RustFFT" }
 # rustfft =  { local = "../RustFFT", git = "https://github.com/roosephu/RustFFT.git" }
 GSL = "4.0.0"
-bit-vec = "0.6.3"
 log = "0.4.14"
 env_logger = "0.8.3"
 num-traits = "0.2.14"
