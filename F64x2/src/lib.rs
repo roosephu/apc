@@ -18,5 +18,6 @@ pub struct f64x2 {
 
 mod blocks;
 mod functions;
-pub mod impl_traits;
+mod impl_traits;
 mod remez;
+pub mod test_utils;

@@ -1,8 +1,3 @@
-#![feature(trait_alias)]
-#![allow(non_snake_case)]
-#![feature(non_ascii_idents)]
-#![feature(try_blocks)]
-
 use apc::*;
 use clap::{crate_authors, crate_version, Clap};
 use F64x2::f64x2;

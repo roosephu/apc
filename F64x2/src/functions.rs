@@ -385,8 +385,91 @@ impl f64x2 {
         ret
     }
 
+    pub fn approx(self) -> f64 {
+        self.hi
+    }
+
     fn erfc(self) -> Self { todo!() }
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::f64x2;
+    use num::Complex;
+
+    #[test]
+    fn test_log() {
+        let s = f64x2 { hi: 123.0, lo: 0.0 };
+        let x = s.ln();
+        let gt = f64x2 { hi: 4.812184355372417, lo: 4.291407929980309e-16 };
+        assert_close(x, gt, 1e-30);
+    }
+
+    #[test]
+    fn test_sqrt() {
+        let s = f64x2 { hi: 123.0, lo: 0.0 };
+        assert_close(s.sqrt(), f64x2 { hi: 11.090536506409418, lo: -5.209651269937913e-16 }, 1e-30);
+    }
+
+    #[test]
+    fn test_exp() {
+        let s = f64x2 { hi: 3.4538776394910684, lo: 0.0000000000000001184757763427252 };
+        assert_close(s.exp(), f64x2 { hi: 31.622776601683793, lo: 7.566535620287156e-16 }, 1e-30);
+    }
+
+    #[test]
+    fn test_complex_log() {
+        let s1 = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 10.0, lo: 0.0 });
+        let gt = Complex::new(
+            f64x2 { hi: 2.3137103974614557, lo: -1.1772777930167866e-16 },
+            f64x2 { hi: 1.4219063791853994, lo: -4.7442629531916207e-17 },
+        );
+        assert_complex_close(s1.ln(), gt, 1e-30);
+    }
+
+    #[test]
+    fn test_cos_sin() {
+        let t = f64x2 { hi: 1.034702354811904, lo: 8.06154861650416e-17 };
+        assert_close(t.cos(), f64x2 { hi: 0.5107818439368557, lo: 1.0134834604058354e-17 }, 3e-32);
+
+        let s = f64x2 { hi: 23.025850929940457, lo: -0.00000000000000039439938398199903 };
+        assert_close(
+            s.cos(),
+            f64x2 { hi: -0.5107818439368557, lo: -1.0134834604058354e-17 },
+            3e-32,
+        );
+        assert_close(s.sin(), f64x2 { hi: -0.8597103627992777, lo: 4.575936712504712e-17 }, 3e-32);
+    }
+
+    #[test]
+    fn test_complex_exp() {
+        let s1 = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 10.0, lo: 0.0 });
+        let gt = Complex::new(
+            f64x2 { hi: -3.7604577010937845, lo: -1.9567327806486033e-16 },
+            f64x2 { hi: -2.438133466706061, lo: -5.786232568383162e-17 },
+        );
+        assert_complex_close(s1.exp(), gt, 2e-31);
+
+        let s2 = Complex {
+            re: f64x2 { hi: 3.4538776394910684, lo: 0.0000000000000001184757763427252 },
+            im: f64x2 { hi: 23.025850929940457, lo: -0.00000000000000039439938398199903 },
+        };
+        let gt = Complex::new(
+            f64x2 { hi: -16.1523401430113, lo: -1.3105798758488752e-15 },
+            f64x2 { hi: -27.186428744954082, lo: -8.416517329489051e-16 },
+        );
+        assert_complex_close(s2.exp(), gt, 3e-32);
+    }
+
+    #[test]
+    fn test_powc() {
+        let s = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 1.0, lo: 0.0 });
+        let b = Complex::new(f64x2 { hi: 10.0, lo: 0.0 }, f64x2::zero());
+        let x = b.powc(s);
+        let gt = Complex::new(
+            f64x2 { hi: -21.130387081656004, lo: 5.226753154184954e-16 },
+            f64x2 { hi: 23.52672399165224, lo: -4.0310962858867735e-17 },
+        );
+        assert_complex_close(x, gt, 1e-31);
+    }
+}

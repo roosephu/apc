@@ -134,7 +134,7 @@ fn cramer_stats(x: f64, λ: f64, d: f64) -> (f64, f64, f64) {
 }
 
 /// exactly the same as Galway's paper.
-pub fn plan_Δ_bounds_strict(λ: f64, x: f64, eps: f64) -> (u64, u64) {
+fn plan_Δ_bounds_strict(λ: f64, x: f64, eps: f64) -> (u64, u64) {
     let eps = eps / 2.0;
 
     let t1 = brentq(|t| err_l(t, x, λ) - eps, 0.0, -8.0, 0.0, 0.0, 100).unwrap_or(x);

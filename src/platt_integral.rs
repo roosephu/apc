@@ -181,7 +181,7 @@ impl<T: MyReal> PlattIntegrator<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::*;
+    use F64x2::test_utils::*;
     use F64x2::f64x2;
 
     #[test]

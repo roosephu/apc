@@ -452,13 +452,13 @@ impl<T: MyReal + GabckeExpansion> RiemannSiegelZ<'_, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::*;
     use crate::*;
     use brentq::brentq;
     use num::Complex;
     use num::Zero;
     use riemann_siegel::RiemannSiegelTheta;
     use F64x2::f64x2;
+    use F64x2::test_utils::*;
 
     #[test]
     fn rszeta() {
