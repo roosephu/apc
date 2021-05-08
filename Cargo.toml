@@ -1,6 +1,6 @@
 [package]
 name = "apc"
-version = "0.2.6"
+version = "0.2.7"
 authors = ["Yuping Luo <roosephu@gmail.com>"]
 edition = "2018"
 description = "Analytical Prime Counting"

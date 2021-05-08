@@ -62,8 +62,8 @@ pub(crate) fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
 
 #[cfg(test)]
 mod tests {
-    use F64x2::test_utils::*;
     use F64x2::f64x2;
+    use F64x2::test_utils::*;
 
     use super::*;
 

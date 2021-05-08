@@ -1,5 +1,5 @@
 use crate::brentq::brentq;
-use crate::platt_integral::PlattIntegrator;
+use crate::platt_integral::*;
 use crate::traits::*;
 use log::{debug, info};
 use num::integer::*;
@@ -189,7 +189,7 @@ fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
 
 /// Problem: How to bound the abs integral here?
 fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) -> T {
-    let mut integrator = PlattIntegrator::new(
+    let mut integrator = HybridPrecIntegrator::new(
         T::from_u64(x).unwrap(),
         T::one() / 2.0,
         T::from_f64(λ).unwrap(),
@@ -202,34 +202,32 @@ fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) 
     let roots = crate::lmfdb::LMFDB_reader::<T>(limit).unwrap();
 
     info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
-    let mut int_abs = T::zero();
-    for i in 1..roots.len() {
-        let a = roots[i - 1];
-        let b = roots[i];
-        let integral = integrator.query(a, b).im;
-        result += integral * i as f64;
-        last_contribution = integral * i as f64;
-        int_abs += integral.abs() * i as f64;
+    for root in roots {
+        let integral = integrator.query(root).im;
+        result += integral;
+        last_contribution = integral;
     }
-    info!("integral critical = {}, last = {}, int |f| = {}", result, last_contribution, int_abs,);
-    integrator.stat.show("IntegratorCritical");
-    // assert!(abs_integral.to_f64().unwrap() <= 1e12);
+    info!(
+        "integral critical = {}, last = {}, max_err/f64::eps = {:.e}",
+        result, last_contribution, integrator.max_err
+    );
+    assert!(integrator.max_err < 1e13, "possible loss of precision! use PlattIntegrator instead");
 
     result
 }
 
 fn integrate_offline<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) -> T {
     // the result = n / log(n) + o(n)
-    let mut integrator_offline = PlattIntegrator::<T>::new(
+    let mut integrator = PlattIntegrator::<T>::new(
         T::from_u64(x).unwrap(),
         T::one(),
         T::from_f64(λ).unwrap(),
         max_order,
         0.01,
     );
-    let result = integrator_offline.query(T::zero(), T::from_f64(limit).unwrap()).im;
+    let result = integrator.query(T::zero()).im;
     info!("offline integral = {}", result);
-    integrator_offline.stat.show("IntegratorOffline");
+    // integrator_offline.stat.show("IntegratorOffline");
 
     result
 }

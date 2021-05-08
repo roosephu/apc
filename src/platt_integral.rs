@@ -1,41 +1,19 @@
 use crate::cache_stat::CacheStat;
 use crate::traits::ComplexFunctions;
 use crate::{power_series::PowerSeries, traits::MyReal};
-use log::debug;
+use log::{debug, info};
 use num::Complex;
 
-type Expansion<T> = (T, T, T, Complex<T>, PowerSeries<Complex<T>>);
-
-/// to compute $$\int x^s exp(λ^2 s^2 / 2) / s dh$$ for $s = \σ + ih$
-pub struct PlattIntegrator<T> {
-    order: usize,
-    eps: T,
-    σ: T,
-    λ_sqr: T,
-    ln_x: T,
-    expansion: Option<Expansion<T>>,
-    cache: Option<(T, Complex<T>)>, // save the last query
-    pub stat: CacheStat,
+/// We approximate Φ(σ + it) ≈ poly(t - t0) * C * ϕ(σ + it)
+struct ExpansionIntegrator<T> {
+    t: T, // center
+    radius: T,
+    w: T,
+    coeff: Complex<T>,
+    poly: PowerSeries<Complex<T>>,
 }
 
-impl<T: MyReal> PlattIntegrator<T> {
-    pub fn new(x: T, σ: T, λ: T, max_order: usize, eps: f64) -> Self {
-        Self {
-            ln_x: x.ln(),
-            σ,
-            eps: T::from_f64(eps).unwrap(),
-            order: max_order,
-            λ_sqr: λ * λ,
-            expansion: None,
-            cache: None,
-            stat: CacheStat::new(),
-        }
-    }
-
-    pub fn hat_phi(&self, s: Complex<T>) -> Complex<T> {
-        (self.λ_sqr / T::from_f64(2.0).unwrap() * s * s + s * self.ln_x).exp() / s
-    }
-
+impl<T: MyReal> ExpansionIntegrator<T> {
     /// expand exp(a z^2 + c z) at z = 0
     fn expand_exp_term(order: usize, a: Complex<T>, c: Complex<T>) -> PowerSeries<Complex<T>> {
         let mut poly = PowerSeries::<Complex<T>>::from_vec(order, vec![Complex::<T>::zero(), c, a]);
@@ -62,14 +40,13 @@ impl<T: MyReal> PlattIntegrator<T> {
     /// See Readme
     /// Expand f(w h) = exp(-λ^2 h^2 / 2 + i h λ^2 s_0) / (1 + i h / s_0) with w = i ln x.
     /// another option is to expand f(w h) = exp(-λ^2 h^2 / 2) / (1 + i h / s_0) with w = i (λ^2 s_0 + ln x).
-    fn expand_at(&self, s0: Complex<T>, order: usize) -> (T, PowerSeries<Complex<T>>) {
-        let w = self.ln_x;
-        let a = self.λ_sqr / 2.0 / w / w;
-        let b = -T::one() / s0 / self.ln_x;
-        let c = s0 * (self.λ_sqr / self.ln_x);
-        let mut ps_exp =
-            PlattIntegrator::expand_exp_term(order, Complex::<T>::new(a, T::zero()), c);
-        let ps_recip = PlattIntegrator::expand_reciprocal_term(order, b);
+    fn expand_at(s0: Complex<T>, ln_x: T, λ: T, order: usize) -> (T, PowerSeries<Complex<T>>) {
+        let w = ln_x;
+        let a = λ * λ / 2.0 / w / w;
+        let b = -T::one() / s0 / ln_x;
+        let c = s0 * (λ * λ / ln_x);
+        let mut ps_exp = Self::expand_exp_term(order, Complex::<T>::new(a, T::zero()), c);
+        let ps_recip = Self::expand_reciprocal_term(order, b);
         ps_exp *= &ps_recip;
 
         (w, ps_exp)
@@ -90,15 +67,14 @@ impl<T: MyReal> PlattIntegrator<T> {
         (w_norm, w_dir)
     }
 
-    #[inline(never)]
-    fn prepare(&mut self, t: T) {
-        self.stat.miss();
+    fn new(t: T, σ: T, x: T, λ: T, eps: f64, order: usize) -> Self {
+        let ln_x = x.ln();
+        let s = Complex::new(σ, t);
+        let (w, mut poly) = Self::expand_at(s, ln_x, λ, order);
+        let hat_phi = (λ * λ / 2.0 * s * s + s * ln_x).exp() / s;
+        let coeff = hat_phi / Complex::<T>::new(T::zero(), w);
 
-        let s0 = Complex::new(self.σ, t);
-        let (w, mut poly) = self.expand_at(s0, self.order);
-        let mul_coeff = self.hat_phi(s0) / Complex::<T>::new(T::zero(), w);
-
-        for i in 0..self.order {
+        for i in 0..order {
             let mut signed_falling_factorial = T::one();
             for j in 0..i {
                 signed_falling_factorial *= -T::from_usize(i - j).unwrap();
@@ -107,82 +83,131 @@ impl<T: MyReal> PlattIntegrator<T> {
             }
         }
 
-        let poly_eps = self.eps / mul_coeff.norm() / T::from_usize(self.order).unwrap();
-        let radius = (poly_eps / poly.coeffs[self.order - 1].norm())
-            .powf(T::one() / (self.order as f64 - 1.0))
-            / w;
-        debug!("[Integral] prepare {}, radius = {}", t, radius);
+        let poly_eps = T::from_f64(eps).unwrap() / coeff.norm() / T::from_usize(order).unwrap();
+        let radius =
+            (poly_eps / poly.coeffs[order - 1].norm()).powf(T::one() / (order as f64 - 1.0)) / w;
+        debug!("[Expansion] prepare {}, radius = {}", t, radius);
 
         // we've expanded in a new t0, and should clear cache.
-        self.cache = None;
-
         Self::normalize_(&mut poly, Complex::<T>::new(T::zero(), w));
-        self.expansion = Some((t, radius, w, mul_coeff, poly));
+        Self { t, radius, w, coeff, poly }
     }
 
-    /// assuming the power series converges well at given point s.
-    #[inline(never)]
-    fn _query(&mut self, t: T) -> Complex<T> {
-        if let Some((k, v)) = self.cache {
-            if k == t {
-                return v;
-            }
-        }
+    pub fn query(&self, t: T) -> Complex<T> {
+        let diff = t - self.t;
+        assert!(diff.abs() <= self.radius, "t = {}, t0 = {}", t, self.t);
 
-        self.stat.hit();
-        let (t0, _, w, mul_coeff, ps) = self.expansion.as_ref().unwrap();
-        let &w = w;
-
-        let z = w * (t - *t0);
+        let z = self.w * diff;
         let mut poly = Complex::<T>::zero();
         let mut z_pow = T::one();
-        for i in 0..self.order {
-            poly += ps.coeffs[i] * z_pow;
+        for i in 0..self.poly.n {
+            poly += self.poly.coeffs[i] * z_pow;
             z_pow *= z;
         }
         let (sin_z, cos_z) = z.sin_cos();
         let exp_i_z = Complex::new(cos_z, sin_z);
-        mul_coeff * (poly * exp_i_z - ps.coeffs[0])
+
+        self.coeff * (poly * exp_i_z - self.poly.coeffs[0])
+    }
+}
+
+fn get_expansions<T: MyReal>(
+    x: T,
+    σ: T,
+    λ: T,
+    max_order: usize,
+    limit: T,
+    eps: f64,
+) -> Vec<ExpansionIntegrator<T>> {
+    let mut expansions = vec![];
+
+    let mut t = T::zero();
+    while t < limit {
+        let expansion = ExpansionIntegrator::new(t, σ, x, λ, eps, max_order);
+        t += expansion.radius / 1.2;
+        expansions.push(expansion);
+    }
+    expansions
+}
+
+/// to compute $$\int x^s exp(λ^2 s^2 / 2) / s dh$$ for $s = \σ + ih$
+pub struct PlattIntegrator<T> {
+    expansions: Vec<ExpansionIntegrator<T>>,
+    to_inf: Vec<Complex<T>>,
+}
+
+impl<T: MyReal> PlattIntegrator<T> {
+    pub fn new(x: T, σ: T, λ: T, max_order: usize, eps: f64) -> Self {
+        let limit = (x.ln() + x.ln().ln()).sqrt() / λ * 2.0;
+        let expansions = get_expansions(x, σ, λ, max_order, limit, eps);
+
+        let mut to_inf = vec![Complex::<T>::zero(); expansions.len()];
+        let mut t = limit;
+        for (i, expansion) in expansions.iter().enumerate().rev() {
+            debug!("add to inf: t = {}, t0 = {}, radius = {}", t, expansion.t, expansion.radius);
+            if i + 1 != expansions.len() {
+                to_inf[i] = to_inf[i + 1] + expansion.query(t);
+            }
+            t = expansion.t;
+        }
+        info!(
+            "[PlattIntegrator] up to {}, {} segments, integral = {}",
+            limit,
+            expansions.len(),
+            to_inf[0],
+        );
+
+        Self { expansions, to_inf }
     }
 
     #[inline(never)]
-    pub fn query(&mut self, mut t1: T, t2: T) -> Complex<T> {
-        // debug!("[integral] query [{}, {}]", t1, t2);
-        if let Some((t0, radius, _, _, _)) = self.expansion.as_ref() {
-            if (t1 - *t0).abs() < *radius && (t2 - t1).abs() < *radius {
-                // debug!("[integral] easy case.");
+    pub fn query(&mut self, t: T) -> Complex<T> {
+        let index = self.expansions.partition_point(|key| key.t <= t);
+        assert!(index > 0);
+        let index = index - 1;
+        self.to_inf[index] - self.expansions[index].query(t)
+    }
+}
 
-                let f_t1 = self._query(t1);
-                let f_t2 = self._query(t2);
-                self.cache = Some((t2, f_t2));
-                return f_t2 - f_t1;
-            }
+pub struct HybridPrecIntegrator<T> {
+    expansions: Vec<ExpansionIntegrator<f64>>,
+    to_inf: Vec<Complex<T>>,
+    pub max_err: f64,
+}
+
+impl<T: MyReal> HybridPrecIntegrator<T> {
+    pub fn new(x: T, σ: T, λ: T, max_order: usize, eps: f64) -> Self {
+        let high_prec = PlattIntegrator::new(x, σ, λ, max_order, eps);
+        let mut expansions = vec![];
+
+        let (x_, σ_, λ_) = (x.to_f64().unwrap(), σ.to_f64().unwrap(), λ.to_f64().unwrap());
+        for high_prec_expansion in high_prec.expansions.iter() {
+            let t = high_prec_expansion.t.to_f64().unwrap();
+            let low_prec_expansion = ExpansionIntegrator::new(t, σ_, x_, λ_, eps, max_order);
+            expansions.push(low_prec_expansion)
         }
 
-        let mut result = Complex::zero();
-        loop {
-            self.prepare(t1);
-            let (_, radius, _, _, _) = self.expansion.as_ref().unwrap();
-            let radius = *radius;
+        Self { expansions, to_inf: high_prec.to_inf, max_err: 0.0 }
+    }
 
-            let max_t = t1 + radius;
-            if max_t > t2 {
-                result += self._query(t2);
-                break;
-            } else {
-                result += self._query(max_t);
-                t1 = max_t;
-            }
-        }
-        result
+    #[inline(never)]
+    pub fn query(&mut self, t: T) -> Complex<T> {
+        let t = t.to_f64().unwrap();
+        let index = self.expansions.partition_point(|key| key.t <= t);
+        assert!(index > 0);
+        let index = index - 1;
+        let a = self.to_inf[index];
+        let b = self.expansions[index].query(t);
+        self.max_err += b.norm();
+        Complex::new(a.re - b.re, a.im - b.im)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use F64x2::test_utils::*;
     use F64x2::f64x2;
+    use F64x2::test_utils::*;
 
     #[test]
     fn test_platt_integral() {
@@ -196,7 +221,7 @@ mod tests {
 
         let t1 = T::zero() + 14.0;
         let t2 = T::from_f64(8e3).unwrap();
-        println!("{}", integrator.query(T::zero(), t2));
+        println!("{}", integrator.query(T::zero()));
 
         // panic!();
     }

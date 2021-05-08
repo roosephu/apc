@@ -110,8 +110,8 @@ mod tests {
     use crate::traits::MyReal;
     use num::traits::FloatConst;
     use num::{Complex, Zero};
-    use F64x2::test_utils::*;
     use F64x2::f64x2;
+    use F64x2::test_utils::*;
 
     type T = f64x2;
 

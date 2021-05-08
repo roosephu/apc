@@ -32,7 +32,7 @@ Unfortunately, after writing these code, I still don't think I've learnt Rust. S
 
 ### Why [Platt] instead of [Buthe]?
 
-Because [Buthe] seems too difficult to me. 
+Because [Buthe] seems too difficult to me.
 
 # Some technical details
 
@@ -80,6 +80,8 @@ Finally, we minimize $d$ so that $S \leq 0.24$. In this way, we can get a shorte
 
 In practice, when $x = 10^{11}$ and $\lambda = 3 \times 10^{-5}$, [Galway] predicts an interval of length 3e7 while this predicts an interval of length 2e7, while the difference between two sums is around 0.0112.
 
+This is first introduced in commit `d67fa9d` in v0.2.?.
+
 ## Precision loss when computing $\Delta$ using `f64`
 
 Recall that
@@ -98,7 +100,7 @@ so there are two possible precision loss:
 
 ## Integrating $\hat\phi(s)$
 
-Here we'd like to integrate $\hat\phi(s) = \frac{x^s}{s} \exp(\lambda^2 s^2 / 2)$. We basically follow the method in [Section 6, Platt] but with a small modification.
+Here we'd like to integrate $\hat\phi(s) = \frac{x^s}{s} \exp(\lambda^2 s^2 / 2)$. We basically follow the method in [Section 6, Platt] but with a small modification. We refer the readers to [Platt] for more details.
 
 The high level idea is that: We express $\hat\phi(s_0 + ih) = \hat\phi(s_0) f(z) \exp(z)$ for some complex number $z = wh$ and function $f(z)$, and find a polynomial $P(z)$ to approximate $f(z)$ locally, then we apply integration by parts repeatedly:
 $$
@@ -118,3 +120,24 @@ $$
 $$
 The benefit of ours is that $ih\ln x$ has only imaginary part, so it's faster to compute the exponential function. This can speed it up a little bit (5% perhaps) when $x$ is not too large that LMFDB has enough zeros of $\zeta(s)$.
 
+We pick up $\hat t_{1, \dots, m}$ such that for any $t$ of interest, we can find a $\hat t_j$ *around* it. More specifically, each $\hat t_j$ can work for $t \in [\hat t_j - r_j, \hat t_j + r_j]$, so we just want to make sure that $\bigcup [\hat t_j - r_j, \hat t_j + r_j]$ covers $[0, U]$ where $U$ is the upper limit of integral. To achieve the same approximation error, the radius $r_i$ is proportional to $|\hat t_j|$, so we only need $m = O(\log U)$.
+
+### Hybrid Precision Integration
+
+In this subsection, we'd like to equip low precision data types to speed up the term $\sum_\rho \hat\Phi(\rho)$.
+
+Assume each $\hat\Phi(\sigma + it)$ is calculated with an relative error  $\delta$, the absolute error of the summation is then bounded by
+$$
+\delta \sum_{\Im \rho > 0}  |\hat\Phi(\rho)|,
+$$
+which turns out to be acceptable by numerical examination. In practice, the term
+$$
+\sum_{\Im \rho > 0} |\hat \Phi(\rho)| \approx 5.5 \times 10^8,
+$$
+when $x = 10^{18}, \lambda = 5 \times 10^{-8}$, so it's totally fine for `f64`. 
+
+So we pick $\hat t_{1, \dots, m}$ and compute $\hat\Phi(\sigma + i \hat t_{j})$ for every  $j$ using high precision. Then we approximate $\hat\phi(s_0 + ih)$ locally as mentioned before, for each $s_0 = \sigma + i \hat t_j$ using `f64`. When we want to query $\hat\Phi(\sigma + it)$ for any $t$, we find the last $\hat t_j \leq t$ and use the relationship:
+$$
+\hat \Phi(\sigma + it) = \hat\Phi(\sigma + i\hat t_j) + \int_t^{\hat t_j} \hat\phi(\sigma + i h) \d h,
+$$
+the latter of which is computed as before, but with `f64`. In practice, this method often leads to a 8x speedup when computing the integral. 
