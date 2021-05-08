@@ -5,17 +5,9 @@ use log::{debug, info};
 use crate::traits::MyReal;
 use byteorder::{LittleEndian, ReadBytesExt};
 
-/// https://stackoverflow.com/questions/40107797/can-array-lengths-be-inferred-in-rust
-macro_rules! arr {
-    ($id: ident $name: ident: [$ty: ty; _] = $value: expr) => {
-        $id $name: [$ty; $value.len()] = $value;
-    }
-}
-
 const LMFDB_DATA_PATH: &str = "./data/zeros";
-arr!(const LMFDB_CKPTS: [i64; _] = [14, 5000, 26000, 236000, 446000, 2546000, 4646000, 6746000, 8846000]);
 
-pub fn LMFDB_read_ckpt_list() -> Result<Vec<i64>, std::io::Error> {
+fn LMFDB_read_ckpt_list() -> Result<Vec<i64>, std::io::Error> {
     let file = std::fs::File::open(format!("{}/md5.txt", LMFDB_DATA_PATH))?;
     let reader = std::io::BufReader::new(file);
     let mut indices = vec![];
@@ -30,14 +22,19 @@ pub fn LMFDB_read_ckpt_list() -> Result<Vec<i64>, std::io::Error> {
     Ok(indices)
 }
 
-pub(crate) fn LMFDB_reader<T: MyReal>(limit: f64) -> Result<Vec<T>, std::io::Error> {
+// Actually, I think it's better not to take a function as input, but return an Iterator.
+// However, I'm too lazy to convert it to an iterator. Wish Generator was stablized.
+pub(crate) fn LMFDB_reader<T: MyReal, F: FnMut(T)>(
+    limit: f64,
+    mut f: F,
+) -> Result<(), std::io::Error> {
     info!("Loading zeta zeros up to {}", limit);
     let ckpts = LMFDB_read_ckpt_list()?;
 
     let eps = T::from_f64(2.0).unwrap().powi(-101);
     let limit = T::from_f64(limit).unwrap();
 
-    let mut roots = vec![];
+    let mut n_roots = 0usize;
     for &ckpt in ckpts.iter() {
         let path = format!("{}/zeros_{}.dat", LMFDB_DATA_PATH, ckpt);
         let file = std::fs::File::open(&path)?;
@@ -64,11 +61,11 @@ pub(crate) fn LMFDB_reader<T: MyReal>(limit: f64) -> Result<Vec<T>, std::io::Err
                 let zz = t0 + T::from_u128(z).unwrap() * eps;
 
                 if zz > limit {
-                    info!("largest zeta roots {:?}, # zeros = {}", roots.last(), roots.len());
-                    return Ok(roots);
+                    info!("# zeros = {}", n_roots);
+                    return Ok(());
                 }
-                // debug!("read zero: {}", z);
-                roots.push(zz);
+                n_roots += 1;
+                f(zz);
             }
         }
     }

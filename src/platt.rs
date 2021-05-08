@@ -188,6 +188,7 @@ fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
 }
 
 /// Problem: How to bound the abs integral here?
+#[inline(never)]
 fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) -> T {
     let mut integrator = HybridPrecIntegrator::new(
         T::from_u64(x).unwrap(),
@@ -199,14 +200,20 @@ fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) 
     let mut result = T::zero();
     let mut last_contribution = T::zero();
 
-    let roots = crate::lmfdb::LMFDB_reader::<T>(limit).unwrap();
-
-    info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
-    for root in roots {
+    let work = |root| {
         let integral = integrator.query(root).im;
         result += integral;
         last_contribution = integral;
-    }
+    };
+
+    info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
+    crate::lmfdb::LMFDB_reader::<T, _>(limit, work).unwrap();
+
+    // for root in roots {
+    //     let integral = integrator.query(root).im;
+    //     result += integral;
+    //     last_contribution = integral;
+    // }
     info!(
         "integral critical = {}, last = {}, max_err/f64::eps = {:.e}",
         result, last_contribution, integrator.max_err

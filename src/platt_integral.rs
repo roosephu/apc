@@ -160,7 +160,6 @@ impl<T: MyReal> PlattIntegrator<T> {
         Self { expansions, to_inf }
     }
 
-    #[inline(never)]
     pub fn query(&mut self, t: T) -> Complex<T> {
         let index = self.expansions.partition_point(|key| key.t <= t);
         assert!(index > 0);
@@ -190,7 +189,6 @@ impl<T: MyReal> HybridPrecIntegrator<T> {
         Self { expansions, to_inf: high_prec.to_inf, max_err: 0.0 }
     }
 
-    #[inline(never)]
     pub fn query(&mut self, t: T) -> Complex<T> {
         let t = t.to_f64().unwrap();
         let index = self.expansions.partition_point(|key| key.t <= t);
