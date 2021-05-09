@@ -42,7 +42,13 @@ impl PlattBuilder {
         let λ = (self.hint_λ * x_.ln() / x_).sqrt();
         let (x1, x2) = plan_Δ_bounds_heuristic(λ, x_, 0.24);
         let integral_limit = plan_integral(λ, x_, 0.1);
-        info!("λ = {:.6e}", λ);
+
+        // Lemma 4.5
+        let ignored = (λ * λ / 2.0).exp() * (12.533141373155 + 2.0 / λ)
+            / (2.0 * std::f64::consts::PI * x_ * λ);
+
+        info!("λ = {:.6e}, ignored = {:.6}", λ, ignored);
+        assert!(ignored < 0.1, "Too large ignored term. See [Lemma 4.5, Platt].");
         info!("integral limit = {:.6}", integral_limit);
 
         Platt {
