@@ -8,7 +8,7 @@ The program hasn't been tested so it might produce incorrect numbers or even fai
 
 No, it's very slow, compared to [primecount](https://github.com/kimwalisch/primecount). It's even slow compared without LMFDB.
 
-With that being said, it's not that slow as people might think. For example, with the help of LMFDB, it successfully calculates $\pi(10^{18}) = 24739954287740860$ in about 13.5min in my laptop (Macbook Pro 13-inch, 2017) with a single thread. As a comparison, `primecount` gives the same answer in about 100s in the same environment (`primecount 1e18 -t 1`), so the analytic method is ~8x slower.
+With that being said, it's not that slow as people might think. For example, with the help of LMFDB, it successfully calculates $\pi(10^{18}) = 24739954287740860$ in about 8.5min in my laptop (Macbook Pro 13-inch, 2017) with a single thread. As a comparison, `primecount` gives the same answer in about 100s in the same environment (`primecount 1e18 -t 1`), so the analytic method is ~5x slower.
 
 The algorithm can run in parallel easily but I don't do that.
 
@@ -126,7 +126,7 @@ We pick up $\hat t_{1, \dots, m}$ such that for any $t$ of interest, we can find
 
 In this subsection, we'd like to equip low precision data types to speed up the term $\sum_\rho \hat\Phi(\rho)$.
 
-Assume each $\hat\Phi(\sigma + it)$ is calculated with an relative error  $\delta$, the absolute error of the summation is then bounded by
+Assume each $\hat\Phi(\sigma + it)$ is calculated with an relative error at max  $\delta$, the absolute error of the summation is then bounded by
 $$
 \delta \sum_{\Im \rho > 0}  |\hat\Phi(\rho)|,
 $$
@@ -141,3 +141,6 @@ $$
 \hat \Phi(\sigma + it) = \hat\Phi(\sigma + i\hat t_j) + \int_t^{\hat t_j} \hat\phi(\sigma + i h) \d h,
 $$
 the latter of which is computed as before, but with `f64`. In practice, this method often leads to a 8x speedup when computing the integral. 
+
+Now we seek to reduce $\delta$. The bottleneck is trigonometric functions: $\sin(x)$ has a relative error of $|x|$. So we simply use high precision to first reduce any $x$ to $x \bmod 2\pi$ in high precision, and then compute $\exp(iz)$ in `f64`. Numerical experiment shows that $\delta \leq 10^{-15}$. 
+

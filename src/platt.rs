@@ -209,16 +209,12 @@ fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) 
     info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
     crate::lmfdb::LMFDB_reader::<T, _>(limit, work).unwrap();
 
-    // for root in roots {
-    //     let integral = integrator.query(root).im;
-    //     result += integral;
-    //     last_contribution = integral;
-    // }
+    let max_err = integrator.max_err;
     info!(
         "integral critical = {}, last = {}, max_err/f64::eps = {:.e}",
-        result, last_contribution, integrator.max_err
+        result, last_contribution, max_err
     );
-    assert!(integrator.max_err < 1e13, "possible loss of precision! use PlattIntegrator instead");
+    assert!(max_err < 1e13, "possible loss of precision! use PlattIntegrator instead");
 
     result
 }

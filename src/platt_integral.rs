@@ -2,7 +2,7 @@ use crate::cache_stat::CacheStat;
 use crate::traits::ComplexFunctions;
 use crate::{power_series::PowerSeries, traits::MyReal};
 use log::{debug, info};
-use num::Complex;
+use num::{Complex, ToPrimitive};
 
 /// We approximate Φ(σ + it) ≈ poly(t - t0) * C * ϕ(σ + it)
 struct ExpansionIntegrator<T> {
@@ -84,13 +84,39 @@ impl<T: MyReal> ExpansionIntegrator<T> {
         }
 
         let poly_eps = T::from_f64(eps).unwrap() / coeff.norm() / T::from_usize(order).unwrap();
-        let radius =
-            (poly_eps / poly.coeffs[order - 1].norm()).powf(T::one() / (order as f64 - 1.0)) / w;
-        debug!("[Expansion] prepare {}, radius = {}", t, radius);
+        let radius = Self::calc_radius(&poly.coeffs, poly_eps) / w;
+        debug!(
+            "[Expansion] prepare {}, radius = {}, {}, {}",
+            t,
+            radius,
+            poly_eps,
+            poly.coeffs[order - 1].norm()
+        );
 
         // we've expanded in a new t0, and should clear cache.
         Self::normalize_(&mut poly, Complex::<T>::new(T::zero(), w));
         Self { t, radius, w, coeff, poly }
+    }
+
+    // TODO: calculate a conservative radius so that we can use small order.
+    fn calc_radius(coeffs: &[Complex<T>], eps: T) -> T {
+        for (idx, &coeff) in coeffs.iter().enumerate().rev() {
+            if !coeff.norm_sqr().is_zero() {
+                return (eps / coeff.norm()).powf(T::one() / idx as f64);
+            }
+        }
+        panic!();
+    }
+
+    pub fn query_by_z(&self, z: T, exp_i_z: Complex<T>) -> Complex<T> {
+        let mut poly = Complex::<T>::zero();
+        let mut z_pow = T::one();
+        for i in 0..self.poly.n {
+            poly += self.poly.coeffs[i] * z_pow;
+            z_pow *= z;
+        }
+
+        self.coeff * (poly * exp_i_z - self.poly.coeffs[0])
     }
 
     pub fn query(&self, t: T) -> Complex<T> {
@@ -98,16 +124,10 @@ impl<T: MyReal> ExpansionIntegrator<T> {
         assert!(diff.abs() <= self.radius, "t = {}, t0 = {}", t, self.t);
 
         let z = self.w * diff;
-        let mut poly = Complex::<T>::zero();
-        let mut z_pow = T::one();
-        for i in 0..self.poly.n {
-            poly += self.poly.coeffs[i] * z_pow;
-            z_pow *= z;
-        }
         let (sin_z, cos_z) = z.sin_cos();
         let exp_i_z = Complex::new(cos_z, sin_z);
 
-        self.coeff * (poly * exp_i_z - self.poly.coeffs[0])
+        self.query_by_z(z, exp_i_z)
     }
 }
 
@@ -124,7 +144,7 @@ fn get_expansions<T: MyReal>(
     let mut t = T::zero();
     while t < limit {
         let expansion = ExpansionIntegrator::new(t, σ, x, λ, eps, max_order);
-        t += expansion.radius / 1.2;
+        t += expansion.radius * 0.5;
         expansions.push(expansion);
     }
     expansions
@@ -144,7 +164,6 @@ impl<T: MyReal> PlattIntegrator<T> {
         let mut to_inf = vec![Complex::<T>::zero(); expansions.len()];
         let mut t = limit;
         for (i, expansion) in expansions.iter().enumerate().rev() {
-            debug!("add to inf: t = {}, t0 = {}, radius = {}", t, expansion.t, expansion.radius);
             if i + 1 != expansions.len() {
                 to_inf[i] = to_inf[i + 1] + expansion.query(t);
             }
@@ -161,41 +180,78 @@ impl<T: MyReal> PlattIntegrator<T> {
     }
 
     pub fn query(&mut self, t: T) -> Complex<T> {
-        let index = self.expansions.partition_point(|key| key.t <= t);
+        let mut index = self.expansions.partition_point(|key| key.t <= t);
         assert!(index > 0);
-        let index = index - 1;
+        index -= 1;
         self.to_inf[index] - self.expansions[index].query(t)
     }
 }
 
+struct HybridPrecItem<T> {
+    expansion: ExpansionIntegrator<f64>,
+    to_inf: Complex<T>,
+    t: T,
+}
+
 pub struct HybridPrecIntegrator<T> {
-    expansions: Vec<ExpansionIntegrator<f64>>,
-    to_inf: Vec<Complex<T>>,
+    items: Vec<HybridPrecItem<T>>,
+    w: T,
     pub max_err: f64,
 }
 
 impl<T: MyReal> HybridPrecIntegrator<T> {
     pub fn new(x: T, σ: T, λ: T, max_order: usize, eps: f64) -> Self {
         let high_prec = PlattIntegrator::new(x, σ, λ, max_order, eps);
-        let mut expansions = vec![];
 
-        let (x_, σ_, λ_) = (x.to_f64().unwrap(), σ.to_f64().unwrap(), λ.to_f64().unwrap());
-        for high_prec_expansion in high_prec.expansions.iter() {
-            let t = high_prec_expansion.t.to_f64().unwrap();
-            let low_prec_expansion = ExpansionIntegrator::new(t, σ_, x_, λ_, eps, max_order);
-            expansions.push(low_prec_expansion)
+        let items = high_prec
+            .expansions
+            .iter()
+            .zip(high_prec.to_inf.iter())
+            .map(|(high_prec, &to_inf)| HybridPrecItem {
+                expansion: Self::calc_low_prec_expansion(high_prec),
+                to_inf,
+                t: high_prec.t,
+            })
+            .collect();
+
+        Self { items, w: x.ln(), max_err: 0.0 }
+    }
+
+    // We don't use the ExpansionIntegrator to build low precision expansion,
+    // the `ExpansionIntegrator.coeff` involves exp(ln(x) t), which might lose
+    // precision if computed in f64.
+    fn calc_low_prec_expansion(high_prec: &ExpansionIntegrator<T>) -> ExpansionIntegrator<f64> {
+        let t = high_prec.t.to_f64().unwrap();
+        let radius = high_prec.radius.to_f64().unwrap();
+        let coeff = high_prec.coeff.approx();
+
+        let max_order = high_prec.poly.N;
+        let mut poly = PowerSeries::new(max_order, Complex::<f64>::zero());
+        poly.n = high_prec.poly.n;
+        for i in 0..max_order {
+            poly.coeffs[i] = high_prec.poly.coeffs[i].approx();
         }
-
-        Self { expansions, to_inf: high_prec.to_inf, max_err: 0.0 }
+        ExpansionIntegrator { t, radius, w: high_prec.w.to_f64().unwrap(), coeff, poly }
     }
 
     pub fn query(&mut self, t: T) -> Complex<T> {
-        let t = t.to_f64().unwrap();
-        let index = self.expansions.partition_point(|key| key.t <= t);
+        let t_ = t.to_f64().unwrap();
+        let index = self.items.partition_point(|key| key.expansion.t <= t_);
         assert!(index > 0);
-        let index = index - 1;
-        let a = self.to_inf[index];
-        let b = self.expansions[index].query(t);
+        let item = &self.items[index - 1];
+
+        let z = self.w * (t - item.t);
+        let z_ = z.to_f64().unwrap();
+
+        // z = O(ln(x) * radius), and exp(iz) has relative error O(|z|)
+        // we here compute (z % 2π) using high precision
+        let reduced_z =
+            (z - T::PI() * (2.0 * (z_ / std::f64::consts::PI / 2.0).round())).to_f64().unwrap();
+        let (sin_z, cos_z) = reduced_z.sin_cos();
+        let exp_i_z = Complex::new(cos_z, sin_z);
+
+        let a = item.to_inf;
+        let b = item.expansion.query_by_z(z_, exp_i_z);
         self.max_err += b.norm();
         Complex::new(a.re - b.re, a.im - b.im)
     }
@@ -204,12 +260,15 @@ impl<T: MyReal> HybridPrecIntegrator<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use log::info;
     use F64x2::f64x2;
     use F64x2::test_utils::*;
 
+    fn init_logger() { let _ = env_logger::builder().is_test(true).try_init(); }
+
     #[test]
     fn test_platt_integral() {
-        // env_logger::init();
+        init_logger();
 
         type T = f64x2;
         let σ = T::from_f64(0.5).unwrap();
@@ -220,7 +279,43 @@ mod tests {
         let t1 = T::zero() + 14.0;
         let t2 = T::from_f64(8e3).unwrap();
         println!("{}", integrator.query(T::zero()));
+    }
 
-        // panic!();
+    #[test]
+    fn test_hybrid_prec() {
+        init_logger();
+
+        let x = 1e16;
+        let λ = 4.986774e-8;
+        let σ = 0.5;
+        let max_order = 20;
+        let eps = 1e-20;
+        type T = f64x2;
+
+        let mut high_prec = PlattIntegrator::new(
+            T::from_f64(x).unwrap(),
+            T::from_f64(σ).unwrap(),
+            T::from_f64(λ).unwrap(),
+            max_order,
+            eps,
+        );
+        let mut hybrid_prec = HybridPrecIntegrator::new(
+            T::from_f64(x).unwrap(),
+            T::from_f64(σ).unwrap(),
+            T::from_f64(λ).unwrap(),
+            max_order,
+            eps,
+        );
+        let limit = (x.ln() + x.ln().ln()).sqrt() / λ;
+
+        let m = 1000;
+        for j in 0..=m {
+            let t = limit * j as f64 / m as f64;
+
+            let a = high_prec.query(T::from_f64(t).unwrap());
+            let b = hybrid_prec.query(T::from_f64(t).unwrap());
+
+            assert_complex_close(a, b, 1e-15);
+        }
     }
 }
