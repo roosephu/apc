@@ -1,4 +1,5 @@
 use num::ToPrimitive;
+use primesieve_sys::*;
 
 pub struct PrimesieveResult<'a> {
     pub primes: &'a [u64],
@@ -26,13 +27,8 @@ impl<'a> Drop for PrimesieveResult<'a> {
 pub fn sieve_primesieve<'a>(start: u64, stop: u64) -> PrimesieveResult<'a> {
     let mut size: libc::size_t = 0;
     unsafe {
-        primesieve_sys::primesieve_set_num_threads(1);
-        let raw_ptr = primesieve_sys::primesieve_generate_primes(
-            start,
-            stop,
-            &mut size,
-            primesieve_sys::INT64_PRIMES,
-        );
+        primesieve_set_num_threads(1);
+        let raw_ptr = primesieve_generate_primes(start, stop, &mut size, INT64_PRIMES);
         PrimesieveResult::new(raw_ptr, size)
     }
 }

@@ -30,6 +30,6 @@ mod zeta;
 
 pub use context::Context;
 pub use galway::{Galway, GalwayHints};
-pub use platt::{Platt, PlattHints};
+pub use platt::PlattBuilder;
 pub use riemann_siegel::{RiemannSiegelZ, RiemannSiegelZeta};
 pub use zeta::ZetaGalway;

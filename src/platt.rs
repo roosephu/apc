@@ -1,21 +1,76 @@
+use std::{
+    path::{Path, PathBuf},
+    time::Instant,
+};
+
 use crate::brentq::brentq;
 use crate::platt_integral::*;
 use crate::traits::*;
 use log::{debug, info};
 use num::integer::*;
 
-#[derive(Default)]
-pub struct PlattHints {
-    pub λ: Option<f64>,
-    pub poly_order: Option<usize>,
+pub struct PlattBuilder {
+    hint_λ: f64,
+    poly_order: usize,
+    ζ_zeros: PathBuf,
 }
 
+#[derive(Default)]
 pub struct Platt {
+    x: u64,
     λ: f64,
     integral_limit: f64,
     x1: u64,
     x2: u64,
-    poly_order: usize,
+    max_order: usize,
+    ζ_zeros: PathBuf,
+    builder: PlattBuilder,
+}
+
+impl Default for PlattBuilder {
+    fn default() -> Self {
+        Self { hint_λ: 10.0, poly_order: 15, ζ_zeros: PathBuf::from("./data/zeros") }
+    }
+}
+
+impl PlattBuilder {
+    /// During planning, these hyperparameters (λ, sigma, h, x1, x2, integral_limits)
+    /// doesn't need to be very accurate
+    /// as long as they satisfy the error bound.
+    pub fn build(self, x: u64) -> Platt {
+        let x_ = x as f64;
+        let λ = (self.hint_λ * x_.ln() / x_).sqrt();
+        let (x1, x2) = plan_Δ_bounds_heuristic(λ, x_, 0.24);
+        let integral_limit = plan_integral(λ, x_, 0.1);
+        info!("λ = {:.6e}", λ);
+        info!("integral limit = {:.6}", integral_limit);
+
+        Platt {
+            x,
+            λ,
+            integral_limit,
+            x1,
+            x2,
+            max_order: self.poly_order,
+            ζ_zeros: self.ζ_zeros.clone(),
+            builder: self,
+        }
+    }
+
+    pub fn hint_λ(&mut self, hint_λ: f64) -> &mut Self {
+        self.hint_λ = hint_λ;
+        self
+    }
+
+    pub fn poly_order(&mut self, poly_order: usize) -> &mut Self {
+        self.poly_order = poly_order;
+        self
+    }
+
+    pub fn ζ_zeros_path(&mut self, path: PathBuf) -> &mut Self {
+        self.ζ_zeros = path;
+        self
+    }
 }
 
 fn Φ(r: f64) -> f64 { rgsl::error::erfc(r / std::f64::consts::SQRT_2) / 2.0 }
@@ -29,21 +84,6 @@ fn err_r(t: f64, x: f64, λ: f64) -> f64 {
 #[inline]
 fn err_l(t: f64, x: f64, λ: f64) -> f64 {
     x * ((t * λ).exp() * Φ(-t) - (λ * λ / 2.0).exp() * Φ(λ - t))
-}
-
-fn segment(mut x1: u64, x2: u64, seg_size: u64) -> Vec<(u64, u64)> {
-    assert!(x1 <= x2);
-    let mut segments = vec![];
-    loop {
-        if x2 - x1 > seg_size {
-            segments.push((x1, x1 + seg_size));
-            x1 += seg_size;
-        } else {
-            segments.push((x1, x2));
-            break;
-        }
-    }
-    segments
 }
 
 #[inline(never)]
@@ -65,13 +105,16 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     let mut Δ_1 = 0.0;
     let mut n_primes = 0;
 
-    for (l, r) in segment(x1, x2, 1u64 << 34) {
-        info!("sieving [{}, {}]", l, r);
-        let sieve_result = crate::sieve::sieve_primesieve(l, r);
+    let mut x1 = x1;
+    while x1 <= x2 {
+        let y1 = std::cmp::min(x2, x1 + (1u64 << 34) - 1);
+        info!("sieving [{}, {}]", x1, y1);
+        let sieve_result = crate::sieve::sieve_primesieve(x1, y1);
         for &p in sieve_result.primes {
             n_primes += 1;
             Δ_1 += calc(p);
         }
+        x1 = y1 + 1;
     }
     info!("found {} primes in the interval", n_primes);
 
@@ -181,9 +224,32 @@ fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
     (x1 as u64, x2 as u64)
 }
 
+// this requires high precision: result ≈ # primes
+fn integrate_offline<T: MyReal>(x: u64, λ: f64, max_order: usize) -> T {
+    // the result = n / log(n) + o(n)
+    let mut integrator = PlattIntegrator::<T>::new(
+        T::from_u64(x).unwrap(),
+        T::one(),
+        T::from_f64(λ).unwrap(),
+        max_order,
+        0.01,
+    );
+    let result = integrator.query(T::zero()).im;
+    info!("offline integral = {}", result);
+    // integrator_offline.stat.show("IntegratorOffline");
+
+    result
+}
+
 /// Problem: How to bound the abs integral here?
 #[inline(never)]
-fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) -> T {
+fn integrate_critical<T: MyReal>(
+    x: u64,
+    λ: f64,
+    max_order: usize,
+    limit: f64,
+    ζ_zeros: &Path,
+) -> T {
     let mut integrator = HybridPrecIntegrator::new(
         T::from_u64(x).unwrap(),
         T::one() / 2.0,
@@ -201,7 +267,7 @@ fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) 
     };
 
     info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
-    crate::lmfdb::LMFDB_reader::<T, _>(limit, work).unwrap();
+    crate::lmfdb::LMFDB_reader::<T, _>(ζ_zeros, limit, work).unwrap();
 
     let max_err = integrator.max_err;
     info!(
@@ -213,53 +279,39 @@ fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) 
     result
 }
 
-fn integrate_offline<T: MyReal>(x: u64, λ: f64, max_order: usize) -> T {
-    // the result = n / log(n) + o(n)
-    let mut integrator = PlattIntegrator::<T>::new(
-        T::from_u64(x).unwrap(),
-        T::one(),
-        T::from_f64(λ).unwrap(),
-        max_order,
-        0.01,
-    );
-    let result = integrator.query(T::zero()).im;
-    info!("offline integral = {}", result);
-    // integrator_offline.stat.show("IntegratorOffline");
-
-    result
-}
-
 fn plan_integral(λ: f64, x: f64, _: f64) -> f64 { (x.ln() + x.ln().ln()).sqrt() / λ }
 
 impl Platt {
-    /// During planning, these hyperparameters (λ, sigma, h, x1, x2, integral_limits)
-    /// doesn't need to be very accurate
-    /// as long as they satisfy the error bound.
-    pub fn new(x: u64, hints: PlattHints) -> Self {
-        let x = x as f64;
-        let λ = (hints.λ.unwrap_or(50.0) * x.ln() / x).sqrt();
-        let (x1, x2) = plan_Δ_bounds_heuristic(λ, x, 0.24);
-        let integral_limit = plan_integral(λ, x, 0.1);
-        info!("λ = {:.6e}", λ);
-        info!("integral limit = {:.6}", integral_limit);
+    pub fn compute<T: MyReal>(&mut self) -> u64 {
+        let max_order = self.max_order;
+        let x = self.x;
+        let λ = self.λ;
 
-        Self { λ, integral_limit, x1, x2, poly_order: hints.poly_order.unwrap_or(15) }
-    }
+        let t0 = Instant::now();
 
-    pub fn compute<T: MyReal>(&mut self, x: u64) -> u64 {
-        let max_order = self.poly_order;
+        let integral_offline = integrate_offline::<T>(x, λ, max_order);
+        let integral_critical =
+            integrate_critical::<T>(x, λ, max_order, self.integral_limit, self.ζ_zeros.as_path());
 
-        // this requires high precision: result ≈ # primes
-        let integral_offline = integrate_offline::<T>(x, self.λ, max_order);
+        let t1 = Instant::now();
+        let Δ = calc_Δ_f64(x, 0.5, λ, self.x1, self.x2);
+        let t2 = Instant::now();
 
-        // maybe this only requires low precision, e.g., f64?
-        let integral_critical = integrate_critical::<T>(x, self.λ, self.integral_limit, max_order);
-
-        let Δ = calc_Δ_f64(x, 0.5, self.λ, self.x1, self.x2);
         info!("Δ = {}", Δ);
         let ans = integral_offline - integral_critical * 2.0 - 2.0.ln() + Δ;
         let n_ans = ans.round().to_u64().unwrap();
         info!("ans = {}, rounding error = {}", ans, ans - T::from_u64(n_ans).unwrap());
+
+        let time_integral = (t1 - t0).as_secs_f64();
+        let time_sieve = (t2 - t1).as_secs_f64();
+
+        info!(
+            "Time: integration = {} sec, sieve = {} sec, ratio = {:.3}",
+            time_integral,
+            time_sieve,
+            time_integral / time_sieve
+        );
+        info!("Suggested lambda-hint = {:.3}", self.builder.hint_λ * time_integral / time_sieve);
 
         n_ans as u64
     }
@@ -267,8 +319,11 @@ impl Platt {
 
 #[cfg(test)]
 mod tests {
-    use super::integrate_critical;
-    use super::{calc_Δ1_f64, plan_Δ_bounds_heuristic, plan_Δ_bounds_strict};
+    use std::path::PathBuf;
+
+    use super::{
+        calc_Δ1_f64, integrate_critical, plan_Δ_bounds_heuristic, plan_Δ_bounds_strict
+    };
     use log::info;
     use F64x2::f64x2;
 
@@ -304,8 +359,10 @@ mod tests {
 
         let x = 1_000_000_000_000_000u64;
         let λ = 3.324516e-7;
-        let limit = 19130220.241455;
-        let b = integrate_critical::<f64x2>(x, λ, limit, 15);
+        let integral_limit = 19130220.241455;
+        let ζ_zeros = PathBuf::from("./data/zeros");
+
+        let b = integrate_critical::<f64x2>(x, λ, 15, integral_limit, ζ_zeros.as_path());
         println!("b = {}", b);
         panic!();
     }

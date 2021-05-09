@@ -34,6 +34,31 @@ Unfortunately, after writing these code, I still don't think I've learnt Rust. S
 
 Because [Buthe] seems too difficult to me.
 
+# Usage
+
+1. Install Rust nightly. 
+
+2. Download the files of zeros of $\zeta(s)$ from LMFDB and put then into `data/zeros/`. To compute $\pi(10^{18})$, you might need all zeros up to $1.4 \times 10^8$. 
+
+   The structure of the direction will be 
+
+   ```text
+   apc/
+       - data/
+           - zeros/
+               - md5.txt
+               - zeta_14.dat
+               - ...
+       - F64x2/
+       	- ...
+       - src/
+       	- ...
+       - Cargo.toml
+       - ...
+   ```
+
+3. ` cargo r --bin apc --release -- 1000_000_000_000_000_000 --lambda-hint 60 --poly-order 15 ` After building, 
+
 # Some technical details
 
 ## Multi-precision data type

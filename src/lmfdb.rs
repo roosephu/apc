@@ -1,14 +1,21 @@
 use std::io::BufRead;
+use std::path::Path;
 
 use log::{debug, info};
 
 use crate::traits::MyReal;
 use byteorder::{LittleEndian, ReadBytesExt};
 
-const LMFDB_DATA_PATH: &str = "./data/zeros";
+// Actually, I think it's better not to take a function as input, but return an Iterator.
+// However, I'm too lazy to convert it to an iterator. Wish Generator was stablized.
+pub(crate) fn LMFDB_reader<T: MyReal, F: FnMut(T)>(
+    data_path: &Path,
+    limit: f64,
+    mut f: F,
+) -> Result<(), std::io::Error> {
+    info!("Loading zeta zeros up to {}", limit);
 
-fn LMFDB_read_ckpt_list() -> Result<Vec<i64>, std::io::Error> {
-    let file = std::fs::File::open(format!("{}/md5.txt", LMFDB_DATA_PATH))?;
+    let file = std::fs::File::open(data_path.join("md5.txt")).expect("Missing md5.txt");
     let reader = std::io::BufReader::new(file);
     let mut indices = vec![];
     for line in reader.lines() {
@@ -18,27 +25,16 @@ fn LMFDB_read_ckpt_list() -> Result<Vec<i64>, std::io::Error> {
         indices.push(index);
     }
     indices.sort_unstable();
-    Ok(indices)
-}
-
-// Actually, I think it's better not to take a function as input, but return an Iterator.
-// However, I'm too lazy to convert it to an iterator. Wish Generator was stablized.
-pub(crate) fn LMFDB_reader<T: MyReal, F: FnMut(T)>(
-    limit: f64,
-    mut f: F,
-) -> Result<(), std::io::Error> {
-    info!("Loading zeta zeros up to {}", limit);
-    let ckpts = LMFDB_read_ckpt_list()?;
 
     let eps = T::from_f64(2.0).unwrap().powi(-101);
     let limit = T::from_f64(limit).unwrap();
 
     let mut n_roots = 0usize;
-    for &ckpt in ckpts.iter() {
-        let path = format!("{}/zeros_{}.dat", LMFDB_DATA_PATH, ckpt);
+    for &index in indices.iter() {
+        let path = data_path.join(format!("zeros_{}.dat", index));
         let file = std::fs::File::open(&path)?;
         let mut reader = std::io::BufReader::new(file);
-        debug!("[LMFDB] loading {}", path);
+        debug!("[LMFDB] loading {}", path.display());
 
         let n_blocks = reader.read_u64::<LittleEndian>()?;
 

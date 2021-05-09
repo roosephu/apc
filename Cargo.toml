@@ -27,7 +27,7 @@ env_logger = "0.8.3"
 num-traits = "0.2.14"
 num-complex = "0.4.0"
 rand = "0.8.3"
-clap = "3.0.0-beta.2"
+clap = "2.33.3"
 byteorder = "1.4.3"
 F64x2 = { path = "./F64x2" }
 primesieve-sys = "0.2.3"
