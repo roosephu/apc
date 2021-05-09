@@ -1,8 +1,7 @@
-use crate::cache_stat::CacheStat;
 use crate::traits::ComplexFunctions;
 use crate::{power_series::PowerSeries, traits::MyReal};
 use log::{debug, info};
-use num::{Complex, ToPrimitive};
+use num::Complex;
 
 /// We approximate Φ(σ + it) ≈ poly(t - t0) * C * ϕ(σ + it)
 struct ExpansionIntegrator<T> {
@@ -260,26 +259,10 @@ impl<T: MyReal> HybridPrecIntegrator<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use log::info;
     use F64x2::f64x2;
     use F64x2::test_utils::*;
 
     fn init_logger() { let _ = env_logger::builder().is_test(true).try_init(); }
-
-    #[test]
-    fn test_platt_integral() {
-        init_logger();
-
-        type T = f64x2;
-        let σ = T::from_f64(0.5).unwrap();
-        let x = T::from_f64(1e6).unwrap();
-        let λ = T::from_f64(0.003).unwrap();
-        let mut integrator = PlattIntegrator::new(x, σ, λ, 20, 1e-20);
-
-        let t1 = T::zero() + 14.0;
-        let t2 = T::from_f64(8e3).unwrap();
-        println!("{}", integrator.query(T::zero()));
-    }
 
     #[test]
     fn test_hybrid_prec() {

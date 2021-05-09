@@ -22,11 +22,11 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
 
     fn phi(&self, u: T, x: T) -> T { self.Phi((u / x).ln() / self.lambda) }
 
-    fn calc_delta(&self, x: u64, eps: f64) -> T {
+    fn calc_delta(&self, x: u64, _: f64) -> T {
         let mut ret = T::zero();
         let fx = T::from_u64(x).unwrap();
         let (x1, x2) = (self.x1, self.x2);
-        let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
+        // let eps = eps / ((x2 - x1 + 1) + x2.sqrt() + 1) as f64;
 
         for &p in crate::sieve::sieve_primesieve(x1, x2).primes {
             ret -= self.phi(T::from_u64(p).unwrap(), fx);

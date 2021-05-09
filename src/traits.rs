@@ -87,7 +87,7 @@ impl<T: MyReal> ComplexFunctions for Complex<T> {
 }
 
 impl Erfc for f64 {
-    fn erfc(self, eps: f64) -> Self { rgsl::error::erfc(self) }
+    fn erfc(self, _: f64) -> Self { rgsl::error::erfc(self) }
 }
 
 impl ExpPolyApprox for f64 {
@@ -132,7 +132,7 @@ impl Sinc for f64x2 {
 }
 
 impl GabckeExpansion for f64x2 {
-    fn expand(a: Self, z: Self, K: usize, eps: f64) -> Self {
+    fn expand(a: Self, z: Self, K: usize, _: f64) -> Self {
         let mut expansion = Self::zero();
         let t2_z = z * z * 2.0 - 1.0;
         for k in 0..=K {

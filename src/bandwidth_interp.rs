@@ -74,7 +74,6 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
 
         let dt = t - self.t0;
         let delta = T::PI() / self.beta;
-        let gap = self.gap;
         let r = ((dt + c / self.gap) / delta).floor();
         let l = ((dt - c / self.gap) / delta).ceil();
 
@@ -108,8 +107,7 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
 mod tests {
     use super::BandwidthInterp;
     use crate::traits::MyReal;
-    use num::traits::FloatConst;
-    use num::{Complex, Zero};
+    use num::Complex;
     use F64x2::f64x2;
     use F64x2::test_utils::*;
 

@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
-#![allow(unused_imports)]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::let_and_return)]

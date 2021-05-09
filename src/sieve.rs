@@ -1,6 +1,4 @@
-use log::info;
 use num::ToPrimitive;
-use primesieve_sys::INT64_PRIMES;
 
 pub struct PrimesieveResult<'a> {
     pub primes: &'a [u64],

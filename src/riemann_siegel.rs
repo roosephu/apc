@@ -2,7 +2,6 @@
 
 use num::Complex;
 
-use crate::constants::RS_GABCKE_GAMMA;
 use crate::{context::Context, traits::GabckeExpansion};
 use crate::{
     power_series::PowerSeries,
@@ -98,7 +97,6 @@ impl<T: MyReal> RiemannSiegelPlanner<T> {
 
     pub fn plan(&self, t: f64, eps: f64) -> Option<Plan<T>> {
         let a = (t.to_f64().unwrap() / f64::PI() / 2.0).sqrt();
-        let n = a.floor();
         let sigma = self.sigma.to_f64().unwrap();
 
         let mut k;
@@ -233,7 +231,6 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
         plan: Plan<T>,
         reflect: bool,
     ) -> Complex<T> {
-        let ctx = self.ctx;
         let a = (t / T::PI() / 2.0).sqrt();
         let n = a.floor();
         let sigma = if reflect { T::one() - self.sigma } else { self.sigma };
@@ -403,11 +400,10 @@ impl<T: MyReal + GabckeExpansion> RiemannSiegelZ<'_, T> {
     }
 
     fn solve(&self, t: T, plan: (usize, Option<T>), eps: f64) -> T {
-        let two = self.ctx.two();
         let a = (t / T::PI() / 2.0).sqrt();
         let n = a.floor();
         let (K, plan_sum_trunc_dirichlet) = plan;
-        let z = Complex::new(T::from_f64(0.25).unwrap(), t * 0.5);
+        // let z = Complex::new(T::from_f64(0.25).unwrap(), t * 0.5);
         // let theta = self.ctx.loggamma(z, eps).im - t * 0.5 * T::PI().ln();
         let theta = self.theta.theta(t, eps);
 
@@ -514,7 +510,7 @@ mod tests {
         let z = rs_z.Z(t, eps).unwrap();
         let gt = f64x2 { hi: -2.502383979630123e-14, lo: -6.697961745086965e-31 };
         println!("t = {}, Z(t) = {:.e}", t, z);
-        // assert_close(z, gt, eps);
+        assert_close(z, gt, eps);
         // panic!();
     }
 
@@ -529,7 +525,7 @@ mod tests {
         let rs_z = RiemannSiegelZ::new(&ctx, 30);
         println!("{} {}", rs_z.Z(a, eps).unwrap(), rs_z.Z(b, eps).unwrap());
 
-        let result = brentq(|x| rs_z.Z(x, eps).unwrap(), a, b, T::zero(), T::zero(), 30);
+        let _ = brentq(|x| rs_z.Z(x, eps).unwrap(), a, b, T::zero(), T::zero(), 30);
 
         // panic!();
     }

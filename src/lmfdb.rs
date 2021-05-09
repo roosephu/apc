@@ -13,7 +13,6 @@ fn LMFDB_read_ckpt_list() -> Result<Vec<i64>, std::io::Error> {
     let mut indices = vec![];
     for line in reader.lines() {
         let line = line?;
-        let length = line.len();
         let index = &line[40..line.len() - 4];
         let index = index.parse::<i64>().unwrap();
         indices.push(index);
@@ -43,16 +42,16 @@ pub(crate) fn LMFDB_reader<T: MyReal, F: FnMut(T)>(
 
         let n_blocks = reader.read_u64::<LittleEndian>()?;
 
-        for b in 0..n_blocks {
+        for _ in 0..n_blocks {
             let t0 = reader.read_f64::<LittleEndian>()?;
-            let t1 = reader.read_f64::<LittleEndian>()?;
+            let _ = reader.read_f64::<LittleEndian>()?;
             let n0 = reader.read_u64::<LittleEndian>()?;
             let n1 = reader.read_u64::<LittleEndian>()?;
 
             let t0 = T::from_f64(t0).unwrap();
             let mut z = 0u128;
 
-            for i in n0..n1 {
+            for _ in n0..n1 {
                 let z1 = reader.read_u64::<LittleEndian>()? as u128;
                 let z2 = reader.read_u32::<LittleEndian>()? as u128;
                 let z3 = reader.read_u8()? as u128;

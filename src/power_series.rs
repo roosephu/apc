@@ -3,7 +3,7 @@ use std::{
     ops::{AddAssign, DivAssign, MulAssign, SubAssign},
 };
 
-use num::{cast, FromPrimitive};
+use num::FromPrimitive;
 use num::{Float, Num};
 use num_traits::NumAssignOps;
 
@@ -89,7 +89,6 @@ impl<T: Copy + Num + NumAssignOps> PowerSeries<T> {
     /// let x = a_0, D = \sum_{i=1}^\infty a_i t^i
     /// then f(x + D) = \sum_{i=0}^\infty f^{(i)}(x) D^i / i!
     pub fn compose_(&mut self, coeffs: &[T]) {
-        let x = self.coeffs[0];
         let mut series = vec![T::zero(); self.N];
 
         series[0] = self.coeffs[0];

@@ -3,11 +3,6 @@ use crate::platt_integral::*;
 use crate::traits::*;
 use log::{debug, info};
 use num::integer::*;
-use num::{Num, One, Zero};
-use std::{
-    io::{self, Read},
-    marker::PhantomData,
-};
 
 #[derive(Default)]
 pub struct PlattHints {
@@ -57,7 +52,6 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     assert!(f64::EPSILON * approx_n_primes < 0.1, "too many primes for f64 approx");
 
     let mut ϕ = crate::fast_phi::LittlePhiFn::new(λ, eps / (x2 - x1) as f64);
-    let c = [1.0 / λ, -1.0 / λ / 2.0, 1.0 / λ / 3.0, -1.0 / λ / 4.0];
 
     let mut calc = |p: u64| -> f64 {
         let t = (p - x) as i64 as f64 / x as f64;
@@ -219,7 +213,7 @@ fn integrate_critical<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) 
     result
 }
 
-fn integrate_offline<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) -> T {
+fn integrate_offline<T: MyReal>(x: u64, λ: f64, max_order: usize) -> T {
     // the result = n / log(n) + o(n)
     let mut integrator = PlattIntegrator::<T>::new(
         T::from_u64(x).unwrap(),
@@ -235,7 +229,7 @@ fn integrate_offline<T: MyReal>(x: u64, λ: f64, limit: f64, max_order: usize) -
     result
 }
 
-fn plan_integral(λ: f64, x: f64, eps: f64) -> f64 { (x.ln() + x.ln().ln()).sqrt() / λ }
+fn plan_integral(λ: f64, x: f64, _: f64) -> f64 { (x.ln() + x.ln().ln()).sqrt() / λ }
 
 impl Platt {
     /// During planning, these hyperparameters (λ, sigma, h, x1, x2, integral_limits)
@@ -256,7 +250,7 @@ impl Platt {
         let max_order = self.poly_order;
 
         // this requires high precision: result ≈ # primes
-        let integral_offline = integrate_offline::<T>(x, self.λ, self.integral_limit, max_order);
+        let integral_offline = integrate_offline::<T>(x, self.λ, max_order);
 
         // maybe this only requires low precision, e.g., f64?
         let integral_critical = integrate_critical::<T>(x, self.λ, self.integral_limit, max_order);
@@ -274,7 +268,7 @@ impl Platt {
 #[cfg(test)]
 mod tests {
     use super::integrate_critical;
-    use super::{calc_Δ1_f64, cramer_stats, plan_Δ_bounds_heuristic, plan_Δ_bounds_strict};
+    use super::{calc_Δ1_f64, plan_Δ_bounds_heuristic, plan_Δ_bounds_strict};
     use log::info;
     use F64x2::f64x2;
 

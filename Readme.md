@@ -86,9 +86,9 @@ This is first introduced in commit `d67fa9d` in v0.2.?.
 
 Recall that
 $$
-\Delta = \sum_{L \leq p \leq R} f(p),
+\Delta = \sum_{L \leq p \leq R} f(p).
 $$
-so there are two possible precision loss:
+For a prime $p$, if we use `f64` to store it, there might be a precision loss. Moreover, $f(p)$ can 
 
 ## Deciding Integral upper bound
 

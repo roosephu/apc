@@ -87,8 +87,8 @@ impl LittlePhiFn {
         let y1 = coeff / (1.0 + t).powi(1) * -(1.0 / λ);
         let y2 = coeff / (1.0 + t).powi(2) * (1.0 / λ + ρ / λ / λ);
 
-        let y3 =
-            coeff / (1.0 + t).powi(3) * -(2.0 / λ + 3.0 * ρ / λ / λ - (1.0 - ρ * ρ) / λ / λ / λ);
+        // let y3 =
+        //     coeff / (1.0 + t).powi(3) * -(2.0 / λ + 3.0 * ρ / λ / λ - (1.0 - ρ * ρ) / λ / λ / λ);
         // here we compute max_t y3(t).
         // by plotting: the maximum is positive
         // exp(-ρ^2/2) ρ >= -0.63

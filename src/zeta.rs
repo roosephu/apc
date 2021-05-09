@@ -180,9 +180,7 @@ impl<T: MyReal + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
     }
 
     fn plan_incremental(&mut self, s: Complex64) -> Plan<T> {
-        let eps = self.eps;
         let n = self.n;
-        let sigma = s.re;
         let ln_eps = self.ln_eps;
 
         let delta = self.delta;
@@ -348,23 +346,27 @@ impl<T: MyReal> FnZeta<T> for ZetaGalway<'_, T> {
         ret
     }
 
-    fn prepare_multi_eval(&mut self, h: T, eps: f64) {
+    fn prepare_multi_eval(&mut self, h: T, _: f64) {
         self.planners[0].h = Some(h);
         self.planners[1].h = Some(h);
     }
 }
 
-use F64x2::f64x2;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use F64x2::f64x2;
 
-#[test]
-fn test_zeta_galway() {
-    let ctx2 = Context::<f64x2>::new(100);
-    let mut zeta_galway2 = ZetaGalway::new(&ctx2);
+    #[test]
+    fn test_zeta_galway() {
+        let ctx2 = Context::<f64x2>::new(100);
+        let mut zeta_galway2 = ZetaGalway::new(&ctx2);
 
-    let s = Complex { re: f64x2 { hi: 1.5, lo: 0.0 }, im: f64x2 { hi: 10000.0, lo: 0.0 } };
-    let eps = 1e-18;
-    println!("s = {}, zeta(s) = {}", s, zeta_galway2.zeta(s, eps));
-    // panic!();
+        let s = Complex { re: f64x2 { hi: 1.5, lo: 0.0 }, im: f64x2 { hi: 10000.0, lo: 0.0 } };
+        let eps = 1e-18;
+        println!("s = {}, zeta(s) = {}", s, zeta_galway2.zeta(s, eps));
+        // panic!();
 
-    // zeta_galway2.test(s, eps);
+        // zeta_galway2.test(s, eps);
+    }
 }
