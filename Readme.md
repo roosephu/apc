@@ -158,7 +158,7 @@ $$
 $$
 For a prime $p$, if we use `f64` to store it, there might be a precision loss. Moreover, inaccuracy also be introduced when calculating $f(p)$. Let $\delta$ be the maximum absolute error of the output of $f(p)$. Then the total absolute error is at most $(R - L + 1) \delta$. 
 
-To avoid precision loss of converting `u64` to `f64`, we calculate $\tilde f(t) = f(x(1 + t))$, and $t = O(x^{-1} \lambda)$ so there's the precision loss is around $2^{-52}$. 
+To avoid precision loss of converting `u64` to `f64`, we calculate $\tilde f(t) = f(x + t)$, with $t = O(x^{-1})$. 
 
 To calculate $\tilde f(t)$ fast: we simply use the order-2 Taylor polynomial at $t_0$. 
 $$
@@ -167,22 +167,28 @@ $$
 where
 $$
 \begin{aligned}
-\tilde f'(t) & = -\frac{C}{1 + t}\lambda^{-1}, \\
-\tilde f''(t) & = \frac{C}{(1+t)^2} (\lambda^{-1} + \rho \lambda^{-2}), \\
+\tilde f'(t) & = -\frac{C}{x + t}\lambda^{-1}, \\
+\tilde f''(t) & = \frac{C}{(x+t)^2} (\lambda^{-1} + \rho \lambda^{-2}), \\
 \end{aligned}
 $$
-for $\rho = \lambda^{-1} \ln (1+t), C = -\frac{\exp(-\rho^2 /2)}{\sqrt{2 \pi}}$. Note that we sometimes find a new $t_0$ and build a new order-2 Taylor polynomial. So we need to determine when the approximation is good. More specifically, we'd like to know what's the maximum $w > 0$, such that, it hold that have $\left|g(t) - \tilde f(t)\right| \leq \epsilon$ for all $t$ in $[t_0 - w, t_0 + w]$. By using the Lagrange remainder, we have
+for $\rho = \lambda^{-1} \ln (1+t/x), C = -\frac{\exp(-\rho^2 /2)}{\sqrt{2 \pi}}$. Note that we sometimes find a new $t_0$ and build a new order-2 Taylor polynomial. So we need to determine when the approximation is good. More specifically, we'd like to know what's the maximum $w > 0$, such that, it hold that have $\left|g(t) - \tilde f(t)\right| \leq \epsilon$ for all $t$ in $[t_0 - w, t_0 + w]$. By using the Lagrange remainder, we have
 $$
 |g(t) - \tilde f(t)| \leq \frac{1}{6} w^3 \max_t |\tilde f'''(t)|,
 $$
 where
 $$
-\tilde f'''(t) = -\frac{C}{(1+t)^3} (2λ^{-1} + 3 ρ λ^{-2} - (1 - ρ^2) \lambda^{-3}). 
+\tilde f'''(t) = -\frac{C}{(x+t)^3} (2λ^{-1} + 3 ρ λ^{-2} - (1 - ρ^2) \lambda^{-3}).
 $$
 Note that $\exp(-\rho^2 / 2) \rho \geq -0.63$ and $\exp(-\rho^2 / 2) \rho^2 \geq 0$ for every $\rho$, we can then bound $|\tilde f'''(t)|$ (for most $\lambda$):
 $$
-|\tilde f'''(t)| \leq \frac{-2λ^{-1} + 1.8 \lambda^{-2} + λ^{-3}}{\sqrt{2 \pi}}.
+|\tilde f'''(t)| \leq \frac{-2λ^{-1} + 1.8 \lambda^{-2} + λ^{-3}}{x^3 \sqrt{2 \pi}}.
 $$
+
+We limit $w$ to be smaller than $2^{21}$, so that for all primes $p$ in $[t_0, t_0 + w]$, the sum
+$$
+\sum_{t_0 \leq p < t_0 + w} (p - t_0)^2 \leq \frac{1}{6} (w + 3)^3 < 2^{63}
+$$
+so that we don't need 128-bit integer type. By making most operations in integer type speeds calculating $\phi$ slightly faster (10%). 
 
 # References
 

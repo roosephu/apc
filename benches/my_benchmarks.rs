@@ -12,23 +12,22 @@ fn bench_fast_phi(c: &mut Criterion) {
 
     c.bench_function("fast ϕ", |b| {
         b.iter(|| {
-            let mut ϕ = apc::LittlePhiFn::new(λ, x as f64, eps / (x2 - x1) as f64);
+            let mut n_primes_less_than_x = 0usize;
+            let mut ϕ = apc::LittlePhiSum::new(λ, x as f64, eps / (x2 - x1) as f64);
 
-            let mut calc = |p: u64| -> f64 {
-                let t = (p - x) as i64 as f64;
-                if p <= x {
-                    1.0 - ϕ.query(t)
-                } else {
-                    -ϕ.query(t)
+            let mut calc = |p: u64| {
+                let t = (p - x) as i64;
+                if t <= 0 {
+                    n_primes_less_than_x += 1;
                 }
+                ϕ.add(t)
             };
 
-            let mut Δ = 0.0;
             let step = (x as f64).ln() as usize;
             for p in (x1..x2).step_by(step) {
-                Δ += calc(p);
+                calc(p);
             }
-            Δ
+            n_primes_less_than_x as f64 - ϕ.sum()
         })
     });
 }

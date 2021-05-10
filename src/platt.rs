@@ -97,19 +97,17 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     let approx_n_primes = (x2 - x1) as f64 / (x1 as f64).ln();
     assert!(f64::EPSILON * approx_n_primes < 0.1, "too many primes for f64 approx");
 
-    let mut ϕ = crate::fast_phi::LittlePhiFn::new(λ, x as f64, eps / (x2 - x1) as f64);
+    let mut ϕ = crate::fast_phi::LittlePhiSum::new(λ, x as f64, eps / (x2 - x1) as f64);
+    let mut n_primes_less_than_x = 0usize;
 
-    let mut calc = |p: u64| -> f64 {
-        let t = (p - x) as i64 as f64;
-        if p <= x {
-            // TODO: Can precision be an issue here?
-            1.0 - ϕ.query(t)
-        } else {
-            -ϕ.query(t)
+    let mut calc = |p: u64| {
+        let t = (p - x) as i64;
+        if t <= 0 {
+            n_primes_less_than_x += 1;
         }
+        ϕ.add(t)
     };
 
-    let mut Δ_1 = 0.0;
     let mut n_primes = 0usize;
 
     let mut x1 = x1;
@@ -119,13 +117,15 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
         let sieve_result = crate::sieve::sieve_primesieve(x1, y1);
         for &p in sieve_result.primes {
             n_primes += 1;
-            Δ_1 += calc(p);
+            calc(p);
         }
         x1 = y1 + 1;
     }
     info!("found {} primes in the interval", n_primes);
 
+    ϕ.flush();
     ϕ.stat().show("Fast ϕ");
+    let Δ_1 = n_primes_less_than_x as f64 - ϕ.sum();
 
     Δ_1
 }
@@ -137,7 +137,7 @@ fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     // let primes = crate::sieve::linear_sieve(x2.sqrt());
     let primes = crate::sieve::sieve_primesieve(1, x2.sqrt());
 
-    // error analysis: we have ~(x2 - x1)/log(x) many p's.
+    // error analysis: we have ~(x_2 - x_1)/\ln(x) many p's.
     // for each p: the error by erfc is delta.
     let Δ_1 = calc_Δ1_f64(x, eps, λ, x1, x2);
     ret += Δ_1;
