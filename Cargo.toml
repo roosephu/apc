@@ -17,6 +17,10 @@ path = "src/main.rs"
 name = "profile"
 path = "src/main.rs"
 
+[[bench]]
+name = "my_benchmarks"
+harness = false
+
 [dependencies]
 num = "0.4.0"
 rustfft =  { path = "../RustFFT" }
@@ -37,3 +41,6 @@ libc = "0.2.94"
 [features]
 verify_fast_phi = []
 verify_all = ["verify_fast_phi"]
+
+[dev-dependencies]
+criterion = "0.3.4"
