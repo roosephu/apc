@@ -104,14 +104,6 @@ In practice, when $x = 10^{11}$ and $\lambda = 3 \times 10^{-5}$, [Galway] predi
 
 This is first introduced in commit `d67fa9d` in v0.2.?.
 
-## Deciding Integral upper bound
-
-​    */// we are integrating N(h) \hat_\phi(s), which is approximately x^σ exp(-λ^2 h^2 / 2) with σ = 0.5 or 1.*
-
-​    */// |N(h) \hat_\phi(0.5 + ih)| \approx \log(h) x^0.5 exp(-λ^2 h^2 / 2)*
-
-​    */// |\hat_\phi(1 + ih)| ≈ x^0.5 \exp(-λ^2 h^2 / 2)*
-
 ## Integrating $\hat\phi(s)$
 
 Here we'd like to integrate $\hat\phi(s) = \frac{x^s}{s} \exp(\lambda^2 s^2 / 2)$. We basically follow the method in [Section 6, Platt] but with a small modification. We refer the readers to [Platt] for more details.

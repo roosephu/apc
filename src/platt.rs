@@ -97,11 +97,12 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     let approx_n_primes = (x2 - x1) as f64 / (x1 as f64).ln();
     assert!(f64::EPSILON * approx_n_primes < 0.1, "too many primes for f64 approx");
 
-    let mut ϕ = crate::fast_phi::LittlePhiFn::new(λ, eps / (x2 - x1) as f64);
+    let mut ϕ = crate::fast_phi::LittlePhiFn::new(λ, x as f64, eps / (x2 - x1) as f64);
 
     let mut calc = |p: u64| -> f64 {
-        let t = (p - x) as i64 as f64 / x as f64;
+        let t = (p - x) as i64 as f64;
         if p <= x {
+            // TODO: Can precision be an issue here?
             1.0 - ϕ.query(t)
         } else {
             -ϕ.query(t)
@@ -109,7 +110,7 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     };
 
     let mut Δ_1 = 0.0;
-    let mut n_primes = 0;
+    let mut n_primes = 0usize;
 
     let mut x1 = x1;
     while x1 <= x2 {
@@ -129,10 +130,7 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     Δ_1
 }
 
-/// let delta = 1/2^53 be the relative differencee by converting x from f64x2 to f64.
-/// let r = ln(u/x) / λ
-/// Φ(r (1 + delta)) - Φ(r) \approx |Φ'(r)| delta = delta exp(-r^2) / sqrt(2pi) <= delta / 2.
-/// note that it's fine if we estimate erfc(x) by
+/// See Readme.md for why this can be computed using `f64`
 #[inline(never)]
 fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     let mut ret = 0.0;
@@ -278,7 +276,9 @@ fn integrate_critical<T: MyReal>(
     let max_err = integrator.max_err;
     info!(
         "integral critical = {}, last = {:.6e}, max_err/f64::eps = {:.6e}",
-        result, last_contribution.to_f64().unwrap(), max_err
+        result,
+        last_contribution.to_f64().unwrap(),
+        max_err
     );
     assert!(max_err < 1e13, "possible loss of precision! use PlattIntegrator instead");
 
@@ -290,8 +290,14 @@ fn plan_ζ_zeros(λ: f64, x: f64, eps: f64) -> f64 {
 
     let ln_err = |T: f64| -> f64 {
         let PI = std::f64::consts::PI;
-        let Tpow = (T / 2.0 / PI) * ((T / 2.0 / PI).ln() - 1.0) + 0.875 + 1.588 + 0.137 * T.ln() + 0.443 * T.ln().ln();
-        let a = 2.0 * (x.sqrt() / T / x.ln() + 1.0 / (λ * λ * T * T * x)) * (2.0 / (λ * λ * T * T) * Tpow);
+        let Tpow = (T / 2.0 / PI) * ((T / 2.0 / PI).ln() - 1.0)
+            + 0.875
+            + 1.588
+            + 0.137 * T.ln()
+            + 0.443 * T.ln().ln();
+        let a = 2.0
+            * (x.sqrt() / T / x.ln() + 1.0 / (λ * λ * T * T * x))
+            * (2.0 / (λ * λ * T * T) * Tpow);
         a.ln() + λ * λ * (1.0 - T * T) / 2.0
     };
 
