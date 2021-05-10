@@ -1,10 +1,12 @@
 # $\newcommand{\d}{\mathrm{d}}$About
 
-This program calculates $\pi(x)$ using analytic method for $x \leq 10^{18}$ **assuming access to a table of non-trivial zeros of Riemann $\zeta(s)$ function**. It's based on the paper [Platt]. 
+This program calculates $\pi(x)$ using analytic method for $x \leq 10^{18}$ **assuming access to a table of non-trivial zeros of Riemann $\zeta(s)$ function**, based on the paper [Platt]. 
 
 This is a side project. I'm new to analytic number theory and can't understand most of the equations in the reference papers. I know little computer architecture so the program is also highly-unoptimized. Use at your own risk.
 
 The program hasn't been tested so it might produce incorrect numbers or even fail to produce reasonable results.
+
+# Some questions that nobody cares
 
 ### Is it fast? How fast is it?
 
@@ -16,7 +18,11 @@ The algorithm can run in parallel easily but I don't do that.
 
 ### Is using LMFDB cheating?
 
-Yes, kind of. The algorithm needs all non-trivial zeros of $\zeta(\frac{1}{2} + it)$ for $t \leq \tilde O(x^{1/2})$ to compute $\pi(x)$ in $\tilde O(x^{1/2})$ time. (We assumes RH holds. ) However, a table of $\{\pi(k^2)\}_{k^2 \leq x}$ also enables computing $\pi(x)$ in $\tilde O(x^{1/2})$ time, with a much more trivial algorithm. The only point is that the table of $\{\pi(k^2)\}_{k^2 \leq x}$ might be very hard to get :( I don't know any algorithm which can output such a table in $N^{o(1)}$ time, while it seems that the non-trivial zeros of $\zeta(\frac{1}{2} + it)$ for $t \leq T$ can be found in $\tilde O(T)$ time.
+To make life easier, I assumes RH holds. 
+
+Yes, kind of. The algorithm needs all non-trivial zeros of $\zeta(\frac{1}{2} + it)$ for $t \leq \tilde O(x^{1/2})$ to compute $\pi(x)$ in $\tilde O(x^{1/2})$ time.  However, a table of $\{\pi(k^2)\}_{k^2 \leq x}$ also enables computing $\pi(x)$ in $\tilde O(x^{1/2})$ time, with a much more trivial algorithm. The only point is that the table of $\{\pi(k^2)\}_{k^2 \leq x}$ might be very hard to get :( I don't know any algorithm which can output such a table in $N^{o(1)}$ time, while it seems that the non-trivial zeros of $\zeta(\frac{1}{2} + it)$ for $t \leq T$ can be found in $\tilde O(T)$ time.
+
+Finding all non-trivial zeros of $\zeta$ seems to be another line of work. I tried to read [Platt2] but unfortunately didn't understand it. [Gourdon] also seems promising and I have some preliminary code for that. 
 
 ### If a number is produced, is it guaranteed to be correct?
 
@@ -32,9 +38,11 @@ Because it's new to me either. What can the result of writing an analytic number
 
 Unfortunately, after writing these code, I still don't think I've learnt Rust. Some of the features confuse me. For example, can anyone pointing me out the correct way to enable `a + b` where `a` is a `T` and `b` is `Complex<T>` for a custom float type `T`? We can't `impl<T> Add<Complex<T>> for T`  due to the orphan rule, and `num::Complex` does this by using macros, which are not exported.
 
-### Why [Platt] instead of [Büthe]?
+### Why [Platt] instead of [Büthe] or [FKBJ]?
 
-Because [Büthe] seems too difficult to me.
+Because they seems too difficult to me. Welcomed by the fancy Greek letters and subscripts, I clicked X immediately. 
+
+[Platt] seems to be quite straightforward, especially given that I've read [Galway] and understood the high-level idea. I appreciate a lot for how easy to follow [Galway]. (Perhaps because it's a thesis instead of a paper?) 
 
 # Usage
 
@@ -193,9 +201,11 @@ so that we don't need 128-bit integer type. By making most operations in integer
 # References
 
 + [[Platt](https://arxiv.org/abs/1203.5712)] : David Platt, “Computing $\pi(x)$ Analytically.”
++ [[Platt2](https://www.ams.org/journals/mcom/2017-86-307/S0025-5718-2017-03198-7/S0025-5718-2017-03198-7.pdf)] : David Platt, “Isolating some non-trivial zeros of zeta”
 + [[FKBJ](https://www.ams.org/journals/mcom/2017-86-308/S0025-5718-2017-03038-6/S0025-5718-2017-03038-6.pdf)] : Franke et al., “A Practical Analytic Method for Calculating $\pi (x)$.”
 + [[Büthe](https://arxiv.org/abs/1410.7008)] : Büthe, “An Improved Analytic Method for Calculating $\pi(x)$.”
-+ [[Galway](https://faculty.math.illinois.edu/~galway/PhD_Thesis/thesis-twoside.pdf)] : William Floyd Galway, "Analytic Computation of the Prime-Counting Function", 
++ [[Galway](https://faculty.math.illinois.edu/~galway/PhD_Thesis/thesis-twoside.pdf)] : William Floyd Galway, "Analytic Computation of the Prime-Counting Function".
++ [[Gourdon](http://numbers.computation.free.fr/Constants/Miscellaneous/zetazeros1e13-1e24.pdf)] : Xavier Gourdon, "The $10^{13}$ first zeros of the Riemann Zeta function, and zeros computation at very large height"
 
-I also summarized these papers [here](https://www.roosephu.xyz/2021/03/08/analytic-pi/) (in Chinese). 
+I also briefly summarized these papers [here](https://www.roosephu.xyz/2021/03/08/analytic-pi/) and [here](https://www.roosephu.xyz/2021/03/08/analytic-pi-2/) (in Chinese). 
 

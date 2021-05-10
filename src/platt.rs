@@ -123,7 +123,6 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     }
     info!("found {} primes in the interval", n_primes);
 
-    ϕ.flush();
     ϕ.stat().show("Fast ϕ");
     let Δ_1 = n_primes_less_than_x as f64 - ϕ.sum();
 
@@ -133,16 +132,11 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
 /// See Readme.md for why this can be computed using `f64`
 #[inline(never)]
 fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
-    let mut ret = 0.0;
-    // let primes = crate::sieve::linear_sieve(x2.sqrt());
     let primes = crate::sieve::sieve_primesieve(1, x2.sqrt());
 
-    // error analysis: we have ~(x_2 - x_1)/\ln(x) many p's.
-    // for each p: the error by erfc is delta.
     let Δ_1 = calc_Δ1_f64(x, eps, λ, x1, x2);
-    ret += Δ_1;
+    let mut Δ_2 = 0.0;
 
-    // error analysis: each has error delta, we have sqrt(x2) many, so in total is $delta sqrt(x2) << 1$.
     for &p in primes.primes {
         let mut m = 1i64;
         let mut power = p;
@@ -150,16 +144,16 @@ fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
             m += 1;
             power *= p;
             if power < x1 {
-                ret -= 1.0 / m as f64;
+                Δ_2 += 1.0 / m as f64;
             } else {
                 // only (x_2^1/2 - x_1^1/2) + (x_2^1/3 - x_1^1/3) + ... many
                 // The first term dominates, which is still O((x2 - x1)/sqrt(x)) = O(polylog(n)).
                 let r = (power as f64 / x as f64).ln() / λ;
-                ret -= Φ(r) / m as f64;
+                Δ_2 += Φ(r) / m as f64;
             }
         }
     }
-    ret
+    Δ_1 - Δ_2
 }
 
 fn cramer_stats(x: f64, λ: f64, d: f64) -> (f64, f64, f64) {

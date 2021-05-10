@@ -1,5 +1,6 @@
 use log::info;
 
+#[derive(Default)]
 pub struct CacheStat {
     pub hit: usize,
     pub miss: usize,

@@ -6,7 +6,7 @@ pub struct LittlePhiSum {
     t: i64,
     x: f64,
     λ: f64,
-    drv: [f64; 3],
+    coeffs: [f64; 3],
     sum: f64,
     sum0: i64,
     sum1: i64,
@@ -17,7 +17,10 @@ pub struct LittlePhiSum {
 impl LittlePhiSum {
     pub fn stat(&self) -> &CacheStat { &self.stat }
 
-    pub fn sum(self) -> f64 { self.sum }
+    pub fn sum(&mut self) -> f64 {
+        self.flush();
+        self.sum
+    }
 
     pub fn new(λ: f64, x: f64, eps: f64) -> Self {
         Self {
@@ -26,7 +29,7 @@ impl LittlePhiSum {
             t: 0,
             x,
             λ,
-            drv: [0.0, 0.0, 0.0],
+            coeffs: [0.0, 0.0, 0.0],
             stat: CacheStat::new(),
             sum0: 0,
             sum1: 0,
@@ -52,11 +55,11 @@ impl LittlePhiSum {
         }
     }
 
-    pub fn flush(&mut self) {
+    fn flush(&mut self) {
         let s0 = self.sum0 as f64;
         let s1 = self.sum1 as f64;
         let s2 = self.sum2 as f64;
-        self.sum += s0 * self.drv[0] + s1 * self.drv[1] + s2 * self.drv[2];
+        self.sum += s0 * self.coeffs[0] + s1 * self.coeffs[1] + s2 * self.coeffs[2];
 
         self.sum0 = 0;
         self.sum1 = 0;
@@ -82,12 +85,12 @@ impl LittlePhiSum {
         let max_y3 = (-2.0 / λ + 1.8 / λ / λ + 1.0 / λ / λ / λ)
             / (std::f64::consts::PI * 2.0).sqrt()
             / x.powi(3);
-        let radius = (self.eps / max_y3 * 6.0).powf(1.0 / 3.0) as i64;
+        let radius = (self.eps / max_y3 * 6.0).cbrt() as i64;
         let radius = std::cmp::min(radius, 1 << 20);
 
         self.radius = radius;
         self.t = t;
-        self.drv = [y0, y1, y2 / 2.0];
+        self.coeffs = [y0, y1, y2 / 2.0];
 
         self.sum0 = 1;
     }
