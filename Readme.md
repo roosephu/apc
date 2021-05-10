@@ -1,20 +1,22 @@
 # $\newcommand{\d}{\mathrm{d}}$About
 
+This program calculates $\pi(x)$ using analytic method for $x \leq 10^{18}$ **assuming access to a table of non-trivial zeros of Riemann $\zeta(s)$ function**. It's based on the paper [Platt]. 
+
 This is a side project. I'm new to analytic number theory and can't understand most of the equations in the reference papers. I know little computer architecture so the program is also highly-unoptimized. Use at your own risk.
 
 The program hasn't been tested so it might produce incorrect numbers or even fail to produce reasonable results.
 
 ### Is it fast? How fast is it?
 
-No, it's very slow, compared to [primecount](https://github.com/kimwalisch/primecount). It's even slow compared without LMFDB.
+No, it's very slow, compared to [primecount](https://github.com/kimwalisch/primecount). 
 
-With that being said, it's not that slow as people might think. For example, with the help of LMFDB, it successfully calculates $\pi(10^{18}) = 24739954287740860$ in about 8.5min in my laptop (Macbook Pro 13-inch, 2017) with a single thread. As a comparison, `primecount` gives the same answer in about 100s in the same environment (`primecount 1e18 -t 1`), so the analytic method is ~5x slower.
+With that being said, it's not that slow as people might think. For example, with the help of LMFDB, it successfully calculates $\pi(10^{18}) = 24739954287740860$ in about 8min in Macbook Pro 13-inch (2017) with a single thread. As a comparison, `primecount` gives the same answer in about 100s in the same environment (`primecount 1e18 -t 1`), so the analytic method is ~5x slower.
 
 The algorithm can run in parallel easily but I don't do that.
 
 ### Is using LMFDB cheating?
 
-Yes, kind of. The algorithm needs all non-trivial zeros of $\zeta(\frac{1}{2} + it)$ for $t \leq \tilde O(x^{1/2})$ to compute $\pi(x)$ in $\tilde O(x^{1/2})$ time. (I always assumes RH holds. ) However, a table of $\{\pi(k^2)\}_{k^2 \leq x}$ also enables computing $\pi(x)$ in $\tilde O(x^{1/2})$ time, with a more trivial algorithm. The only point is that the table of $\{\pi(k^2)\}_{k^2 \leq x}$ might be very hard to get :( I don't know any algorithm which can output such a table in $N^{o(1)}$ time, while it seems that the non-trivial zeros of $\zeta(\frac{1}{2} + it)$ for $t \leq T$ can be found in $\tilde O(T)$ time.
+Yes, kind of. The algorithm needs all non-trivial zeros of $\zeta(\frac{1}{2} + it)$ for $t \leq \tilde O(x^{1/2})$ to compute $\pi(x)$ in $\tilde O(x^{1/2})$ time. (We assumes RH holds. ) However, a table of $\{\pi(k^2)\}_{k^2 \leq x}$ also enables computing $\pi(x)$ in $\tilde O(x^{1/2})$ time, with a much more trivial algorithm. The only point is that the table of $\{\pi(k^2)\}_{k^2 \leq x}$ might be very hard to get :( I don't know any algorithm which can output such a table in $N^{o(1)}$ time, while it seems that the non-trivial zeros of $\zeta(\frac{1}{2} + it)$ for $t \leq T$ can be found in $\tilde O(T)$ time.
 
 ### If a number is produced, is it guaranteed to be correct?
 
@@ -30,40 +32,35 @@ Because it's new to me either. What can the result of writing an analytic number
 
 Unfortunately, after writing these code, I still don't think I've learnt Rust. Some of the features confuse me. For example, can anyone pointing me out the correct way to enable `a + b` where `a` is a `T` and `b` is `Complex<T>` for a custom float type `T`? We can't `impl<T> Add<Complex<T>> for T`  due to the orphan rule, and `num::Complex` does this by using macros, which are not exported.
 
-### Why [Platt] instead of [Buthe]?
+### Why [Platt] instead of [Büthe]?
 
-Because [Buthe] seems too difficult to me.
+Because [Büthe] seems too difficult to me.
 
 # Usage
 
 1. Install Rust nightly. 
 
-2. Download the files of zeros of $\zeta(s)$ from LMFDB and put then into `data/zeros/`. To compute $\pi(10^{18})$, you might need all zeros up to $1.4 \times 10^8$. 
+2. Download the files of zeros of $\zeta(s)$ from [LMFDB](https://beta.lmfdb.org/data/riemann-zeta-zeros/). To compute $\pi(10^{18})$, you might need all zeros up to $1.4 \times 10^8$. 
 
-   The structure of the direction will be 
+   The directory should at least contain `md5.txt`. Also put data files (e.g.,`zeros_14.dat`) in this folder. 
 
-   ```text
-   apc/
-       - data/
-           - zeros/
-               - md5.txt
-               - zeta_14.dat
-               - ...
-       - F64x2/
-       	- ...
-       - src/
-       	- ...
-       - Cargo.toml
-       - ...
-   ```
+3. Build: `cargo build --bin apc --release`.
 
-3. ` cargo r --bin apc --release -- 1000_000_000_000_000_000 --lambda-hint 60 --poly-order 15 ` After building, 
+4. Run: `cargo run --bin apc --release -- 1000_000_000_000_000 --lambda-hint 10 --zeta-zeros-path <your-LMFDB-path> `. The time might vary, but probably it should finish under 1min. As a reference, it's ~8s in Macbook Pro 13-inch (2017). 
+
+You may try different `--lambda-hint` value. Larger value sieves more and use fewer $\zeta(s)$ zeros, while smaller value does the opposite. The program also suggests `--lambda-hint` if you set the environment variable `RUST_LOG=info`.
+
+You may also want to try `cargo run --bin apc --release -- 1000_000_000_000_000_000 --lambda-hint 50`. About 8min in Macbook Pro 13-inch (2017). 
 
 # Some technical details
 
+I'm too lazy to write all details, so I just write some interesting implementation details. 
+
 ## Multi-precision data type
 
-I've implemented my own double-double data type. Although there are many existing libraries, like [TwoFloat](https://github.com/ajtribick/twofloat), I'd like to invent a new wheel for my own needs. With that being said, I appreciate their work and my implementations are heavily inspired by them. Kudos to them.
+I've implemented my own double-double data type. Although there are many existing libraries, like [TwoFloat](https://github.com/ajtribick/twofloat), I'd like to invent a new wheel for my own needs. With that being said, I appreciate their work and my implementations are heavily inspired by them. Kudos to them. 
+
+As mentioned [here](http://www.math.uni-bonn.de/people/jbuethe/topics/AnalyticPiX.html), [FKBJ] uses a 128-bit fixed-point data type, so I think double-double suffices for this project. 
 
 ## Heuristic to decide the interval to calculate $\Delta$
 
@@ -107,14 +104,6 @@ In practice, when $x = 10^{11}$ and $\lambda = 3 \times 10^{-5}$, [Galway] predi
 
 This is first introduced in commit `d67fa9d` in v0.2.?.
 
-## Precision loss when computing $\Delta$ using `f64`
-
-Recall that
-$$
-\Delta = \sum_{L \leq p \leq R} f(p).
-$$
-For a prime $p$, if we use `f64` to store it, there might be a precision loss. Moreover, $f(p)$ can 
-
 ## Deciding Integral upper bound
 
 ​    */// we are integrating N(h) \hat_\phi(s), which is approximately x^σ exp(-λ^2 h^2 / 2) with σ = 0.5 or 1.*
@@ -149,7 +138,7 @@ We pick up $\hat t_{1, \dots, m}$ such that for any $t$ of interest, we can find
 
 ### Hybrid Precision Integration
 
-In this subsection, we'd like to equip low precision data types to speed up the term $\sum_\rho \hat\Phi(\rho)$.
+In this subsection, we'd like to use low precision data types to speed up the term $\sum_\rho \hat\Phi(\rho)$.
 
 Assume each $\hat\Phi(\sigma + it)$ is calculated with an relative error at max  $\delta$, the absolute error of the summation is then bounded by
 $$
@@ -167,5 +156,48 @@ $$
 $$
 the latter of which is computed as before, but with `f64`. In practice, this method often leads to a 8x speedup when computing the integral. 
 
-Now we seek to reduce $\delta$. The bottleneck is trigonometric functions: $\sin(x)$ has a relative error of $|x|$. So we simply use high precision to first reduce any $x$ to $x \bmod 2\pi$ in high precision, and then compute $\exp(iz)$ in `f64`. Numerical experiment shows that $\delta \leq 10^{-15}$. 
+Now we seek to reduce $\delta$. The bottleneck is trigonometric functions: $\sin(x)$ has a relative error of $|x|$. So we simply first reduce any $z$ to $z \bmod 2\pi$ in high precision, and then compute $\exp(iz)$ in `f64`. Numerical experiment shows that $\delta \leq 10^{-15}$. 
+
+## Computing $\Delta$ using `f64`
+
+Recall that
+$$
+\Delta = \sum_{L \leq p \leq R} f(p).
+$$
+For a prime $p$, if we use `f64` to store it, there might be a precision loss. Moreover, inaccuracy also be introduced when calculating $f(p)$. Let $\delta$ be the maximum absolute error of the output of $f(p)$. Then the total absolute error is at most $(R - L + 1) \delta$. 
+
+To avoid precision loss of converting `u64` to `f64`, we calculate $\tilde f(t) = f(x(1 + t))$, and $t = O(x^{-1} \lambda)$ so there's the precision loss is around $2^{-52}$. 
+
+To calculate $\tilde f(t)$ fast: we simply use the order-2 Taylor polynomial at $t_0$. 
+$$
+g(t) = \tilde f(t_0) + (t - t_0) \tilde f'(t_0) + \frac{1}{2}(t - t_0)^2 \tilde f''(t_0).
+$$
+where
+$$
+\begin{aligned}
+\tilde f'(t) & = -\frac{C}{1 + t}\lambda^{-1}, \\
+\tilde f''(t) & = \frac{C}{(1+t)^2} (\lambda^{-1} + \rho \lambda^{-2}), \\
+\end{aligned}
+$$
+for $\rho = \lambda^{-1} \ln (1+t), C = -\frac{\exp(-\rho^2 /2)}{\sqrt{2 \pi}}$. Note that we sometimes find a new $t_0$ and build a new order-2 Taylor polynomial. So we need to determine when the approximation is good. More specifically, we'd like to know what's the maximum $w > 0$, such that, it hold that have $\left|g(t) - \tilde f(t)\right| \leq \epsilon$ for all $t$ in $[t_0 - w, t_0 + w]$. By using the Lagrange remainder, we have
+$$
+|g(t) - \tilde f(t)| \leq \frac{1}{6} w^3 \max_t |\tilde f'''(t)|,
+$$
+where
+$$
+\tilde f'''(t) = -\frac{C}{(1+t)^3} (2λ^{-1} + 3 ρ λ^{-2} - (1 - ρ^2) \lambda^{-3}). 
+$$
+Note that $\exp(-\rho^2 / 2) \rho \geq -0.63$ and $\exp(-\rho^2 / 2) \rho^2 \geq 0$ for every $\rho$, we can then bound $|\tilde f'''(t)|$ (for most $\lambda$):
+$$
+|\tilde f'''(t)| \leq \frac{-2λ^{-1} + 1.8 \lambda^{-2} + λ^{-3}}{\sqrt{2 \pi}}.
+$$
+
+# References
+
++ [[Platt](https://arxiv.org/abs/1203.5712)] : David Platt, “Computing $\pi(x)$ Analytically.”
++ [[FKBJ](https://www.ams.org/journals/mcom/2017-86-308/S0025-5718-2017-03038-6/S0025-5718-2017-03038-6.pdf)] : Franke et al., “A Practical Analytic Method for Calculating $\pi (x)$.”
++ [[Büthe](https://arxiv.org/abs/1410.7008)] : Büthe, “An Improved Analytic Method for Calculating $\pi(x)$.”
++ [[Galway](https://faculty.math.illinois.edu/~galway/PhD_Thesis/thesis-twoside.pdf)] : William Floyd Galway, "Analytic Computation of the Prime-Counting Function", 
+
+I also summarized these papers [here](https://www.roosephu.xyz/2021/03/08/analytic-pi/) (in Chinese). 
 

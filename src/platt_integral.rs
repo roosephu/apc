@@ -169,10 +169,10 @@ impl<T: MyReal> PlattIntegrator<T> {
             t = expansion.t;
         }
         info!(
-            "[PlattIntegrator] up to {}, {} segments, integral = {}",
-            limit,
+            "[PlattIntegrator] up to {:.6e}, {} segments, integral = {:.6}",
+            limit.to_f64().unwrap(),
             expansions.len(),
-            to_inf[0],
+            to_inf[0].approx(),
         );
 
         Self { expansions, to_inf }

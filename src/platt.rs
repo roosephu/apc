@@ -19,7 +19,7 @@ pub struct PlattBuilder {
 pub struct Platt {
     x: u64,
     λ: f64,
-    integral_limit: f64,
+    max_height: f64,
     x1: u64,
     x2: u64,
     max_order: usize,
@@ -41,7 +41,7 @@ impl PlattBuilder {
         let x_ = x as f64;
         let λ = (self.hint_λ * x_.ln() / x_).sqrt();
         let (x1, x2) = plan_Δ_bounds_heuristic(λ, x_, 0.24);
-        let integral_limit = plan_integral(λ, x_, 0.1);
+        let max_height = plan_ζ_zeros(λ, x_, 0.1);
 
         // Lemma 4.5
         let ignored = (λ * λ / 2.0).exp() * (12.533141373155 + 2.0 / λ)
@@ -49,12 +49,12 @@ impl PlattBuilder {
 
         info!("λ = {:.6e}, ignored = {:.6}", λ, ignored);
         assert!(ignored < 0.1, "Too large ignored term. See [Lemma 4.5, Platt].");
-        info!("integral limit = {:.6}", integral_limit);
+        info!("max ζ zero height = {:.6}", max_height);
 
         Platt {
             x,
             λ,
-            integral_limit,
+            max_height,
             x1,
             x2,
             max_order: self.poly_order,
@@ -253,7 +253,7 @@ fn integrate_critical<T: MyReal>(
     x: u64,
     λ: f64,
     max_order: usize,
-    limit: f64,
+    max_height: f64,
     ζ_zeros: &Path,
 ) -> T {
     let mut integrator = HybridPrecIntegrator::new(
@@ -273,19 +273,37 @@ fn integrate_critical<T: MyReal>(
     };
 
     info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
-    crate::lmfdb::LMFDB_reader::<T, _>(ζ_zeros, limit, work).unwrap();
+    crate::lmfdb::LMFDB_reader::<T, _>(ζ_zeros, max_height, work).unwrap();
 
     let max_err = integrator.max_err;
     info!(
-        "integral critical = {}, last = {}, max_err/f64::eps = {:.e}",
-        result, last_contribution, max_err
+        "integral critical = {}, last = {:.6e}, max_err/f64::eps = {:.6e}",
+        result, last_contribution.to_f64().unwrap(), max_err
     );
     assert!(max_err < 1e13, "possible loss of precision! use PlattIntegrator instead");
 
     result
 }
 
-fn plan_integral(λ: f64, x: f64, _: f64) -> f64 { (x.ln() + x.ln().ln()).sqrt() / λ }
+fn plan_ζ_zeros(λ: f64, x: f64, eps: f64) -> f64 {
+    // let T = (x.ln() + x.ln().ln()).sqrt() / λ;
+
+    let ln_err = |T: f64| -> f64 {
+        let PI = std::f64::consts::PI;
+        let Tpow = (T / 2.0 / PI) * ((T / 2.0 / PI).ln() - 1.0) + 0.875 + 1.588 + 0.137 * T.ln() + 0.443 * T.ln().ln();
+        let a = 2.0 * (x.sqrt() / T / x.ln() + 1.0 / (λ * λ * T * T * x)) * (2.0 / (λ * λ * T * T) * Tpow);
+        a.ln() + λ * λ * (1.0 - T * T) / 2.0
+    };
+
+    let maxT = (x.ln() + x.ln().ln()).sqrt() / λ * 2.0;
+    let ln_eps = eps.ln();
+    let T = brentq(|t| ln_err(t) - ln_eps, 1.0, maxT, 0.0, 0.0, 30).unwrap();
+    let err = ln_err(T).exp();
+
+    info!("[plan ζ zeros] T = {:.6e} err = {:.6}, maxT = {:.6e}", T, err, maxT);
+
+    T
+}
 
 impl Platt {
     pub fn compute<T: MyReal>(&mut self) -> u64 {
@@ -297,7 +315,7 @@ impl Platt {
 
         let integral_offline = integrate_offline::<T>(x, λ, max_order);
         let integral_critical =
-            integrate_critical::<T>(x, λ, max_order, self.integral_limit, self.ζ_zeros.as_path());
+            integrate_critical::<T>(x, λ, max_order, self.max_height, self.ζ_zeros.as_path());
 
         let t1 = Instant::now();
         let Δ = calc_Δ_f64(x, 0.5, λ, self.x1, self.x2);
@@ -312,7 +330,7 @@ impl Platt {
         let time_sieve = (t2 - t1).as_secs_f64();
 
         info!(
-            "Time: integration = {} sec, sieve = {} sec, ratio = {:.3}",
+            "Time: ζ zeros = {:.3} sec, sieve = {:.3} sec, ratio = {:.3}",
             time_integral,
             time_sieve,
             time_integral / time_sieve
@@ -365,10 +383,10 @@ mod tests {
 
         let x = 1_000_000_000_000_000u64;
         let λ = 3.324516e-7;
-        let integral_limit = 19130220.241455;
+        let max_height = 19130220.241455;
         let ζ_zeros = PathBuf::from("./data/zeros");
 
-        let b = integrate_critical::<f64x2>(x, λ, 15, integral_limit, ζ_zeros.as_path());
+        let b = integrate_critical::<f64x2>(x, λ, 15, max_height, ζ_zeros.as_path());
         println!("b = {}", b);
         panic!();
     }
