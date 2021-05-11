@@ -42,6 +42,7 @@ impl LittlePhiSum {
         rgsl::error::erfc((t as f64 / self.x).ln_1p() / self.λ / std::f64::consts::SQRT_2) / 2.0
     }
 
+    #[inline]
     fn fast(&mut self, t: i64) -> Option<()> {
         let δ = t - self.t;
         if δ < -self.radius || δ > self.radius {
@@ -55,6 +56,7 @@ impl LittlePhiSum {
         }
     }
 
+    #[inline]
     fn flush(&mut self) {
         let s0 = self.sum0 as f64;
         let s1 = self.sum1 as f64;
@@ -86,7 +88,7 @@ impl LittlePhiSum {
             / (std::f64::consts::PI * 2.0).sqrt()
             / x.powi(3);
         let radius = (self.eps / max_y3 * 6.0).cbrt() as i64;
-        let radius = std::cmp::min(radius, 1 << 20);
+        let radius = std::cmp::min(radius, 1 << 21);
 
         self.radius = radius;
         self.t = t;
@@ -95,5 +97,6 @@ impl LittlePhiSum {
         self.sum0 = 1;
     }
 
+    #[inline]
     pub fn add(&mut self, t: i64) { self.fast(t).unwrap_or_else(|| self.slow(t)) }
 }

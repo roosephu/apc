@@ -12,6 +12,7 @@ use num::integer::*;
 pub struct PlattBuilder {
     hint_λ: f64,
     poly_order: usize,
+    segment: u64,
     ζ_zeros: PathBuf,
 }
 
@@ -20,6 +21,7 @@ pub struct Platt {
     x: u64,
     λ: f64,
     max_height: f64,
+    segment: u64,
     x1: u64,
     x2: u64,
     max_order: usize,
@@ -29,7 +31,12 @@ pub struct Platt {
 
 impl Default for PlattBuilder {
     fn default() -> Self {
-        Self { hint_λ: 10.0, poly_order: 15, ζ_zeros: PathBuf::from("./data/zeros") }
+        Self {
+            hint_λ: 10.0,
+            poly_order: 15,
+            segment: 1u64 << 32,
+            ζ_zeros: PathBuf::from("./data/zeros"),
+        }
     }
 }
 
@@ -40,20 +47,19 @@ impl PlattBuilder {
     pub fn build(self, x: u64) -> Platt {
         let x_ = x as f64;
         let λ = (self.hint_λ * x_.ln() / x_).sqrt();
-        let (x1, x2) = plan_Δ_bounds_heuristic(λ, x_, 0.24);
-        let max_height = plan_ζ_zeros(λ, x_, 0.1);
-
         // Lemma 4.5
         let ignored = (λ * λ / 2.0).exp() * (12.533141373155 + 2.0 / λ)
             / (2.0 * std::f64::consts::PI * x_ * λ);
-
-        info!("λ = {:.6e}, ignored = {:.6}", λ, ignored);
+        info!("λ = {:.6e}, ignored term = {:.6}", λ, ignored);
         assert!(ignored < 0.1, "Too large ignored term. See [Lemma 4.5, Platt].");
-        info!("max ζ zero height = {:.6}", max_height);
+
+        let (x1, x2) = plan_Δ_bounds_heuristic(λ, x_, 0.24);
+        let max_height = plan_ζ_zeros(λ, x_, 0.1);
 
         Platt {
             x,
             λ,
+            segment: self.segment,
             max_height,
             x1,
             x2,
@@ -77,6 +83,11 @@ impl PlattBuilder {
         self.ζ_zeros = path;
         self
     }
+
+    pub fn sieve_segment(&mut self, segment: u64) -> &mut Self {
+        self.segment = segment;
+        self
+    }
 }
 
 fn Φ(r: f64) -> f64 { rgsl::error::erfc(r / std::f64::consts::SQRT_2) / 2.0 }
@@ -93,12 +104,12 @@ fn err_l(t: f64, x: f64, λ: f64) -> f64 {
 }
 
 #[inline(never)]
-fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
+fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64, segment: u64) -> f64 {
     let approx_n_primes = (x2 - x1) as f64 / (x1 as f64).ln();
     assert!(f64::EPSILON * approx_n_primes < 0.1, "too many primes for f64 approx");
 
     let mut ϕ = crate::fast_phi::LittlePhiSum::new(λ, x as f64, eps / (x2 - x1) as f64);
-    let mut n_primes_less_than_x = 0usize;
+    let mut n_primes_less_than_x = 0u64;
 
     let mut calc = |p: u64| {
         let t = (p - x) as i64;
@@ -111,9 +122,10 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
     let mut n_primes = 0usize;
 
     let mut x1 = x1;
-    while x1 <= x2 {
-        let y1 = std::cmp::min(x2, x1 + (1u64 << 34) - 1);
-        info!("sieving [{}, {}]", x1, y1);
+    let n_intervals = (x2 - x1) / segment + 1;
+    for k in 1..=n_intervals {
+        let y1 = std::cmp::min(x2, x1 + segment - 1);
+        info!("sieving {}/{}: [{}, {}]", k, n_intervals, x1, y1);
         let sieve_result = crate::sieve::sieve_primesieve(x1, y1);
         for &p in sieve_result.primes {
             n_primes += 1;
@@ -131,10 +143,10 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
 
 /// See Readme.md for why this can be computed using `f64`
 #[inline(never)]
-fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64) -> f64 {
+fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64, segment: u64) -> f64 {
     let primes = crate::sieve::sieve_primesieve(1, x2.sqrt());
 
-    let Δ_1 = calc_Δ1_f64(x, eps, λ, x1, x2);
+    let Δ_1 = calc_Δ1_f64(x, eps, λ, x1, x2, segment);
     let mut Δ_2 = 0.0;
 
     for &p in primes.primes {
@@ -211,7 +223,7 @@ fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
     assert!(residue <= 0.3);
 
     info!(
-        "Δ range = [{:.0}, {:.0}], length = {:.0}, residue = {:.6}, d = {:.6}",
+        "Δ range = [{:.0}, {:.0}], length = {:.0}, trunc error = {:.6}, d = {:.6}",
         x1,
         x2,
         x2 - x1,
@@ -233,8 +245,7 @@ fn integrate_offline<T: MyReal>(x: u64, λ: f64, max_order: usize) -> T {
         0.01,
     );
     let result = integrator.query(T::zero()).im;
-    info!("offline integral = {}", result);
-    // integrator_offline.stat.show("IntegratorOffline");
+    info!("Φ̂(1) = {}", result);
 
     result
 }
@@ -264,12 +275,12 @@ fn integrate_critical<T: MyReal>(
         last_contribution = integral;
     };
 
-    info!("integrating phi(1/2+it) N(t) for t = 0 to Inf.");
+    info!("Computing ∑ Φ̂(ρ) for 0 < ℑρ < T.");
     crate::lmfdb::LMFDB_reader::<T, _>(ζ_zeros, max_height, work).unwrap();
 
     let max_err = integrator.max_err;
     info!(
-        "integral critical = {}, last = {:.6e}, max_err/f64::eps = {:.6e}",
+        "∑ Φ̂(ρ) = {}, Φ̂(ρ_max) = {:.6e}, max_err/f64::eps = {:.6e}",
         result,
         last_contribution.to_f64().unwrap(),
         max_err
@@ -300,7 +311,7 @@ fn plan_ζ_zeros(λ: f64, x: f64, eps: f64) -> f64 {
     let T = brentq(|t| ln_err(t) - ln_eps, 1.0, maxT, 0.0, 0.0, 30).unwrap();
     let err = ln_err(T).exp();
 
-    info!("[plan ζ zeros] T = {:.6e} err = {:.6}, maxT = {:.6e}", T, err, maxT);
+    info!("[plan ζ zeros] T = {:.6e}, trunc error = {:.6}, maxT = {:.6e}", T, err, maxT);
 
     T
 }
@@ -318,7 +329,7 @@ impl Platt {
             integrate_critical::<T>(x, λ, max_order, self.max_height, self.ζ_zeros.as_path());
 
         let t1 = Instant::now();
-        let Δ = calc_Δ_f64(x, 0.5, λ, self.x1, self.x2);
+        let Δ = calc_Δ_f64(x, 0.5, λ, self.x1, self.x2, self.segment);
         let t2 = Instant::now();
 
         info!("Δ = {}", Δ);
@@ -335,7 +346,7 @@ impl Platt {
             time_sieve,
             time_integral / time_sieve
         );
-        info!("Suggested lambda-hint = {:.3}", self.builder.hint_λ * time_integral / time_sieve);
+        info!("Suggested: --lambda-hint {:.3}", self.builder.hint_λ * time_integral / time_sieve);
 
         n_ans as u64
     }
@@ -358,6 +369,7 @@ mod tests {
         let x = 1e11f64;
         let λ = 3e-5;
         let eps = 0.24;
+        let segment = 1u64 << 32;
 
         let (w1, w2) = plan_Δ_bounds_strict(λ, x, eps);
         let (d1, d2) = plan_Δ_bounds_heuristic(λ, x, eps);
@@ -366,10 +378,10 @@ mod tests {
 
         let mut diff = 0.0;
         if w1 < d1 {
-            diff += calc_Δ1_f64(x as u64, eps, λ, w1, d1);
+            diff += calc_Δ1_f64(x as u64, eps, λ, w1, d1, segment);
         }
         if d2 < w2 {
-            diff += calc_Δ1_f64(x as u64, eps, λ, d2, w2);
+            diff += calc_Δ1_f64(x as u64, eps, λ, d2, w2, segment);
         }
         let diff = diff.abs();
         info!("diff = {}", diff);

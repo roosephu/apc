@@ -1,6 +1,7 @@
 use crate::constants::*;
 use num::{Complex, Signed};
-use num_traits::{Float, FloatConst, NumAssignOps, Pow};
+use num_traits::{Float, FloatConst, NumAssignOps, Pow, FromPrimitive};
+#[cfg(feature = "zeta")]
 use rustfft::FftNum;
 use std::{
     fmt::{Debug, Display, LowerExp},
@@ -32,6 +33,7 @@ pub trait HighPrecMod2PI {
 
 pub trait MyReal = Float
     + FloatConst
+    + FromPrimitive
     + Signed
     + NumAssignOps
     + Display // might not need
@@ -48,7 +50,6 @@ pub trait MyReal = Float
     + Div<Complex<Self>, Output = Complex<Self>>
     + Pow<i32, Output = Self>
     + ExpPolyApprox
-    + FftNum
     + Erfc
     + 'static;
 

@@ -10,27 +10,38 @@
 #![feature(destructuring_assignment)]
 #![feature(min_type_alias_impl_trait)]
 
-mod bandwidth_interp;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "zeta")] {
+        mod bandwidth_interp;
+        mod gamma;
+        mod riemann_siegel;
+        mod sum_trunc_dirichlet;
+        mod zeta;
+        pub use riemann_siegel::{RiemannSiegelZ, RiemannSiegelZeta};
+        pub use zeta::ZetaGalway;
+    }
+}
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "galway")] {
+        mod galway;
+        pub use galway::{Galway, GalwayHints};
+    }
+}
+
 mod brentq;
 mod cache_stat;
 mod constants;
 mod context;
 mod fast_phi;
-mod galway;
-mod gamma;
 mod lmfdb;
 mod platt;
 mod platt_integral;
 mod power_series;
-mod riemann_siegel;
 mod sieve;
-mod sum_trunc_dirichlet;
 mod traits;
-mod zeta;
 
 pub use context::Context;
 pub use fast_phi::LittlePhiSum;
-pub use galway::{Galway, GalwayHints};
 pub use platt::PlattBuilder;
-pub use riemann_siegel::{RiemannSiegelZ, RiemannSiegelZeta};
-pub use zeta::ZetaGalway;
+

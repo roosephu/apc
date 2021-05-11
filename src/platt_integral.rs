@@ -71,7 +71,7 @@ impl<T: MyReal> ExpansionIntegrator<T> {
         let s = Complex::new(σ, t);
         let (w, mut poly) = Self::expand_at(s, ln_x, λ, order);
         let hat_phi = (λ * λ / 2.0 * s * s + s * ln_x).exp() / s;
-        let coeff = hat_phi / Complex::<T>::new(T::zero(), w);
+        let coeff = hat_phi / Complex::new(T::zero(), w);
 
         for i in 0..order {
             let mut signed_falling_factorial = T::one();
@@ -289,16 +289,16 @@ mod tests {
             max_order,
             eps,
         );
-        let limit = (x.ln() + x.ln().ln()).sqrt() / λ;
+        let limit = T::from_f64((x.ln() + x.ln().ln()).sqrt() / λ).unwrap();
 
         let m = 1000;
         for j in 0..=m {
             let t = limit * j as f64 / m as f64;
 
-            let a = high_prec.query(T::from_f64(t).unwrap());
-            let b = hybrid_prec.query(T::from_f64(t).unwrap());
+            let a = high_prec.query(t);
+            let b = hybrid_prec.query(t);
 
-            assert_complex_close(a, b, 1e-15);
+            assert_complex_close(a, b, 3e-15);
         }
     }
 }

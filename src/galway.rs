@@ -264,5 +264,12 @@ mod tests {
         let result2 = zeta_galway2.zeta(s2, 1e-10);
         println!("{:?}", result1);
         println!("{:?}", result2);
+
+        // let ctx = Context::<T>::new(100);
+        // let mut zeta_galway = ZetaGalway::new(&ctx);
+        // let mut galway = Galway::new(&ctx, &mut zeta_galway);
+        // let hints = GalwayHints { lambda: opts.lambda };
+        // let ans = galway.compute(n, hints);
+        // println!("[Galway] ans = {}", ans);
     }
 }

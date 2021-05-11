@@ -3,6 +3,7 @@ name = "apc"
 version = "0.2.7"
 authors = ["Yuping Luo <roosephu@gmail.com>"]
 edition = "2018"
+license = "MIT"
 description = "Analytical Prime Counting"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -23,8 +24,7 @@ harness = false
 
 [dependencies]
 num = "0.4.0"
-rustfft =  { path = "../RustFFT" }
-# rustfft =  { local = "../RustFFT", git = "https://github.com/roosephu/RustFFT.git" }
+rustfft =  { local = "../RustFFT", git = "https://github.com/roosephu/RustFFT.git", optional = true }
 GSL = "4.0.0"
 log = "0.4.14"
 env_logger = "0.8.3"
@@ -35,12 +35,13 @@ clap = "2.33.3"
 byteorder = "1.4.3"
 F64x2 = { path = "./F64x2" }
 primesieve-sys = "0.2.3"
-parse_int = "0.5.0"
 libc = "0.2.94"
+cfg-if = "1.0.0"
 
 [features]
-verify_fast_phi = []
-verify_all = ["verify_fast_phi"]
+zeta = ["rustfft"]
+galway = ["zeta"]
 
 [dev-dependencies]
 criterion = "0.3.4"
+

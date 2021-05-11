@@ -1,7 +1,21 @@
 # File created using '.gitignore Generator' for Visual Studio Code: https://bit.ly/vscode-gig
 
-# Created by https://www.toptal.com/developers/gitignore/api/rust,macos,vscode
-# Edit at https://www.toptal.com/developers/gitignore?templates=rust,macos,vscode
+# Created by https://www.toptal.com/developers/gitignore/api/rust,macos,jupyternotebooks
+# Edit at https://www.toptal.com/developers/gitignore?templates=rust,macos,jupyternotebooks
+
+### JupyterNotebooks ###
+# gitignore template for Jupyter Notebooks
+# website: http://jupyter.org/
+
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Remove previous ipynb_checkpoints
+#   git rm -r .ipynb_checkpoints/
 
 ### macOS ###
 # General
@@ -41,18 +55,9 @@ Temporary Items
 # More information here https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html
 Cargo.lock
 
-### vscode ###
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
-
-# End of https://www.toptal.com/developers/gitignore/api/rust,macos,vscode
+# End of https://www.toptal.com/developers/gitignore/api/rust,macos,jupyternotebooks
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
-
 
 flamegraph.svg
 data/
