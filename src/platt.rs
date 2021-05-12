@@ -9,6 +9,7 @@ use crate::traits::*;
 use log::{debug, info};
 use num::integer::*;
 
+#[doc(hidden)]
 pub struct PlattBuilder {
     hint_λ: f64,
     poly_order: usize,
@@ -16,6 +17,11 @@ pub struct PlattBuilder {
     ζ_zeros: PathBuf,
 }
 
+/**
+The algorihtm described in David Platt, “Computing $\pi(x)$ Analytically.”
+
+Also see [ExpansionIntegrator] to compute $\hat\Phi(s)$ and [HybridPrecIntegrator] for speedup.
+ */
 #[derive(Default)]
 pub struct Platt {
     x: u64,
@@ -53,7 +59,7 @@ impl PlattBuilder {
         info!("λ = {:.6e}, ignored term = {:.6}", λ, ignored);
         assert!(ignored < 0.1, "Too large ignored term. See [Lemma 4.5, Platt].");
 
-        let (x1, x2) = plan_Δ_bounds_heuristic(λ, x_, 0.24);
+        let (x1, x2) = Platt::plan_Δ_bounds_heuristic(λ, x_, 0.24);
         let max_height = plan_ζ_zeros(λ, x_, 0.1);
 
         Platt {
@@ -127,7 +133,7 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64, segment: u64) -> f6
         let y1 = std::cmp::min(x2, x1 + segment - 1);
         info!("sieving {}/{}: [{}, {}]", k, n_intervals, x1, y1);
         let sieve_result = crate::sieve::sieve_primesieve(x1, y1);
-        for &p in sieve_result.primes {
+        for &p in sieve_result.iter() {
             n_primes += 1;
             calc(p);
         }
@@ -149,7 +155,7 @@ fn calc_Δ_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64, segment: u64) -> f64
     let Δ_1 = calc_Δ1_f64(x, eps, λ, x1, x2, segment);
     let mut Δ_2 = 0.0;
 
-    for &p in primes.primes {
+    for &p in primes.iter() {
         let mut m = 1i64;
         let mut power = p;
         while power < x2 / p {
@@ -180,60 +186,6 @@ fn cramer_stats(x: f64, λ: f64, d: f64) -> (f64, f64, f64) {
     (mean, var, max)
 }
 
-/// exactly the same as Galway's paper.
-fn plan_Δ_bounds_strict(λ: f64, x: f64, eps: f64) -> (u64, u64) {
-    let eps = eps / 2.0;
-
-    let t1 = brentq(|t| err_l(t, x, λ) - eps, 0.0, -8.0, 0.0, 0.0, 100).unwrap_or(x);
-    let t2 = brentq(|t| err_r(t, x, λ) - eps, 0.0, 8.0, 0.0, 0.0, 100).unwrap_or(x);
-
-    let x1 = (x * (t1 * λ).exp()).floor();
-    let x2 = (x * (t2 * λ).exp()).ceil();
-
-    debug!("t1 = {}, t2 = {}", t1, t2);
-    let delta_est = 2.0 * λ * x * (2.0 * (λ * x).ln()).sqrt();
-    info!(
-        "Δ range = [{}, {}], length = {}, est = {:.0}, residue = ({:.6}, {:.6})",
-        x1,
-        x2,
-        x2 - x1,
-        delta_est,
-        err_l(t1, x, λ),
-        err_r(t2, x, λ)
-    );
-
-    (x1.floor() as u64, x2.floor() as u64)
-}
-
-/// Intuition: Galway bounds the difference by considering all numbers, but we only need prime numbers
-/// We simply apply Cramer's random model: only O(1/log(n)) numbers are prime numbers.
-/// Also see the comments for cramer_stats for .
-fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
-    let τ = 20.0;
-    let err = |d: f64| {
-        let (mean, var, max) = cramer_stats(x, λ, d);
-        mean + (max * τ) + (max * max * τ * τ + 2.0 * τ * var).sqrt()
-    };
-
-    let max_d = (x.ln() + x.ln().ln()).sqrt() * 2.0;
-    let d = brentq(|d| err(d) - eps, 0.0, max_d, 0.0, 0.0, 20).unwrap_or(0.0);
-    let x1 = (x * (-d * λ).exp()).floor();
-    let x2 = (x * (d * λ).exp()).ceil();
-    let residue = err(d);
-    assert!(residue <= 0.3);
-
-    info!(
-        "Δ range = [{:.0}, {:.0}], length = {:.0}, trunc error = {:.6}, d = {:.6}",
-        x1,
-        x2,
-        x2 - x1,
-        err(d),
-        d,
-    );
-
-    (x1 as u64, x2 as u64)
-}
-
 // this requires high precision: result ≈ # primes
 fn integrate_offline<T: MyReal>(x: u64, λ: f64, max_order: usize) -> T {
     // the result = n / log(n) + o(n)
@@ -246,46 +198,6 @@ fn integrate_offline<T: MyReal>(x: u64, λ: f64, max_order: usize) -> T {
     );
     let result = integrator.query(T::zero()).im;
     info!("Φ̂(1) = {}", result);
-
-    result
-}
-
-/// Problem: How to bound the abs integral here?
-#[inline(never)]
-fn integrate_critical<T: MyReal>(
-    x: u64,
-    λ: f64,
-    max_order: usize,
-    max_height: f64,
-    ζ_zeros: &Path,
-) -> T {
-    let mut integrator = HybridPrecIntegrator::new(
-        T::from_u64(x).unwrap(),
-        T::one() / 2.0,
-        T::from_f64(λ).unwrap(),
-        max_order,
-        1e-20,
-    );
-    let mut result = T::zero();
-    let mut last_contribution = T::zero();
-
-    let work = |root| {
-        let integral = integrator.query(root).im;
-        result += integral;
-        last_contribution = integral;
-    };
-
-    info!("Computing ∑ Φ̂(ρ) for 0 < ℑρ < T.");
-    crate::lmfdb::LMFDB_reader::<T, _>(ζ_zeros, max_height, work).unwrap();
-
-    let max_err = integrator.max_err;
-    info!(
-        "∑ Φ̂(ρ) = {}, Φ̂(ρ_max) = {:.6e}, max_err/f64::eps = {:.6e}",
-        result,
-        last_contribution.to_f64().unwrap(),
-        max_err
-    );
-    assert!(max_err < 1e13, "possible loss of precision! use PlattIntegrator instead");
 
     result
 }
@@ -326,7 +238,7 @@ impl Platt {
 
         let integral_offline = integrate_offline::<T>(x, λ, max_order);
         let integral_critical =
-            integrate_critical::<T>(x, λ, max_order, self.max_height, self.ζ_zeros.as_path());
+            Self::integrate_critical::<T>(x, λ, max_order, self.max_height, self.ζ_zeros.as_path());
 
         let t1 = Instant::now();
         let Δ = calc_Δ_f64(x, 0.5, λ, self.x1, self.x2, self.segment);
@@ -350,15 +262,144 @@ impl Platt {
 
         n_ans as u64
     }
+
+    /**
+    We might shorten the interval by applying some heuristics based on Cramér's random model.
+
+    For brevity, we define $f(u) = \phi(u) - [u \leq x]$, i.e., $f(u) = \phi(u)$ for $u > x$ and $f(u) = \phi(u) - 1$ for $u \leq x$.
+
+    Given a real $d > 0$,  define $U_L = [1, xe^{-d\lambda}], U_R = [xe^{d \lambda}, \infty)$ and $U = U_L \cup U_R$. We'd like to sieve all primes in $(xe^{-d\lambda}, xe^{d \lambda})$ to compute $\Delta$ and estimate the truncation error $S = \sum_{p \in U}f(p)$. Note that $\lambda = \tilde O(x^{-1/2})$ and $d = \tilde O(1)$, so $x e^{d\lambda} = x - \tilde O(x^{1/2})$ and $x e^{d\lambda} = x + \tilde O(x^{1/2})$.
+
+    By Cramér's random model, we assume
+    $$
+    S = \sum_{p \in U} f(p) \approx  \sum_{u \in U} \frac{f(u)}{\ln u},
+    $$
+    One way to improve the approximation is to add an error bar, which is done by studying the behavior of a stochastic estimation $\hat S$:
+    $$
+    \hat S = \sum_{u \in U} X_u f(u), \quad X_u \sim \text{Bernoulli}(1/\ln u).
+    $$
+    We use Bernstein's inequality to approximate $S = \mathbb{E} [\hat S] + t$ by solving $t$ for $\epsilon = \exp(-20)$ in
+    $$
+    \exp\left( -\frac{\frac{1}{2} t^2}{\text{Var}[\hat S] + \frac{1}{3} M t} \right) \leq \epsilon, \quad M := \max_{u \in U} |f(u)| = \Phi(d).
+    $$
+    Let $q = 1/\ln x$, so $q \approx 1/\ln u$ for reasonable $u \in U$, i.e., those with not-too-small $f(u)$.
+
+    Next, we approximate $\mathbb{E}[\hat S]$:
+    $$
+    \mathbb{E}[\hat S] = \sum_{u \in U} \frac{f(u)}{\ln u} \approx \sum_{u \in U} q f(u) \approx q (I_r - I_l),
+    $$
+    where
+    $$
+    I_r = x \lambda \int_{d}^{\infty} \Phi(t) e^{t\lambda} \d t, \quad I_l = x \lambda \int_{d}^\infty \Phi(t) e^{-t\lambda} \d t.
+    $$
+    The last approximation is similar to [Section 3.2, Galway] and both $I_l$ and $I_r$ have a closed form solution. Unlike [Galway], we are making use of the fact that $f(u) < 0$ for $u < x$ and $f(u) > 0$ for $u > x$ and the sum of them might cancel.
+
+    The variance of $\hat S$ can be approximated by:
+    $$
+    \text{Var}[\hat S] = \sum_{u \in U} f(u)^2 \frac{1}{\ln u} (1 - 1/\ln u) \approx q(1-q) \sum_{u \in U} f(u)^2 \leq q(1-q) M \sum_{u \in U} |f(u)| \approx M q(1-q) (I_l + I_r).
+    $$
+    Finally, we minimize $d$ so that $S \leq 0.24$. In this way, we can get a shorter interval to sieve at a loss of guarantee.
+
+    In practice, when $x = 10^{11}$ and $\lambda = 3 \times 10^{-5}$, [Galway] predicts an interval of length 3e7 while this predicts an interval of length 2e7, while the difference between two sums is around 0.0112.
+
+    [Büthe] provides a rigorous way to reduce the interval, but I don't understand... [Theorem 4.3, Büthe2] seems pretty interesting and might be related to the heuristics I used.
+    */
+    pub fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
+        let τ = 20.0;
+        let err = |d: f64| {
+            let (mean, var, max) = cramer_stats(x, λ, d);
+            mean + (max * τ) + (max * max * τ * τ + 2.0 * τ * var).sqrt()
+        };
+
+        let max_d = (x.ln() + x.ln().ln()).sqrt() * 2.0;
+        let d = brentq(|d| err(d) - eps, 0.0, max_d, 0.0, 0.0, 20).unwrap_or(0.0);
+        let x1 = (x * (-d * λ).exp()).floor();
+        let x2 = (x * (d * λ).exp()).ceil();
+        let residue = err(d);
+        assert!(residue <= 0.3);
+
+        info!(
+            "Δ range = [{:.0}, {:.0}], length = {:.0}, trunc error = {:.6}, d = {:.6}",
+            x1,
+            x2,
+            x2 - x1,
+            err(d),
+            d,
+        );
+
+        (x1 as u64, x2 as u64)
+    }
+
+    /// exactly the same as Galway's paper.
+    fn plan_Δ_bounds_strict(λ: f64, x: f64, eps: f64) -> (u64, u64) {
+        let eps = eps / 2.0;
+
+        let t1 = brentq(|t| err_l(t, x, λ) - eps, 0.0, -8.0, 0.0, 0.0, 100).unwrap_or(x);
+        let t2 = brentq(|t| err_r(t, x, λ) - eps, 0.0, 8.0, 0.0, 0.0, 100).unwrap_or(x);
+
+        let x1 = (x * (t1 * λ).exp()).floor();
+        let x2 = (x * (t2 * λ).exp()).ceil();
+
+        debug!("t1 = {}, t2 = {}", t1, t2);
+        let delta_est = 2.0 * λ * x * (2.0 * (λ * x).ln()).sqrt();
+        info!(
+            "Δ range = [{}, {}], length = {}, est = {:.0}, residue = ({:.6}, {:.6})",
+            x1,
+            x2,
+            x2 - x1,
+            delta_est,
+            err_l(t1, x, λ),
+            err_r(t2, x, λ)
+        );
+
+        (x1.floor() as u64, x2.floor() as u64)
+    }
+
+    #[inline(never)]
+    fn integrate_critical<T: MyReal>(
+        x: u64,
+        λ: f64,
+        max_order: usize,
+        max_height: f64,
+        ζ_zeros: &Path,
+    ) -> T {
+        let mut integrator = HybridPrecIntegrator::new(
+            T::from_u64(x).unwrap(),
+            T::one() / 2.0,
+            T::from_f64(λ).unwrap(),
+            max_order,
+            1e-20,
+        );
+        let mut result = T::zero();
+        let mut last_contribution = T::zero();
+
+        let work = |root| {
+            let integral = integrator.query(root).im;
+            result += integral;
+            last_contribution = integral;
+        };
+
+        info!("Computing ∑ Φ̂(ρ) for 0 < ℑρ < T.");
+        crate::lmfdb::LMFDB_reader::<T, _>(ζ_zeros, max_height, work).unwrap();
+
+        let max_err = integrator.max_err;
+        info!(
+            "∑ Φ̂(ρ) = {}, Φ̂(ρ_max) = {:.6e}, max_err/f64::eps = {:.6e}",
+            result,
+            last_contribution.to_f64().unwrap(),
+            max_err
+        );
+        assert!(max_err < 1e13, "possible loss of precision! use PlattIntegrator instead");
+
+        result
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
-    use super::{
-        calc_Δ1_f64, integrate_critical, plan_Δ_bounds_heuristic, plan_Δ_bounds_strict
-    };
+    use super::{calc_Δ1_f64, Platt};
     use log::info;
     use F64x2::f64x2;
 
@@ -371,8 +412,8 @@ mod tests {
         let eps = 0.24;
         let segment = 1u64 << 32;
 
-        let (w1, w2) = plan_Δ_bounds_strict(λ, x, eps);
-        let (d1, d2) = plan_Δ_bounds_heuristic(λ, x, eps);
+        let (w1, w2) = Platt::plan_Δ_bounds_strict(λ, x, eps);
+        let (d1, d2) = Platt::plan_Δ_bounds_heuristic(λ, x, eps);
         info!("   strict bounds = x + [{}, {}]", w1 as i64 - x as i64, w2 - x as u64);
         info!("heuristic bounds = x + [{}, {}]", d1 as i64 - x as i64, d2 - x as u64);
 
@@ -398,7 +439,7 @@ mod tests {
         let max_height = 19130220.241455;
         let ζ_zeros = PathBuf::from("./data/zeros");
 
-        let b = integrate_critical::<f64x2>(x, λ, 15, max_height, ζ_zeros.as_path());
+        let b = Platt::integrate_critical::<f64x2>(x, λ, 15, max_height, ζ_zeros.as_path());
         println!("b = {}", b);
         panic!();
     }

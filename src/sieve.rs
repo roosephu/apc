@@ -1,8 +1,10 @@
+use std::slice::Iter;
+
 use num::ToPrimitive;
 use primesieve_sys::*;
 
 pub struct PrimesieveResult<'a> {
-    pub primes: &'a [u64],
+    primes: &'a [u64],
     raw_ptr: *mut libc::c_void,
 }
 
@@ -12,6 +14,8 @@ impl<'a> PrimesieveResult<'a> {
         let primes = unsafe { std::slice::from_raw_parts(raw_ptr as *mut u64, size) };
         Self { primes, raw_ptr }
     }
+
+    pub fn iter(&self) -> Iter<'a, u64> { self.primes.iter() }
 }
 
 impl<'a> Drop for PrimesieveResult<'a> {

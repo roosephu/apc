@@ -41,7 +41,7 @@ cfg-if = "1.0.0"
 [features]
 zeta = ["rustfft"]
 galway = ["zeta"]
+doc = []
 
 [dev-dependencies]
 criterion = "0.3.4"
-

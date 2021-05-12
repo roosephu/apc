@@ -4,9 +4,7 @@ This program counts the number of primes under $x$ using analytic method for $x 
 
 This is a side project. I'm new to analytic number theory and can't understand most of the equations in the reference papers. I know little computer architecture so the program is also highly-unoptimized. The program hasn't been tested so it might produce incorrect numbers or even fail to produce reasonable results. Use at your own risk.
 
-For documentation: The best I can offer is [doc.ipynb](./doc.ipynb). I'd like to merge the content there with this Readme, but it seems that Github won't render the math equations...
-
-# Build instructions and usage
+# Build
 
 1. Install Rust nightly, by first installing [Rustup](https://www.rust-lang.org/tools/install) and then installing Rust nightly. 
 
@@ -20,7 +18,9 @@ For documentation: The best I can offer is [doc.ipynb](./doc.ipynb). I'd like to
 
 3. Build: `cargo +nightly build --bin apc --release`.
 
-4. Run: `target/release/apc 10^15 --lambda-hint 10`. Time might vary, but probably it should finish under 1min. As a reference, it's ~8s in Macbook Pro 13-inch (2017). 
+# Usage
+
+1. Run: `target/release/apc 10^15 --lambda-hint 10`. Time might vary, but probably it should finish under 1min. As a reference, it's ~8s in Macbook Pro 13-inch (2017). 
 
    1. Add ` --zeta-zeros-path <your-LMFDB-path>` if you didn't put the LMFDB data under `data/zeros/`. 
 
@@ -28,3 +28,12 @@ You may try different `--lambda-hint` value. Larger value sieves more and use fe
 
 You may also want to try `target/release/apc 10^18 --lambda-hint 50`, which takes about 8.5min in Macbook Pro 13-inch (2017). Using more $\zeta$ zeros (and then reducing `--lambad-hint`) can reduce the time. 
 
+# Document
+
+To build the doc:
+
+```bash
+RUSTDOCFLAGS="--html-in-header `pwd`/src/latex.html" cargo doc --features doc --open
+```
+
+Had to revert what smart punctuation does.  

@@ -7,7 +7,7 @@ use num_traits::AsPrimitive;
 fn pow2(n: i32) -> f64 { f64::from_bits(((0x3ff + n) as u64) << 52) }
 
 impl f64x2 {
-    /// see https://github.com/JuliaMath/DoubleFloats.jl/blob/master/src/math/ops/op_dd_dd.jl#L45-L52
+    /// see <https://github.com/JuliaMath/DoubleFloats.jl/blob/master/src/math/ops/op_dd_dd.jl#L45-L52>
     #[inline]
     pub fn square(self) -> Self {
         let a = self;
@@ -132,7 +132,7 @@ impl f64x2 {
         }
     }
 
-    /// See https://github.com/ajtribick/twofloat/blob/master/src/functions/power.rs#L30-L40
+    /// See <https://github.com/ajtribick/twofloat/blob/master/src/functions/power.rs#L30-L40>
     #[inline]
     pub fn sqrt(self) -> Self {
         if self.is_zero() {
@@ -195,7 +195,7 @@ impl f64x2 {
         ret
     }
 
-    /// The idea is similar to libm: We split [0, \pi/2) into 4 parts, and approximate atan(x) in each
+    /// The idea is similar to libm: We split $`[0, \pi/2)`$ into 4 parts, and approximate atan(x) in each
     /// libm uses 7/16 for thresholding. I guess its due to the precision limit of variable `ix`
     /// here we just partition them equally.
     pub fn atan(self) -> Self {
