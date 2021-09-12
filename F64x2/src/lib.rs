@@ -5,7 +5,6 @@
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::let_and_return)]
 #![allow(clippy::approx_constant)]
-#![feature(min_type_alias_impl_trait)]
 #![feature(destructuring_assignment)]
 
 #[allow(non_camel_case_types)]

@@ -828,7 +828,7 @@ function myint(x, λ, r0, r1)
     end
 
     c = 1im * (s0 * λ^2 + log(x))
-    println(c, " ", s0, λ)
+    # println(c, " ", s0, λ)
     dh = r1 - r0
     # redt = ϕ̂(s0) * \sum_i=0^{2N} \int_0^{dh} exp(c*h) h^i d h
     factorial = OffsetArray(zeros(0:2N), 0:2N)
@@ -889,12 +889,12 @@ function platt(x)
         v = myint(x, λ, r0, r1)
         whole_int += v
         integral -= v * i * 2  # count two because two symmetric roots
-        println("r = $r0, v = $v, err = $err")
+        # println("r = $r0, v = $v, err = $err")
     end
     Delta = Δ(x, λ, ϵ * 0.4)
     ans = integral + Delta
     println("integral = $integral, Delta = $Delta, whole_int = $whole_int, fixed = $(quadgk((h) -> imag(ϕ̂(1/2 + h * 1im)), roots[1], +Inf)[1])")
-    println(ans)
+    println("π($x) = $(round(ans))")
 end
 
-platt(100000)
+@time platt(1000000)
