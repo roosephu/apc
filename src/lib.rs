@@ -71,17 +71,17 @@ I also briefly summarized these papers [here](https://www.roosephu.xyz/2021/03/0
 #![allow(clippy::approx_constant)]
 #![feature(trait_alias)]
 #![feature(destructuring_assignment)]
-#![feature(min_type_alias_impl_trait)]
+#![feature(type_alias_impl_trait)]
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "zeta")] {
+        mod sum_trunc_dirichlet;
         mod bandwidth_interp;
         mod gamma;
-        mod riemann_siegel;
-        mod sum_trunc_dirichlet;
-        mod zeta;
-        pub use riemann_siegel::{RiemannSiegelZ, RiemannSiegelZeta};
-        pub use zeta::ZetaGalway;
+        // mod riemann_siegel;
+        // mod zeta;
+        // pub use riemann_siegel::{RiemannSiegelZ, RiemannSiegelZeta};
+        // pub use zeta::ZetaGalway;
     }
 }
 

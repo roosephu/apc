@@ -18,7 +18,9 @@ This is a side project. I'm new to analytic number theory and can't understand m
 
    The directory should at least contain `md5.txt`. Also put data files (e.g.,`zeros_14.dat`) in this folder.
 
-3. Build: `cargo +nightly build --bin apc --release`.
+3. Install [primesieve](https://github.com/kimwalisch/primesieve) which `apc` uses to sieve prime numbers.
+
+4. Build: `cargo +nightly build --bin apc --release`.
 
 To build the doc:
 

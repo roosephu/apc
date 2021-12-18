@@ -51,6 +51,8 @@ pub trait MyReal = Float
     + Pow<i32, Output = Self>
     + ExpPolyApprox
     + Erfc
+    + Sync
+    + Send
     + 'static;
 
 pub trait ComplexFunctions {
