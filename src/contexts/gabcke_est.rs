@@ -317,9 +317,15 @@ pub const RS_GABCKE_GAMMA: [[f64x2; 26]; 11] = [
 ];
 
 impl GabckeExpansion for f64x2 {
+    /// See [Gabcke] Section 2.2. See also Theorem 2.1.6.
+    /// For numerical stability, we use the Chebyshev's version (Eq 2.38)
+    /// instead of polynomial version (Eq 2.34, 2.35).
     fn expand(a: Self, z: Self, K: usize, _: f64) -> Self {
         let mut expansion = Self::zero();
+
+        // We evaluate T_{2k}(z) = T_k(T_2(z)).
         let t2_z = z * z * 2.0 - 1.0;
+        let mut pow_a = Self::one();
         for k in 0..=K {
             let m = RS_GABCKE_GAMMA[k].len();
             let mut s = RS_GABCKE_GAMMA[k][0];
@@ -333,7 +339,8 @@ impl GabckeExpansion for f64x2 {
             if k % 2 == 1 {
                 s *= z;
             }
-            expansion += s / a.powi(k as i64);
+            expansion += s / pow_a;
+            pow_a *= a;
             // println!("k = {}, correction = {:?}", k, s);
         }
         expansion
