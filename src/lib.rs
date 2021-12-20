@@ -73,11 +73,23 @@ I also briefly summarized these papers [here](https://www.roosephu.xyz/2021/03/0
 #![feature(destructuring_assignment)]
 #![feature(type_alias_impl_trait)]
 
+mod types;
+mod contexts;
+
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "zeta", feature = "galway"))] {
+        mod context;
+    }
+}
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "zeta")] {
         mod sum_trunc_dirichlet;
         mod bandwidth_interp;
         mod gamma;
+        mod rs_theta;
+        // mod rs_z;
+        mod zeta_zeros;
         // mod riemann_siegel;
         // mod zeta;
         // pub use riemann_siegel::{RiemannSiegelZ, RiemannSiegelZeta};
@@ -88,7 +100,6 @@ cfg_if::cfg_if! {
 cfg_if::cfg_if! {
     if #[cfg(feature = "galway")] {
         mod galway;
-        mod context;
         pub use galway::{Galway, GalwayHints};
         pub use context::Context;
     }

@@ -2,16 +2,16 @@ use log::debug;
 use num::Complex;
 use rustfft::{FftNum, FftPlanner};
 
-use crate::traits::{ExpPolyApprox, MyReal};
+use crate::{traits::MyReal, contexts::ExpPolyApprox};
 
-/// compute F(t) = \sum_{(a, g)} a exp(i t g) for t in [-m, m]
-pub(crate) fn sum_weighted_exp<T: ExpPolyApprox + MyReal + FftNum>(
+/// compute $F(t) = \sum_{(a, g)} a \exp(i t g)$ for $t$ in $[-m, m]$
+pub(crate) fn sum_weighted_exp<T: MyReal + FftNum>(
     a: &[Complex<T>],
     g: &[T],
     m: usize,
+    poly_approx: impl Iterator<Item = (usize, Complex<T>)>,
 ) -> Vec<Complex<T>> {
     let TM = T::from_usize(m).unwrap();
-    // g[j] = w[j] * div + d[j];
     let n = a.len();
     let R = (m as usize + 1).next_power_of_two() * 2;
     let div = T::TAU() / (R as f64);
@@ -24,7 +24,7 @@ pub(crate) fn sum_weighted_exp<T: ExpPolyApprox + MyReal + FftNum>(
     let mut planner = FftPlanner::<T>::new();
     let fft = planner.plan_fft_inverse(R);
 
-    for (e, c) in T::get_poly_approx() {
+    for (e, c) in poly_approx {
         for x in f.iter_mut() {
             x.set_zero()
         }
@@ -41,7 +41,7 @@ pub(crate) fn sum_weighted_exp<T: ExpPolyApprox + MyReal + FftNum>(
 }
 
 /// compute \sum_{j=n0}^n1 j^{-(s + i t delta)} for every 0 <= t <= m
-pub(crate) fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
+pub(crate) fn sum_trunc_dirichlet<T: MyReal + FftNum + ExpPolyApprox>(
     s: Complex<T>,
     n0: usize,
     n1: usize,
@@ -57,7 +57,7 @@ pub(crate) fn sum_trunc_dirichlet<T: ExpPolyApprox + MyReal + FftNum>(
     let a: Vec<_> = ln_x.iter().map(|&ln_x| (-s * ln_x).exp()).collect();
     let gamma: Vec<T> = ln_x.iter().map(|&ln_x| -delta * ln_x).collect();
 
-    sum_weighted_exp(&a, &gamma, M2)
+    sum_weighted_exp(&a, &gamma, M2, T::get_poly_approx())
 }
 
 #[cfg(test)]

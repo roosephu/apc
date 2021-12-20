@@ -25,7 +25,7 @@ This is a side project. I'm new to analytic number theory and can't understand m
 To build the doc:
 
 ```bash
-RUSTDOCFLAGS="--html-in-header `pwd`/src/latex.html" cargo doc --features doc
+RUSTDOCFLAGS="--html-in-header `pwd`/src/latex.html" cargo doc --features doc --no-deps
 ```
 
 # Usage

@@ -1,11 +1,12 @@
 use num::Complex;
 
+use crate::contexts::{Sinc, ExpPolyApprox};
 use crate::sum_trunc_dirichlet::sum_trunc_dirichlet;
-use crate::traits::{MyReal, Sinc};
+use crate::traits::MyReal;
 use log::debug;
 
 /// a data structure for querying \sum_{t=1}^k n^{-sigma - i t}
-struct BandwidthInterp<T> {
+pub struct BandwidthInterp<T> {
     k0: usize,
     k1: usize,
     tau: T,
@@ -26,7 +27,7 @@ fn find_c(eps: f64) -> f64 {
     c
 }
 
-impl<T: MyReal + Sinc> BandwidthInterp<T> {
+impl<T: MyReal + Sinc + ExpPolyApprox> BandwidthInterp<T> {
     /// tau = ln(k1/k0)
     /// precompute = O((c + k1 eps)(tau/gap + 2))
     /// query = O(k0 + c (tau/gap + 1))
@@ -90,14 +91,14 @@ impl<T: MyReal + Sinc> BandwidthInterp<T> {
         for n in 1..self.k0 {
             ret += (-s * T::from_i32(n as i32).unwrap().ln()).exp();
         }
-        println!(
-            "c = {}, coeff = {}, # interp terms = {:}, l = {}, r = {}",
-            c,
-            c_over_c_sinh,
-            (r - l + 1.0).to_i32().unwrap(),
-            l.to_i32().unwrap(),
-            r.to_i32().unwrap(),
-        );
+        // println!(
+        //     "c = {}, coeff = {}, # interp terms = {:}, l = {}, r = {}",
+        //     c,
+        //     c_over_c_sinh,
+        //     (r - l + 1.0).to_i32().unwrap(),
+        //     l.to_i32().unwrap(),
+        //     r.to_i32().unwrap(),
+        // );
 
         ret
     }

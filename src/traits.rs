@@ -9,20 +9,6 @@ use std::{
 };
 use F64x2::f64x2;
 
-pub trait Erfc {
-    fn erfc(self, eps: f64) -> Self;
-}
-
-pub trait Sinc {
-    fn sinc(self) -> Self;
-}
-
-pub trait ExpPolyApprox: Sized {
-    type Output: Iterator<Item = (usize, Complex<Self>)>;
-
-    fn get_poly_approx() -> Self::Output;
-}
-
 pub trait GabckeExpansion {
     fn expand(a: Self, z: Self, k: usize, eps: f64) -> Self;
 }
@@ -49,8 +35,6 @@ pub trait MyReal = Float
     + Mul<Complex<Self>, Output = Complex<Self>>
     + Div<Complex<Self>, Output = Complex<Self>>
     + Pow<i32, Output = Self>
-    + ExpPolyApprox
-    + Erfc
     + Sync
     + Send
     + 'static;
@@ -89,51 +73,6 @@ impl<T: MyReal> ComplexFunctions for Complex<T> {
     }
 }
 
-impl Erfc for f64 {
-    fn erfc(self, _: f64) -> Self { rgsl::error::erfc(self) }
-}
-
-impl ExpPolyApprox for f64 {
-    type Output = impl Iterator<Item = (usize, Complex<Self>)>;
-
-    fn get_poly_approx() -> Self::Output {
-        EXP_POLY_EXP_F64.iter().enumerate().map(|(idx, &x)| (idx, x))
-    }
-}
-
-impl Sinc for f64 {
-    fn sinc(self) -> Self {
-        if self == 0.0 {
-            1.0
-        } else {
-            self.sin() / self
-        }
-    }
-}
-
-impl ExpPolyApprox for f64x2 {
-    type Output = impl Iterator<Item = (usize, Complex<Self>)>;
-
-    #[inline]
-    fn get_poly_approx() -> Self::Output {
-        F64X2_EXP_POLY_COEFFS.iter().enumerate().map(|(idx, &x)| (idx, x))
-    }
-}
-
-impl Erfc for f64x2 {
-    fn erfc(self, eps: f64) -> Self { self.erfc_eps(eps) }
-}
-
-impl Sinc for f64x2 {
-    fn sinc(self) -> Self {
-        if self.is_zero() {
-            Self::one()
-        } else {
-            self.sin() / self
-        }
-    }
-}
-
 impl GabckeExpansion for f64x2 {
     fn expand(a: Self, z: Self, K: usize, _: f64) -> Self {
         let mut expansion = Self::zero();
@@ -152,7 +91,7 @@ impl GabckeExpansion for f64x2 {
                 s *= z;
             }
             expansion += s / a.powi(k as i64);
-            println!("k = {}, correction = {:?}", k, s);
+            // println!("k = {}, correction = {:?}", k, s);
         }
         expansion
     }
