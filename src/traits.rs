@@ -1,8 +1,6 @@
 use crate::constants::*;
 use num::{Complex, Signed};
 use num_traits::{Float, FloatConst, FromPrimitive, NumAssignOps, Pow};
-#[cfg(feature = "zeta")]
-use rustfft::FftNum;
 use std::{
     fmt::{Debug, Display, LowerExp},
     ops::{Add, Div, Mul, Sub},

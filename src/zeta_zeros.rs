@@ -1,12 +1,15 @@
-use num::{ToPrimitive, Complex};
+use num::{Complex, ToPrimitive};
 
-use crate::{traits::{MyReal, GabckeExpansion}, bandwidth_interp::BandwidthInterp, rs_theta::RiemannSiegelTheta, contexts::*};
 use crate::types::T;
+use crate::{
+    bandwidth_interp::BandwidthInterp,
+    contexts::*,
+    rs_theta::RiemannSiegelTheta,
+    traits::{GabckeExpansion, MyReal},
+};
 
 // TODO: determine K wisely
-fn calc_gabcke_n_terms<T: MyReal>(t: T, eps: f64) -> usize {
-    7
-}
+fn calc_gabcke_n_terms<T: MyReal>(t: T, eps: f64) -> usize { 7 }
 
 fn gabcke_series<T: MyReal + GabckeExpansion>(t: T, eps: f64) -> T {
     let a = (t / T::PI() / 2.0).sqrt();
@@ -24,9 +27,14 @@ fn find_zeros<T: MyReal + Sinc + GabckeExpansion + Contexts>(n: usize) {
     println!("l = {}, r = {}", lo, hi);
 
     let eps = 1e-15;
-    let mut n_points = ((theta.theta(hi, eps) - theta.theta(lo, eps)) / T::PI()).to_usize().unwrap() + 1;
+    let mut n_points =
+        ((theta.theta(hi, eps) - theta.theta(lo, eps)) / T::PI()).to_usize().unwrap() + 1;
 
-    let z = |x| (dir.query(x, eps) * Complex::new(T::zero(), theta.theta(x, eps)).exp()).re * 2.0 + gabcke_series(x, eps) / (x / T::PI() / 2.0).sqrt().sqrt() * (if n % 2 == 0 { -1.0 } else { 1.0 });
+    let z = |x| {
+        (dir.query(x, eps) * Complex::new(T::zero(), theta.theta(x, eps)).exp()).re * 2.0
+            + gabcke_series(x, eps) / (x / T::PI() / 2.0).sqrt().sqrt()
+                * (if n % 2 == 0 { -1.0 } else { 1.0 })
+    };
     let mid = (lo + hi) * 0.5;
     println!("mid = {}, Z(mid) = {}, gabcke = {}", mid, z(mid), gabcke_series(mid, eps));
 
@@ -48,7 +56,8 @@ fn find_zeros<T: MyReal + Sinc + GabckeExpansion + Contexts>(n: usize) {
         }
         new_signs.push(signs[n_points]);
         signs = new_signs;
-        let n_roots: usize = signs.iter().zip(signs[1..].iter()).map(|(&a, &b)| (a != b) as usize).sum();
+        let n_roots: usize =
+            signs.iter().zip(signs[1..].iter()).map(|(&a, &b)| (a != b) as usize).sum();
         println!("# points = {}, # roots = {}", n_points, n_roots);
         n_points *= 2;
         // if n_points >= 100 {
@@ -59,8 +68,8 @@ fn find_zeros<T: MyReal + Sinc + GabckeExpansion + Contexts>(n: usize) {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::T;
     use super::find_zeros;
+    use crate::types::T;
 
     #[test]
     fn test_zeta_zeros() {

@@ -25,12 +25,12 @@ macro_rules! make_mut_static {
     (static $N: ident : $T: ty = $e: expr; ) => {
         #[inline]
         fn $N() -> &'static mut $T {
-            use std::sync::Once;
             use std::mem::MaybeUninit;
+            use std::sync::Once;
             static once: Once = Once::new();
             static mut value: MaybeUninit<$T> = MaybeUninit::uninit();
             once.call_once(|| unsafe { value = MaybeUninit::new($e) });
-            unsafe { &mut *value.as_mut_ptr() }  // or unsafe { value.assume_init_mut() }
+            unsafe { &mut *value.as_mut_ptr() } // or unsafe { value.assume_init_mut() }
         }
     };
 }

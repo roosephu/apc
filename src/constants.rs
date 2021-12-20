@@ -1,5 +1,3 @@
-use num::Complex;
-
 use F64x2::f64x2;
 
 pub(crate) const RS_GABCKE_GAMMA: [[f64x2; 26]; 11] = [

@@ -1,6 +1,5 @@
-use F64x2::f64x2;
 use num::Complex;
-
+use F64x2::f64x2;
 
 const EXP_POLY_EXP_F64: [Complex<f64>; 18] = [
     Complex { re: 1.0, im: 1.0812144107799266e-23 },

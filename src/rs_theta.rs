@@ -1,5 +1,4 @@
-use crate::{traits::MyReal, contexts::Bernoulli};
-
+use crate::{contexts::Bernoulli, traits::MyReal};
 
 pub struct RiemannSiegelTheta<T> {
     K: usize,

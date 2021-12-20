@@ -1,6 +1,6 @@
 use num::Complex;
 
-use crate::contexts::{Sinc, ExpPolyApprox};
+use crate::contexts::{ExpPolyApprox, Sinc};
 use crate::sum_trunc_dirichlet::sum_trunc_dirichlet;
 use crate::traits::MyReal;
 use log::debug;

@@ -2,7 +2,7 @@ use log::debug;
 use num::Complex;
 use rustfft::{FftNum, FftPlanner};
 
-use crate::{traits::MyReal, contexts::ExpPolyApprox};
+use crate::{contexts::ExpPolyApprox, traits::MyReal};
 
 /// compute $F(t) = \sum_{(a, g)} a \exp(i t g)$ for $t$ in $[-m, m]$
 pub(crate) fn sum_weighted_exp<T: MyReal + FftNum>(

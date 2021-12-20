@@ -73,8 +73,8 @@ I also briefly summarized these papers [here](https://www.roosephu.xyz/2021/03/0
 #![feature(destructuring_assignment)]
 #![feature(type_alias_impl_trait)]
 
-mod types;
 mod contexts;
+mod types;
 
 cfg_if::cfg_if! {
     if #[cfg(any(feature = "zeta", feature = "galway"))] {

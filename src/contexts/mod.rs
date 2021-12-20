@@ -1,16 +1,17 @@
-mod utils;
-mod lazy_static;
 mod bernoulli;
-mod factorial;
-mod sinc;
 mod erfc;
 mod exp_poly_approx;
+mod factorial;
+mod lazy_static;
+mod loggamma;
+mod sinc;
+mod utils;
 
 pub use bernoulli::Bernoulli;
-pub use factorial::Factorial;
-pub use sinc::Sinc;
 pub use erfc::Erfc;
 pub use exp_poly_approx::ExpPolyApprox;
+pub use factorial::Factorial;
+pub use sinc::Sinc;
 
 pub trait Contexts = Bernoulli + Factorial + Sinc + Erfc + ExpPolyApprox;
 

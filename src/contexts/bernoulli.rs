@@ -1,5 +1,5 @@
+use super::utils::{impl_from_uninit_cell, mpf_to_f64x2, read_data};
 use F64x2::f64x2;
-use super::utils::{read_data, mpf_to_f64x2, impl_from_uninit_cell};
 
 pub trait Bernoulli {
     fn bernoulli(n: usize) -> Self;
@@ -7,7 +7,6 @@ pub trait Bernoulli {
 
 impl_from_uninit_cell!(Bernoulli, bernoulli, f64);
 impl_from_uninit_cell!(Bernoulli, bernoulli, f64x2);
-
 
 pub fn init() {
     let data = read_data("data/bernoulli.txt", 1000)
