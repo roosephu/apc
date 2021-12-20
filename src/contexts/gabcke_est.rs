@@ -1,6 +1,11 @@
+use num::{One, Zero};
 use F64x2::f64x2;
 
-pub(crate) const RS_GABCKE_GAMMA: [[f64x2; 26]; 11] = [
+pub trait GabckeExpansion {
+    fn expand(a: Self, z: Self, k: usize, eps: f64) -> Self;
+}
+
+pub const RS_GABCKE_GAMMA: [[f64x2; 26]; 11] = [
     [
         f64x2 { hi: 0.6426672862397684, lo: -5.405020898276905e-17 },
         f64x2 { hi: 0.27197299999785507, lo: -2.324922478643637e-18 },
@@ -310,3 +315,27 @@ pub(crate) const RS_GABCKE_GAMMA: [[f64x2; 26]; 11] = [
         f64x2 { hi: -1.3043413384906499e-33, lo: 8.712760661195012e-51 },
     ],
 ];
+
+impl GabckeExpansion for f64x2 {
+    fn expand(a: Self, z: Self, K: usize, _: f64) -> Self {
+        let mut expansion = Self::zero();
+        let t2_z = z * z * 2.0 - 1.0;
+        for k in 0..=K {
+            let m = RS_GABCKE_GAMMA[k].len();
+            let mut s = RS_GABCKE_GAMMA[k][0];
+
+            let mut pre = Self::one();
+            let mut cur = t2_z;
+            for j in 1..m {
+                s += RS_GABCKE_GAMMA[k][j] * cur;
+                (pre, cur) = (cur, cur * t2_z * 2.0 - pre);
+            }
+            if k % 2 == 1 {
+                s *= z;
+            }
+            expansion += s / a.powi(k as i64);
+            // println!("k = {}, correction = {:?}", k, s);
+        }
+        expansion
+    }
+}

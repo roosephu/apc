@@ -1,7 +1,7 @@
-use crate::traits::{ComplexFunctions, MyReal};
+use crate::traits::MyReal;
 use num::Complex;
 
-use super::Bernoulli;
+use super::{Bernoulli, ComplexFunctions};
 
 pub trait Loggamma {
     fn loggamma(&self, eps: f64) -> Self;

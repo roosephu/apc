@@ -5,9 +5,11 @@ pub trait Erfc {
 }
 
 impl Erfc for f64 {
+    #[inline]
     fn erfc(&self, _: f64) -> Self { rgsl::error::erfc(*self) }
 }
 
 impl Erfc for f64x2 {
+    #[inline]
     fn erfc(&self, eps: f64) -> Self { self.erfc_eps(eps) }
 }

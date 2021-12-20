@@ -1,16 +1,23 @@
 mod bernoulli;
+mod complex_functions;
 mod erfc;
 mod exp_poly_approx;
 mod factorial;
+mod gabcke_est;
+mod gamma;
 mod lazy_static;
 mod loggamma;
+mod riemann_siegel_theta;
 mod sinc;
 mod utils;
 
 pub use bernoulli::Bernoulli;
+pub use complex_functions::ComplexFunctions;
 pub use erfc::Erfc;
 pub use exp_poly_approx::ExpPolyApprox;
 pub use factorial::Factorial;
+pub use gabcke_est::GabckeExpansion;
+pub use riemann_siegel_theta::{RiemannSiegelTheta, RiemannSiegelThetaCoeffs};
 pub use sinc::Sinc;
 
 pub trait Contexts = Bernoulli + Factorial + Sinc + Erfc + ExpPolyApprox;

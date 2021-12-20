@@ -1,4 +1,4 @@
-use crate::traits::ComplexFunctions;
+use crate::contexts::ComplexFunctions;
 use crate::{power_series::PowerSeries, traits::MyReal};
 use log::{debug, info};
 use num::Complex;

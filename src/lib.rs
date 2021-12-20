@@ -86,8 +86,6 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "zeta")] {
         mod sum_trunc_dirichlet;
         mod bandwidth_interp;
-        mod gamma;
-        mod rs_theta;
         // mod rs_z;
         mod zeta_zeros;
         // mod riemann_siegel;
@@ -107,7 +105,6 @@ cfg_if::cfg_if! {
 
 mod brentq;
 mod cache_stat;
-mod constants;
 mod fast_phi;
 mod lmfdb;
 mod platt;

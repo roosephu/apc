@@ -1,15 +1,9 @@
-use num::{Complex, ToPrimitive};
+use num::Complex;
 
-use crate::types::T;
-use crate::{
-    bandwidth_interp::BandwidthInterp,
-    contexts::*,
-    rs_theta::RiemannSiegelTheta,
-    traits::{GabckeExpansion, MyReal},
-};
+use crate::{bandwidth_interp::BandwidthInterp, contexts::*, traits::MyReal};
 
 // TODO: determine K wisely
-fn calc_gabcke_n_terms<T: MyReal>(t: T, eps: f64) -> usize { 7 }
+fn calc_gabcke_n_terms<T: MyReal>(_t: T, _eps: f64) -> usize { 7 }
 
 fn gabcke_series<T: MyReal + GabckeExpansion>(t: T, eps: f64) -> T {
     let a = (t / T::PI() / 2.0).sqrt();
@@ -18,20 +12,20 @@ fn gabcke_series<T: MyReal + GabckeExpansion>(t: T, eps: f64) -> T {
     T::expand(a, T::one() - (a - n) * 2.0, K, eps)
 }
 
-fn find_zeros<T: MyReal + Sinc + GabckeExpansion + Contexts>(n: usize) {
+fn isolate_zeros<T: MyReal + Sinc + GabckeExpansion + Contexts>(_n: usize) {}
+
+fn find_zeros<T: MyReal + Sinc + GabckeExpansion + Contexts + RiemannSiegelTheta>(n: usize) {
     let sigma = T::from_f64(0.5).unwrap();
     let dir = BandwidthInterp::new(n, sigma);
     let lo = T::PI() * (2 * n * n) as f64;
     let hi = T::PI() * (2 * (n + 1) * (n + 1)) as f64;
-    let theta = RiemannSiegelTheta::new(20);
     println!("l = {}, r = {}", lo, hi);
 
     let eps = 1e-15;
-    let mut n_points =
-        ((theta.theta(hi, eps) - theta.theta(lo, eps)) / T::PI()).to_usize().unwrap() + 1;
+    let mut n_points = ((hi.rs_theta(eps) - lo.rs_theta(eps)) / T::PI()).to_usize().unwrap() + 1;
 
     let z = |x| {
-        (dir.query(x, eps) * Complex::new(T::zero(), theta.theta(x, eps)).exp()).re * 2.0
+        (dir.query(x, eps) * Complex::new(T::zero(), x.rs_theta(eps)).exp()).re * 2.0
             + gabcke_series(x, eps) / (x / T::PI() / 2.0).sqrt().sqrt()
                 * (if n % 2 == 0 { -1.0 } else { 1.0 })
     };
