@@ -3,7 +3,7 @@ mod complex_functions;
 mod erfc;
 mod exp_poly_approx;
 mod factorial;
-mod gabcke_est;
+mod gabcke_series;
 mod gamma;
 mod lazy_static;
 mod loggamma;
@@ -16,7 +16,7 @@ pub use complex_functions::ComplexFunctions;
 pub use erfc::Erfc;
 pub use exp_poly_approx::ExpPolyApprox;
 pub use factorial::Factorial;
-pub use gabcke_est::GabckeExpansion;
+pub use gabcke_series::GabckeSeries;
 pub use riemann_siegel_theta::{RiemannSiegelTheta, RiemannSiegelThetaCoeffs};
 pub use sinc::Sinc;
 
@@ -29,6 +29,7 @@ pub fn init() {
         factorial::init();
         bernoulli::init();
         riemann_siegel_theta::init();
+        gabcke_series::init();
     });
 }
 

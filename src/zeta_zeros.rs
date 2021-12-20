@@ -2,19 +2,47 @@ use num::Complex;
 
 use crate::{bandwidth_interp::BandwidthInterp, contexts::*, traits::MyReal};
 
-// TODO: determine K wisely
-fn calc_gabcke_n_terms<T: MyReal>(_t: T, _eps: f64) -> usize { 7 }
+fn isolate_zeros(n: usize) {
+    use crate::traits::MyReal;
+    let σ = 0.5;
+    let lo = f64::PI() * 2.0 * (n as f64).powi(2);
+    let hi = f64::PI() * 2.0 * (n as f64 + 1.0).powi(2);
+    let eps = 1e-15;
+    let dir = BandwidthInterp::new(n, σ);
 
-fn gabcke_series<T: MyReal + GabckeExpansion>(t: T, eps: f64) -> T {
-    let a = (t / T::PI() / 2.0).sqrt();
-    let n = a.floor();
-    let K = calc_gabcke_n_terms(t, eps);
-    T::expand(a, T::one() - (a - n) * 2.0, K, eps)
+    let mut n_points = ((hi.rs_theta(eps) - lo.rs_theta(eps)) / std::f64::consts::PI) as usize + 1;
+
+    let z = |x| {
+        (dir.query(x, eps) * Complex::new(0.0, x.rs_theta(eps)).exp()).re * 2.0
+            + x.gabcke_series(eps)
+    };
+    let mid = (lo + hi) * 0.5;
+    println!("mid = {}, Z(mid) = {}, gabcke = {}", mid, z(mid), mid.gabcke_series(eps));
+
+    let mut signs = vec![];
+    for i in 0..=n_points {
+        let ratio = i as f64 / n_points as f64;
+        let x = lo + (hi - lo) * ratio;
+        signs.push(z(x).is_sign_positive());
+    }
+
+    for _ in 0..5 {
+        let mut new_signs = vec![];
+        for i in 0..n_points {
+            new_signs.push(signs[i]);
+            let ratio = (i * 2 + 1) as f64 / (n_points * 2) as f64;
+            let x = lo + (hi - lo) * ratio;
+            new_signs.push(z(x).is_sign_positive());
+        }
+        new_signs.push(signs[n_points]);
+        signs = new_signs;
+        let n_roots = signs.iter().zip(signs[1..].iter()).filter(|(&a, &b)| a != b).count();
+        println!("# points = {}, # roots = {}", n_points, n_roots);
+        n_points *= 2;
+    }
 }
 
-fn isolate_zeros<T: MyReal + Sinc + GabckeExpansion + Contexts>(_n: usize) {}
-
-fn find_zeros<T: MyReal + Sinc + GabckeExpansion + Contexts + RiemannSiegelTheta>(n: usize) {
+fn find_zeros<T: MyReal + Sinc + GabckeSeries + Contexts + RiemannSiegelTheta>(n: usize) {
     let sigma = T::from_f64(0.5).unwrap();
     let dir = BandwidthInterp::new(n, sigma);
     let lo = T::PI() * (2 * n * n) as f64;
@@ -22,52 +50,30 @@ fn find_zeros<T: MyReal + Sinc + GabckeExpansion + Contexts + RiemannSiegelTheta
     println!("l = {}, r = {}", lo, hi);
 
     let eps = 1e-15;
-    let mut n_points = ((hi.rs_theta(eps) - lo.rs_theta(eps)) / T::PI()).to_usize().unwrap() + 1;
 
     let z = |x| {
         (dir.query(x, eps) * Complex::new(T::zero(), x.rs_theta(eps)).exp()).re * 2.0
-            + gabcke_series(x, eps) / (x / T::PI() / 2.0).sqrt().sqrt()
-                * (if n % 2 == 0 { -1.0 } else { 1.0 })
+            + x.gabcke_series(eps)
     };
     let mid = (lo + hi) * 0.5;
-    println!("mid = {}, Z(mid) = {}, gabcke = {}", mid, z(mid), gabcke_series(mid, eps));
-
-    let mut signs = vec![];
-    for i in 0..=n_points {
-        let ratio = T::from_usize(i).unwrap() / T::from_usize(n_points).unwrap();
-        let x = lo + (hi - lo) * ratio;
-        signs.push(z(x).is_sign_positive());
-    }
-
-    // loop {
-    for _ in 0..5 {
-        let mut new_signs = vec![];
-        for i in 0..n_points {
-            new_signs.push(signs[i]);
-            let ratio = T::from_usize(i * 2 + 1).unwrap() / T::from_usize(n_points * 2).unwrap();
-            let x = lo + (hi - lo) * ratio;
-            new_signs.push(z(x).is_sign_positive());
-        }
-        new_signs.push(signs[n_points]);
-        signs = new_signs;
-        let n_roots: usize =
-            signs.iter().zip(signs[1..].iter()).map(|(&a, &b)| (a != b) as usize).sum();
-        println!("# points = {}, # roots = {}", n_points, n_roots);
-        n_points *= 2;
-        // if n_points >= 100 {
-        //     break
-        // }
-    }
+    println!("mid = {}, Z(mid) = {}, gabcke = {}", mid, z(mid), mid.gabcke_series(eps));
 }
 
 #[cfg(test)]
 mod tests {
-    use super::find_zeros;
+    use super::*;
     use crate::types::T;
 
     #[test]
     fn test_zeta_zeros() {
+        use crate::contexts::*;
+
         crate::contexts::init();
-        find_zeros::<T>(100);
+        isolate_zeros(100);
+
+        let x = T { hi: 63463.313195167415, lo: 0.0 };
+        let t = x.gabcke_series(1e-10);
+        println!("series = {}", t);
+        // find_zeros::<T>(100);
     }
 }

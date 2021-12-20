@@ -4,9 +4,20 @@ use std::{
     fmt::{Debug, Display, LowerExp},
     ops::{Add, Div, Mul, Sub},
 };
+use F64x2::f64x2;
 
-pub trait HighPrecMod2PI {
-    fn mod_2pi(self) -> Self;
+pub trait Approximate {
+    fn approx(&self) -> f64;
+}
+
+impl Approximate for f64 {
+    #[inline]
+    fn approx(&self) -> f64 { *self }
+}
+
+impl Approximate for f64x2 {
+    #[inline]
+    fn approx(&self) -> f64 { self.hi }
 }
 
 pub trait MyReal = Float
@@ -29,4 +40,5 @@ pub trait MyReal = Float
     + Pow<i32, Output = Self>
     + Sync
     + Send
+    + Approximate
     + 'static;

@@ -82,7 +82,7 @@ impl<T: MyReal + Sinc + ExpPolyApprox> BandwidthInterp<T> {
         for a in l.to_i32().unwrap()..=r.to_i32().unwrap() {
             ret += self.data[a as usize]
                 * self.h(c, dt - delta * (a as f64))
-                * (self.beta * dt - T::PI() * (a as f64)).sinc();
+                * (self.beta * dt / T::PI() - a as f64).sinc();
             // println!("{} {}", self.h(c, dt - delta * (a as f64)), (self.beta * dt - T::PI() * (a as f64)).sinc());
         }
         ret *= Complex::new(T::zero(), -self.alpha * t).exp() * c_over_c_sinh;
@@ -112,10 +112,10 @@ mod tests {
     use F64x2::f64x2;
     use F64x2::test_utils::*;
 
-    type T = f64x2;
-
     #[test]
     fn test_bandwidth_limited_interp() {
+        type T = f64x2;
+
         let k = 100;
         let sigma = T::from_f64(0.5).unwrap();
         let eps = 1e-26;
@@ -134,5 +134,29 @@ mod tests {
         // gt *= Complex::new(T::zero(), ds.alpha * t).exp();
         println!("gt = {}, output = {}, diff = {:.e}", gt, output, gt - output);
         assert_complex_close(output, gt, eps);
+    }
+
+    #[test]
+    fn test_bandwidth_limited_interp_f64() {
+        type T = f64;
+
+        let k = 100;
+        let sigma = T::from_f64(0.5).unwrap();
+        let eps = 1e-10;
+        let ds = BandwidthInterp::<T>::new(k, sigma);
+        let t = T::PI() * 2.0 * 10100.0;
+        let mut gt = Complex::<T>::zero();
+        let s = Complex::new(sigma, t);
+        for i in 1..=k {
+            gt += (-s * T::from_f64(i as f64).unwrap().ln()).exp();
+        }
+        println!("ds params: alpha = {}, beta = {}, tau = {}", ds.alpha, ds.beta, ds.tau);
+
+        let output = ds.query(t, eps);
+        println!("gt = {}, output = {}, diff = {:.e}", gt, output, gt - output);
+        // (a - b).norm().approx() / b.norm().approx();
+        let diff = (output - gt).norm() / gt.norm();
+        assert!(diff <= eps);
+        // assert_complex_close(output, gt, eps);
     }
 }

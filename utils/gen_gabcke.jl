@@ -1,3 +1,7 @@
+using OffsetArrays
+
+setprecision(2000)
+T = BigFloat
 
 function rs_find_λ(T, n)
     # https://oeis.org/A087617
@@ -159,8 +163,6 @@ function diff_ps(ps)
     ps
 end
 
-setprecision(2000)
-
 n = 10
 m = 1000
 
@@ -214,12 +216,18 @@ for j in 0:n
 end
 
 output_m = 50
-println("[")
 for i in 0:n
-    println("  [")
     for j in 0:2:output_m
-        println("    $(repr(j == 0 ? γ[i, 0] / 2 : γ[i, j])),")
+        println("$(repr(j == 0 ? γ[i, 0] / 2 : γ[i, j]))")
     end
-    println("  ], ")
 end
-println("]")
+
+# println("[")
+# for i in 0:n
+#     println("  [")
+#     for j in 0:2:output_m
+#         println("    $(repr(j == 0 ? γ[i, 0] / 2 : γ[i, j])),")
+#     end
+#     println("  ], ")
+# end
+# println("]")

@@ -1,3 +1,4 @@
+use log::info;
 pub use paste;
 use rug::{ops::CompleteRound, Float};
 use std::{
@@ -26,9 +27,11 @@ macro_rules! impl_from_uninit_cell {
 pub use impl_from_uninit_cell;
 
 pub fn read_data(path: impl AsRef<Path>, prec: u32) -> Result<Vec<Float>, std::io::Error> {
-    let file = std::fs::File::open(path)?;
+    let file = std::fs::File::open(&path)?;
     let reader = BufReader::new(file);
-    let ret = reader.lines().map(|x| Float::parse(x.unwrap()).unwrap().complete(prec)).collect();
+    let ret: Vec<Float> =
+        reader.lines().map(|x| Float::parse(x.unwrap()).unwrap().complete(prec)).collect();
+    info!("read {} numbers from {}", ret.len(), path.as_ref().display());
     Ok(ret)
 }
 
