@@ -530,17 +530,4 @@ mod tests {
         // panic!();
     }
 
-    #[test]
-    fn test_rs_theta() {
-        type T = f64x2;
-        let t = f64x2 { hi: 1000.0, lo: 0.0 };
-
-        let eps = 1e-30;
-        let ctx = Context::<T>::new(100);
-        let rs_theta = RiemannSiegelTheta::new(&ctx, 20);
-        let gt = f64x2 { hi: 2034.5464280380315, lo: 7.28690383001782e-14 };
-        let output = rs_theta.theta(t, eps);
-
-        assert_close(output, gt, eps);
-    }
 }

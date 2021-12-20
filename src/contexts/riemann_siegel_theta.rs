@@ -42,15 +42,3 @@ pub fn init() {
     TABLE_f64.set(data.iter().map(|x| x.to_f64()).collect());
     TABLE_f64x2.set(data.iter().map(mpf_to_f64x2).collect());
 }
-
-// /// see https://arxiv.org/pdf/1609.03682.pdf for the "wrong" formula
-// /// also see https://arblib.org/gamma.html
-// pub fn new(K: usize) -> Self {
-//     let mut coeffs = vec![T::zero(); K + 1];
-//     for j in 1..=K {
-//         coeffs[j] = (T::one() - T::from_f64(2.0).unwrap().powi(1 - 2 * j as i32))
-//             * T::bernoulli(2 * j).abs()
-//             / (4 * j * (2 * j - 1)) as f64;
-//     }
-//     Self { K, coeffs }
-// }
