@@ -4,14 +4,20 @@ use num::{One, Zero};
 use num_traits::AsPrimitive;
 
 #[inline]
-fn pow2(n: i32) -> f64 { f64::from_bits(((0x3ff + n) as u64) << 52) }
+const fn pow2(n: i32) -> f64 { f64::from_bits(((0x3ff + n) as u64) << 52) }
 
 impl f64x2 {
+    #[inline]
+    pub const fn new(hi: f64, lo: f64) -> Self { Self { hi, lo } }
+
+    #[inline]
+    pub const fn approx(&self) -> f64 { self.hi }
+
     /// see <https://github.com/JuliaMath/DoubleFloats.jl/blob/master/src/math/ops/op_dd_dd.jl#L45-L52>
     #[inline]
     pub fn square(self) -> Self {
         let a = self;
-        let Self { hi, lo } = two_mul(a.hi, a.hi);
+        let (hi, lo) = two_mul(a.hi, a.hi);
         let lo = lo + (a.hi * a.lo) * 2.;
         let lo = lo + a.lo * a.lo;
         Self { hi, lo }
@@ -22,8 +28,8 @@ impl f64x2 {
         let f_lo = self.lo.floor();
         let i_hi = self.hi.fract();
         let i_lo = self.lo.fract();
-        let i = two_add(i_hi, i_lo);
-        let f = two_add(f_hi, f_lo);
+        let i = Self::from(two_add(i_hi, i_lo));
+        let f = Self::from(two_add(f_hi, f_lo));
         (f, i)
     }
 
@@ -141,7 +147,7 @@ impl f64x2 {
         assert!(self.hi >= 0.0, "self = {:?}", self);
         let x = self.hi.sqrt().recip();
         let y = self.hi * x;
-        two_add(y, (self - two_mul(y, y)).hi * (x * 0.5))
+        Self::from(two_add(y, (self - Self::from(two_mul(y, y))).hi * (x * 0.5)))
     }
 
     #[inline]
@@ -177,7 +183,7 @@ impl f64x2 {
 
     pub fn floor(self) -> Self {
         let ret = if self.hi.fract() == 0.0 {
-            two_add_fast(self.hi, self.lo.floor())
+            Self::from(two_add_fast(self.hi, self.lo.floor()))
         } else {
             Self { hi: self.hi.floor(), lo: 0.0 }
         };
@@ -192,7 +198,7 @@ impl f64x2 {
         let ret = two_add_fast(self.hi.round(), self.lo.round());
         // let diff = ret - self;
         // assert!(-0.5 <= diff.hi && diff.hi <= 0.5, "self = {:?}", self);
-        ret
+        Self::from(ret)
     }
 
     /// The idea is similar to libm: We split $`[0, \pi/2)`$ into 4 parts, and approximate atan(x) in each
@@ -213,30 +219,24 @@ impl f64x2 {
                     // atan(x) < PI/8 => base = PI / 16
                     (base, tan_base) = (
                         0.19634954084936207,
-                        f64x2 { hi: 0.198912367379658, lo: -7.117703886485398e-18 },
+                        f64x2::new(0.198912367379658, -7.117703886485398e-18),
                     );
                 } else {
                     // PI/8 <= atan(x) < PI/4 => base = 3 PI / 16
-                    (base, tan_base) = (
-                        0.5890486225480862,
-                        f64x2 { hi: 0.6681786379192989, lo: 7.828409495095202e-18 },
-                    );
+                    (base, tan_base) =
+                        (0.5890486225480862, f64x2::new(0.6681786379192989, 7.828409495095202e-18));
                 }
             } else {
                 // another division
                 if approx < 2.414213562373095 {
                     // tan(3 PI / 8)
                     // PI/4 <= atan(x) < 3PI/8 => base = 5PI / 16
-                    (base, tan_base) = (
-                        0.9817477042468103,
-                        f64x2 { hi: 1.496605762665489, lo: -5.424792800215555e-17 },
-                    );
+                    (base, tan_base) =
+                        (0.9817477042468103, f64x2::new(1.496605762665489, -5.424792800215555e-17));
                 } else {
                     // 3 PI / 8 <= atan(x) < PI / 2 => base = 7 PI / 16
-                    (base, tan_base) = (
-                        1.3744467859455345,
-                        f64x2 { hi: 5.027339492125846, lo: 3.9817094207573838e-16 },
-                    );
+                    (base, tan_base) =
+                        (1.3744467859455345, f64x2::new(5.027339492125846, 3.9817094207573838e-16));
                 }
             }
 
@@ -385,91 +385,92 @@ impl f64x2 {
         ret
     }
 
-    pub fn approx(self) -> f64 {
-        self.hi
-    }
-
-    fn erfc(self) -> Self { todo!() }
+    pub const fn erfc(&self) -> Self { todo!() }
 }
 
 #[cfg(test)]
 mod tests {
     use super::f64x2;
+    use crate::test_utils::*;
     use num::Complex;
 
     #[test]
     fn test_log() {
-        let s = f64x2 { hi: 123.0, lo: 0.0 };
+        let s = f64x2::new(123.0, 0.0);
         let x = s.ln();
-        let gt = f64x2 { hi: 4.812184355372417, lo: 4.291407929980309e-16 };
+        let gt = f64x2::new(4.812184355372417, 4.291407929980309e-16);
         assert_close(x, gt, 1e-30);
     }
 
     #[test]
     fn test_sqrt() {
-        let s = f64x2 { hi: 123.0, lo: 0.0 };
-        assert_close(s.sqrt(), f64x2 { hi: 11.090536506409418, lo: -5.209651269937913e-16 }, 1e-30);
+        let s = f64x2::new(123.0, 0.0);
+        assert_close(s.sqrt(), f64x2::new(11.090536506409418, -5.209651269937913e-16), 1e-30);
     }
 
     #[test]
     fn test_exp() {
-        let s = f64x2 { hi: 3.4538776394910684, lo: 0.0000000000000001184757763427252 };
-        assert_close(s.exp(), f64x2 { hi: 31.622776601683793, lo: 7.566535620287156e-16 }, 1e-30);
+        let s = f64x2::new(3.4538776394910684, 0.0000000000000001184757763427252);
+        assert_close(s.exp(), f64x2::new(31.622776601683793, 7.566535620287156e-16), 1e-30);
     }
 
     #[test]
     fn test_complex_log() {
-        let s1 = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 10.0, lo: 0.0 });
+        let s1 = Complex::new(f64x2::new(1.5, 0.0), f64x2::new(10.0, 0.0));
         let gt = Complex::new(
-            f64x2 { hi: 2.3137103974614557, lo: -1.1772777930167866e-16 },
-            f64x2 { hi: 1.4219063791853994, lo: -4.7442629531916207e-17 },
+            f64x2::new(2.3137103974614557, -1.1772777930167866e-16),
+            f64x2::new(1.4219063791853994, -4.7442629531916207e-17),
         );
         assert_complex_close(s1.ln(), gt, 1e-30);
     }
 
     #[test]
     fn test_cos_sin() {
-        let t = f64x2 { hi: 1.034702354811904, lo: 8.06154861650416e-17 };
-        assert_close(t.cos(), f64x2 { hi: 0.5107818439368557, lo: 1.0134834604058354e-17 }, 3e-32);
+        let t = f64x2::new(1.034702354811904, 8.06154861650416e-17);
+        assert_close(t.cos(), f64x2::new(0.5107818439368557, 1.0134834604058354e-17), 3e-32);
 
-        let s = f64x2 { hi: 23.025850929940457, lo: -0.00000000000000039439938398199903 };
-        assert_close(
-            s.cos(),
-            f64x2 { hi: -0.5107818439368557, lo: -1.0134834604058354e-17 },
-            3e-32,
-        );
-        assert_close(s.sin(), f64x2 { hi: -0.8597103627992777, lo: 4.575936712504712e-17 }, 3e-32);
+        let s = f64x2::new(23.025850929940457, -0.00000000000000039439938398199903);
+        assert_close(s.cos(), f64x2::new(-0.5107818439368557, -1.0134834604058354e-17), 3e-32);
+        assert_close(s.sin(), f64x2::new(-0.8597103627992777, 4.575936712504712e-17), 3e-32);
     }
 
     #[test]
     fn test_complex_exp() {
-        let s1 = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 10.0, lo: 0.0 });
+        let s1 = Complex::new(f64x2::new(1.5, 0.0), f64x2::new(10.0, 0.0));
         let gt = Complex::new(
-            f64x2 { hi: -3.7604577010937845, lo: -1.9567327806486033e-16 },
-            f64x2 { hi: -2.438133466706061, lo: -5.786232568383162e-17 },
+            f64x2::new(-3.7604577010937845, -1.9567327806486033e-16),
+            f64x2::new(-2.438133466706061, -5.786232568383162e-17),
         );
         assert_complex_close(s1.exp(), gt, 2e-31);
 
         let s2 = Complex {
-            re: f64x2 { hi: 3.4538776394910684, lo: 0.0000000000000001184757763427252 },
-            im: f64x2 { hi: 23.025850929940457, lo: -0.00000000000000039439938398199903 },
+            re: f64x2::new(3.4538776394910684, 0.0000000000000001184757763427252),
+            im: f64x2::new(23.025850929940457, -0.00000000000000039439938398199903),
         };
         let gt = Complex::new(
-            f64x2 { hi: -16.1523401430113, lo: -1.3105798758488752e-15 },
-            f64x2 { hi: -27.186428744954082, lo: -8.416517329489051e-16 },
+            f64x2::new(-16.1523401430113, -1.3105798758488752e-15),
+            f64x2::new(-27.186428744954082, -8.416517329489051e-16),
         );
         assert_complex_close(s2.exp(), gt, 3e-32);
     }
 
     #[test]
     fn test_powc() {
-        let s = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 1.0, lo: 0.0 });
-        let b = Complex::new(f64x2 { hi: 10.0, lo: 0.0 }, f64x2::zero());
+        let s = Complex::new(f64x2::new(1.5, 0.0), f64x2::new(1.0, 0.0));
+        let b = Complex::new(f64x2::new(10.0, 0.0), f64x2::new(0.0, 0.0));
         let x = b.powc(s);
         let gt = Complex::new(
-            f64x2 { hi: -21.130387081656004, lo: 5.226753154184954e-16 },
-            f64x2 { hi: 23.52672399165224, lo: -4.0310962858867735e-17 },
+            f64x2::new(-21.130387081656004, 5.226753154184954e-16),
+            f64x2::new(23.52672399165224, -4.0310962858867735e-17),
         );
         assert_complex_close(x, gt, 1e-31);
+    }
+
+    #[test]
+    fn test_ln() {
+        let x = f64x2::new(1e17, 13.0);
+        let y = f64x2::new(39.14394658089878, -8.957503206494484e-16);
+        println!("x = {:?}, y = {:?}", x, y);
+        assert_close(x.ln(), y, 1e-30);
     }
 }

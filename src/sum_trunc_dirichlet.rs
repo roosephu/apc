@@ -91,16 +91,16 @@ mod tests {
     #[test]
     fn test_truncated_dirichlet_series() {
         let n = 1000;
-        let s = Complex::new(f64x2 { hi: 1.5, lo: 0.0 }, f64x2 { hi: 1.0, lo: 0.0 });
+        let s = Complex::new(f64x2::new(1.5, 0.0), f64x2::new(1.0, 0.0));
         let mut ans: Complex<f64x2> = Complex::zero();
         for i in 1..=n {
-            let x = Complex::new(f64x2 { hi: i as f64, lo: 0.0 }, f64x2::zero()).powc(s);
+            let x = Complex::new(f64x2::new(i as f64, 0.0), f64x2::zero()).powc(s);
             ans += x;
         }
         println!("ans = {}", ans);
         let gt = Complex::new(
-            f64x2 { hi: 1.1409175704943191e7, lo: 8.194110941294255e-10 },
-            f64x2 { hi: 2.8472593984260815e6, lo: 1.4500054775776998e-10 },
+            f64x2::new(1.1409175704943191e7, 8.194110941294255e-10),
+            f64x2::new(2.8472593984260815e6, 1.4500054775776998e-10),
         );
         assert_complex_close(ans, gt, 6e-32);
     }

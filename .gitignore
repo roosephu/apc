@@ -61,3 +61,4 @@ Cargo.lock
 
 flamegraph.svg
 data/
+F64x2/target

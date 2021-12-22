@@ -328,8 +328,6 @@ mod tests {
     use F64x2::f64x2;
     use F64x2::test_utils::*;
 
-    fn init_logger() { let _ = env_logger::builder().is_test(true).try_init(); }
-
     #[test]
     fn test_hybrid_prec() {
         init_logger();

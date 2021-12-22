@@ -38,5 +38,5 @@ pub fn read_data(path: impl AsRef<Path>, prec: u32) -> Result<Vec<Float>, std::i
 pub fn mpf_to_f64x2(x: &Float) -> f64x2 {
     let hi = x.to_f64();
     let lo = (x - hi).complete(x.prec()).to_f64();
-    f64x2 { hi, lo }
+    f64x2::new(hi, lo)
 }

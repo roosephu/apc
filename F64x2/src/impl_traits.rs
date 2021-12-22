@@ -174,17 +174,13 @@ impl ToPrimitive for f64x2 {
     fn to_u32(&self) -> Option<u32> { todo!() }
 
     #[inline]
-    fn to_u64(&self) -> Option<u64> {
-        Some((self.hi as i64 + self.lo as i64) as u64)
-     }
+    fn to_u64(&self) -> Option<u64> { Some((self.hi as i64 + self.lo as i64) as u64) }
 
     #[inline]
     fn to_u8(&self) -> Option<u8> { todo!() }
 
     #[inline]
-    fn to_usize(&self) -> Option<usize> {
-        Some((self.hi as i64 + self.lo as i64) as usize)
-    }
+    fn to_usize(&self) -> Option<usize> { Some((self.hi as i64 + self.lo as i64) as usize) }
 }
 
 impl num::traits::NumCast for f64x2 {
@@ -579,6 +575,11 @@ impl From<u64> for f64x2 {
 impl From<f64> for f64x2 {
     #[inline]
     fn from(x: f64) -> Self { f64x2 { hi: x, lo: 0.0 } }
+}
+
+impl From<(f64, f64)> for f64x2 {
+    #[inline]
+    fn from((hi, lo): (f64, f64)) -> Self { f64x2 { hi, lo } }
 }
 
 impl Into<i64> for f64x2 {

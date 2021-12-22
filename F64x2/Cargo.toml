@@ -2,10 +2,12 @@
 name = "F64x2"
 version = "0.1.0"
 authors = ["Yuping Luo <roosephu@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 
 [dependencies]
 num-traits = "0.2.14"
 num = "0.4.0"
+multi-floats-impl = { path = './multi-floats-impl' }
+env_logger = "0.9.0"

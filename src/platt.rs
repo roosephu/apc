@@ -401,11 +401,11 @@ mod tests {
 
     use super::{calc_Δ1_f64, Platt};
     use log::info;
-    use F64x2::f64x2;
+    use F64x2::{f64x2, test_utils::init_logger};
 
     #[test]
     fn test_Δ_bounds_heuristic() {
-        env_logger::init();
+        init_logger();
 
         let x = 1e11f64;
         let λ = 3e-5;
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_integrate_critical() {
-        env_logger::init();
+        init_logger();
 
         let x = 1_000_000_000_000_000u64;
         let λ = 3.324516e-7;
@@ -441,6 +441,6 @@ mod tests {
 
         let b = Platt::integrate_critical::<f64x2>(x, λ, 15, max_height, ζ_zeros.as_path());
         println!("b = {}", b);
-        panic!();
+        // panic!();
     }
 }

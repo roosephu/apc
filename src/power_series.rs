@@ -195,7 +195,7 @@ mod tests {
             -0.0026737163058292426,
         ];
         for i in 0..10 {
-            assert!((gt[i] - numer.coeffs[i]).abs() < 1e-14);
+            assert!((gt[i] - numer.coeffs[i]).abs() < 1e-14, "gt = {}, numer = {}", gt[i], numer.coeffs[i]);
         }
     }
 }

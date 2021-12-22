@@ -55,10 +55,10 @@ mod tests {
     fn test_rs_theta() {
         init();
 
-        let t = f64x2 { hi: 1000.0, lo: 0.0 };
+        let t = f64x2::new(1000.0, 0.0);
 
         let eps = 1e-30;
-        let gt = f64x2 { hi: 2034.5464280380315, lo: 7.28690383001782e-14 };
+        let gt = f64x2::new(2034.5464280380315, 7.28690383001782e-14);
         let output = t.rs_theta(eps);
 
         assert_close(output, gt, eps);

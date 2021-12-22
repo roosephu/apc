@@ -32,7 +32,8 @@ impl<T: MyReal + Sinc + ExpPolyApprox> BandwidthInterp<T> {
     /// precompute = O((c + k1 eps)(tau/gap + 2))
     /// query = O(k0 + c (tau/gap + 1))
     pub fn new(k: usize, sigma: T) -> Self {
-        let k0_int = std::cmp::min(4, k);
+        // let k0_int = std::cmp::min(4, k);
+        let k0_int = 1;
         let k0 = T::from_f64(k0_int as f64).unwrap();
         let k1 = T::from_f64(k as f64).unwrap();
         let tau = (k1 / k0).ln();
@@ -57,6 +58,7 @@ impl<T: MyReal + Sinc + ExpPolyApprox> BandwidthInterp<T> {
         Self { k0: k0_int, k1: k, tau, sigma, alpha, beta, data, gap, t0 }
     }
 
+    #[inline]
     fn h(&self, c: T, t: T) -> T {
         let w = (c * c - self.gap * self.gap * t * t).sqrt();
         if w.is_zero() {
@@ -75,14 +77,14 @@ impl<T: MyReal + Sinc + ExpPolyApprox> BandwidthInterp<T> {
 
         let dt = t - self.t0;
         let delta = T::PI() / self.beta;
-        let r = ((dt + c / self.gap) / delta).floor();
-        let l = ((dt - c / self.gap) / delta).ceil();
+        let r = ((dt + c / self.gap) / delta).floor().to_usize().unwrap();
+        let l = ((dt - c / self.gap) / delta).ceil().to_usize().unwrap();
 
         let mut ret = Complex::<T>::zero();
-        for a in l.to_i32().unwrap()..=r.to_i32().unwrap() {
-            ret += self.data[a as usize]
+        for a in l..=r {
+            ret += self.data[a]
                 * self.h(c, dt - delta * (a as f64))
-                * (self.beta * dt / T::PI() - a as f64).sinc();
+                * (self.beta * dt * T::FRAC_1_PI() - a as f64).sinc();
             // println!("{} {}", self.h(c, dt - delta * (a as f64)), (self.beta * dt - T::PI() * (a as f64)).sinc());
         }
         ret *= Complex::new(T::zero(), -self.alpha * t).exp() * c_over_c_sinh;
