@@ -2,11 +2,12 @@
 
 extern crate proc_macro;
 
-use std::{borrow::Borrow, collections::VecDeque};
+use std::{borrow::Borrow, collections::VecDeque, ops::{SubAssign, Mul}};
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, Ident, LitInt};
+use rug::{Float, float::Constant};
 
 fn gen_sum(s: &Ident, idents: &[impl Borrow<Ident>]) -> TokenStream {
     let idents: Vec<_> = idents.iter().map(|x| x.borrow()).collect();
@@ -364,6 +365,53 @@ fn gen_div(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
     }
 }
 
+fn gen_consts(multifloats: &Ident, n: usize) -> TokenStream {
+    let prec = n as u32 * 64;
+    let constants = [
+        ("PI", Float::with_val(prec, Constant::Pi)),
+        ("E", Float::with_val(prec, 1.0f64).exp()),
+        ("LOG2_E", Float::with_val(prec, 1.0f64).exp().log2()),
+        ("LN_10", Float::with_val(prec, 10.0f64).ln()),
+        ("LN_2", Float::with_val(prec, 2.0f64).ln()),
+        ("LOG10_2", Float::with_val(prec, 2.0f64).log10()),
+        ("LOG10_E", Float::with_val(prec, 1.0f64).exp().log10()),
+        ("LOG2_10", Float::with_val(prec, 10.0f64).log2()),
+        ("FRAC_1_PI", Float::with_val(prec, Constant::Pi).recip()),
+        ("FRAC_1_SQRT_2", Float::with_val(prec, 2.0f64).recip_sqrt()),
+        ("FRAC_2_PI", Float::with_val(prec, Constant::Pi).recip() * 2i32),
+        ("FRAC_2_SQRT_PI", Float::with_val(prec, Constant::Pi).recip_sqrt() * 2i32),
+        ("FRAC_PI_2", Float::with_val(prec, Constant::Pi) / 2i32),
+        ("FRAC_PI_3", Float::with_val(prec, Constant::Pi) / 3i32),
+        ("FRAC_PI_4", Float::with_val(prec, Constant::Pi) / 4i32),
+        ("FRAC_PI_6", Float::with_val(prec, Constant::Pi) / 6i32),
+        ("FRAC_PI_8", Float::with_val(prec, Constant::Pi) / 8i32),
+        ("SQRT_2", Float::with_val(prec, 2.0f64).sqrt()),
+        ("TAU", Float::with_val(prec, Constant::Pi) * 2i32),
+    ];
+    let mut def = vec![];
+    let mut implement = vec![];
+    for (name, mut value) in constants {
+        let mut data = vec![0.0; n];
+        for i in 0..n {
+            data[i] = value.to_f64();
+            value.sub_assign(data[i]);
+        }
+        let name = format_ident!("{}", name);
+        def.push(quote! { const #name: Self = Self { data: [#(#data),*] }; });
+        implement.push(quote! { #[inline] fn #name() -> Self { Self::#name } });
+    }
+
+    quote! {
+        impl #multifloats<#n> {
+            #(#def)*
+        }
+
+        impl num::traits::FloatConst for #multifloats<#n> {
+            #(#implement)*
+        }
+    }
+}
+
 #[proc_macro]
 pub fn impl_f64x(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(tokens as LitInt);
@@ -380,6 +428,7 @@ pub fn impl_f64x(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let add_f64 = gen_add_f64(&multifloats, n, sloppy);
     let mul_f64 = gen_mul_f64(&multifloats, n, sloppy);
     let div_f64 = gen_div_f64(&multifloats, n, sloppy);
+    let constants = gen_consts(&multifloats, n);
     let expanded = quote! {
         impl #multifloats<#n> {
             #constructor
@@ -391,6 +440,7 @@ pub fn impl_f64x(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #add_f64
         #mul_f64
         #div_f64
+        #constants
 
         type #f64xn = #multifloats<#n>;
     };

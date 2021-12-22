@@ -17,7 +17,7 @@ pub struct f64x2 {
     pub(crate) lo: f64,
 }
 
-mod blocks;
+pub mod blocks;
 mod f64xn;
 mod functions;
 mod impl_traits;
