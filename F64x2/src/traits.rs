@@ -2,8 +2,7 @@ use crate::f64x2;
 use std::ops::{Add, Div, Mul, Sub};
 
 pub trait FpOps:
-    From<f64>
-    + Add<f64, Output = Self>
+    Add<f64, Output = Self>
     + Sub<f64, Output = Self>
     + Mul<f64, Output = Self>
     + Div<f64, Output = Self>

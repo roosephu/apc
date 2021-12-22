@@ -59,9 +59,9 @@ where
             let mut dec_point = false;
 
             for _ in 0..30 {
-                let d = a.floor().fp() as u8; // a is in [0, 8] so it's fine to use floor
-                ret.push((b'0' + d) as char);
-                a = (a - f64x::<N>::from(d as f64)) * 10.;
+                let d = a.floor().fp(); // a is in [0, 8] so it's fine to use floor
+                ret.push((b'0' + d as u8) as char);
+                a = (a - d) * 10.;
                 if a.is_zero() {
                     break;
                 }

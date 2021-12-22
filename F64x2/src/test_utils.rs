@@ -1,13 +1,16 @@
-use crate::f64x2;
-use env_logger;
-use num::Complex;
+use std::fmt::Display;
 
-pub fn assert_close(a: f64x2, b: f64x2, eps: f64) {
-    let rel_abs = (a - b).abs().fp() / b.abs().fp();
+use crate::traits::FpOps;
+use env_logger;
+use num::{Complex, Float};
+use num_traits::NumOps;
+
+pub fn assert_close<T: FpOps + NumOps + Display + Copy>(a: T, b: T, eps: f64) {
+    let rel_abs = (a - b).fp().abs() / b.fp().abs();
     assert!(rel_abs < eps, "rel abs = {:.E}, a = {}, b = {}, diff = {}", rel_abs, a, b, a - b);
 }
 
-pub fn assert_complex_close(a: Complex<f64x2>, b: Complex<f64x2>, eps: f64) {
+pub fn assert_complex_close<T: FpOps + Float + Display + Copy>(a: Complex<T>, b: Complex<T>, eps: f64) {
     let rel_abs = (a - b).norm().fp() / b.norm().fp();
     assert!(rel_abs < eps, "rel abs = {:.E}, a = {}, b = {}, diff = {}", rel_abs, a, b, a - b);
 }

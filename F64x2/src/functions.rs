@@ -13,6 +13,9 @@ impl f64x2 {
     #[inline]
     pub const fn fp(&self) -> f64 { self.hi }
 
+    #[inline]
+    pub const fn mp(x: f64) -> Self { Self { hi: x, lo: 0.0 } }
+
     /// see <https://github.com/JuliaMath/DoubleFloats.jl/blob/master/src/math/ops/op_dd_dd.jl#L45-L52>
     #[inline]
     pub fn square(self) -> Self {
@@ -71,7 +74,7 @@ impl f64x2 {
     }
 
     pub fn ln_newton(self) -> Self {
-        let y = Self::from(self.hi.ln());
+        let y = Self::mp(self.hi.ln());
         let y = y + self * (-y).exp() - 1.0;
         let ret = y + self * (-y).exp() - 1.0;
 
@@ -303,7 +306,7 @@ impl f64x2 {
         let z_sq = z.square();
         let mut ret = Self::one() / z_sq;
 
-        let h = f64x2::from(h);
+        let h = f64x2::mp(h);
         let h_sq = h.square();
         for k in 1..=K {
             let w = h_sq * f64x2::from(k * k);

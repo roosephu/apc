@@ -16,6 +16,7 @@ pub struct BandwidthInterp<T> {
 
     alpha: T,
     beta: T,
+    delta: T,
     data: Vec<Complex<T>>,
 }
 
@@ -55,7 +56,7 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
             .collect();
         debug!("precompute {} terms", m);
 
-        Self { k0: k0_int, k1: k, tau, sigma, alpha, beta, data, gap, t0 }
+        Self { k0: k0_int, k1: k, tau, sigma, alpha, beta, data, gap, t0, delta }
     }
 
     #[inline]
@@ -76,14 +77,13 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
         let c_over_c_sinh = c / c.sinh();
 
         let dt = t - self.t0;
-        let delta = T::PI() / self.beta;
-        let r = ((dt + c / self.gap) / delta).floor().fp() as usize;
-        let l = ((dt - c / self.gap) / delta).ceil().fp() as usize;
+        let r = ((dt + c / self.gap) / self.delta).floor().fp() as usize;
+        let l = ((dt - c / self.gap) / self.delta).ceil().fp() as usize;
 
         let mut ret = Complex::<T>::zero();
         for a in l..=r {
             ret += self.data[a]
-                * self.h(c, dt - delta * (a as f64))
+                * self.h(c, dt - self.delta * (a as f64))
                 * (self.beta * dt * T::FRAC_1_PI() - a as f64).sinc();
             // println!("{} {}", self.h(c, dt - delta * (a as f64)), (self.beta * dt - T::PI() * (a as f64)).sinc());
         }

@@ -7,6 +7,7 @@ use crate::{
 
 fn isolate_zeros(n: usize) {
     use crate::traits::MyReal;
+
     let σ = 0.5;
     let lo = f64::PI() * 2.0 * (n as f64).powi(2);
     let hi = f64::PI() * 2.0 * (n as f64 + 1.0).powi(2);

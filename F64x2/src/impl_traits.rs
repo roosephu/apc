@@ -76,12 +76,6 @@ impl Zero for f64x2 {
 
     #[inline]
     fn is_zero(&self) -> bool { self.hi == 0.0 && self.lo == 0.0 }
-
-    #[inline]
-    fn set_zero(&mut self) {
-        self.hi = 0.0;
-        self.lo = 0.0;
-    }
 }
 
 impl One for f64x2 {
@@ -90,12 +84,6 @@ impl One for f64x2 {
 
     #[inline]
     fn is_one(&self) -> bool { self.hi == 1.0 && self.lo == 0.0 }
-
-    #[inline]
-    fn set_one(&mut self) {
-        self.hi = 1.0;
-        self.lo = 0.0;
-    }
 }
 
 impl Neg for f64x2 {
@@ -193,7 +181,7 @@ impl Float for f64x2 {
     fn classify(self) -> FpCategory { todo!() }
 
     #[inline]
-    fn epsilon() -> Self { Self::from(1.232595164407831e-32) }
+    fn epsilon() -> Self { Self::mp(1.232595164407831e-32) }
 
     #[inline]
     fn hypot(self, other: Self) -> Self { f64x2::hypot(self, other) }
@@ -572,10 +560,10 @@ impl From<u64> for f64x2 {
     }
 }
 
-impl From<f64> for f64x2 {
-    #[inline]
-    fn from(x: f64) -> Self { f64x2 { hi: x, lo: 0.0 } }
-}
+// impl From<f64> for f64x2 {
+//     #[inline]
+//     fn from(x: f64) -> Self { f64x2 { hi: x, lo: 0.0 } }
+// }
 
 impl From<(f64, f64)> for f64x2 {
     #[inline]
