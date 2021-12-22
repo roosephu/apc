@@ -365,7 +365,7 @@ fn gen_div(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
     }
 }
 
-fn gen_consts(multifloats: &Ident, n: usize) -> TokenStream {
+fn gen_float_consts(multifloats: &Ident, n: usize) -> TokenStream {
     let prec = n as u32 * 64;
     let constants = [
         ("PI", Float::with_val(prec, Constant::Pi)),
@@ -428,7 +428,7 @@ pub fn impl_f64x(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let add_f64 = gen_add_f64(&multifloats, n, sloppy);
     let mul_f64 = gen_mul_f64(&multifloats, n, sloppy);
     let div_f64 = gen_div_f64(&multifloats, n, sloppy);
-    let constants = gen_consts(&multifloats, n);
+    let float_consts = gen_float_consts(&multifloats, n);
     let expanded = quote! {
         impl #multifloats<#n> {
             #constructor
@@ -440,7 +440,7 @@ pub fn impl_f64x(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #add_f64
         #mul_f64
         #div_f64
-        #constants
+        #float_consts
 
         type #f64xn = #multifloats<#n>;
     };
