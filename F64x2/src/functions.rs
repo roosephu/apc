@@ -11,7 +11,7 @@ impl f64x2 {
     pub const fn new(hi: f64, lo: f64) -> Self { Self { hi, lo } }
 
     #[inline]
-    pub const fn approx(&self) -> f64 { self.hi }
+    pub const fn fp(&self) -> f64 { self.hi }
 
     /// see <https://github.com/JuliaMath/DoubleFloats.jl/blob/master/src/math/ops/op_dd_dd.jl#L45-L52>
     #[inline]

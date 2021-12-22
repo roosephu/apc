@@ -22,7 +22,7 @@ impl FpOps for f64 {
 
 impl FpOps for f64x2 {
     #[inline]
-    fn fp(&self) -> f64 { Self::approx(self) }
+    fn fp(&self) -> f64 { Self::fp(self) }
 
     #[inline]
     fn mp(x: f64) -> Self { Self::new(x, 0.0) }
