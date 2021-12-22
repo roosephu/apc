@@ -15,7 +15,7 @@ where
     let mut spre = T::zero();
     let mut scur = T::zero();
 
-    if (fpre * fcur).is_positive() {
+    if (fpre * fcur).is_sign_positive() {
         return None;
     }
     if fpre.is_zero() {
@@ -26,7 +26,7 @@ where
     }
 
     for _ in 0..iter {
-        if (fpre * fcur).is_negative() {
+        if (fpre * fcur).is_sign_negative() {
             xblk = xpre;
             fblk = fpre;
             spre = xcur - xpre;
@@ -75,7 +75,7 @@ where
         if scur.abs() > delta {
             xcur += scur;
         } else {
-            xcur += if sbis.is_positive() { delta } else { -delta };
+            xcur += if sbis.is_sign_positive() { delta } else { -delta };
         }
 
         fcur = f(xcur);

@@ -72,15 +72,15 @@ mod tests {
     #[test]
     fn test_sum_trunc_dirichlet() {
         let N = 20;
-        let s = Complex::new(T::from_f64(1.3).unwrap(), T::from_f64(260.0).unwrap());
+        let s = Complex::new(T::mp(1.3), T::mp(260.0));
         let M = 9;
-        let delta = T::from_f64(1.1).unwrap();
+        let delta = T::mp(1.1);
         let result = sum_trunc_dirichlet(s, 1, N, M, delta);
         for t in 0..=M {
             let mut sum = Complex::<T>::zero();
             let z = s + Complex::new(T::zero(), delta * t as f64);
             for j in 1..=N {
-                sum += (-z * T::from_f64(j as f64).unwrap().ln()).exp();
+                sum += (-z * T::mp(j as f64).ln()).exp();
             }
             println!("{:e} {:e}, diff = {:e}", sum, result[t], sum - result[t]);
             assert_complex_close(sum, result[t], 1e-29);

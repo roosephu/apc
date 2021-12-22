@@ -18,7 +18,7 @@ pub struct Galway<'a, T, Z> {
 }
 
 impl<T: MyReal, Z> Galway<'_, T, Z> {
-    fn Phi(&self, p: T) -> T { (p / T::SQRT_2()) / T::from_f64(2.0).unwrap() }
+    fn Phi(&self, p: T) -> T { (p / T::SQRT_2()) / T::mp(2.0) }
 
     fn phi(&self, u: T, x: T) -> T { self.Phi((u / x).ln() / self.lambda) }
 
@@ -60,7 +60,7 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
         for n in 0..=(N / 2) {
             let mut s1 = Complex::zero();
             for k in 0..=n {
-                s1 += T::from_f64(4.0).unwrap().pow((n - k) as i32) * ctx.euler(n - k)
+                s1 += T::mp(4.0).pow((n - k) as i32) * ctx.euler(n - k)
                     / ctx.factorial(2 * k)
                     / ctx.factorial(2 * (n - k));
             }
@@ -71,7 +71,7 @@ impl<T: MyReal, Z> Galway<'_, T, Z> {
                     * Complex::i().powu((n - j) as u32)
                     * pi.pow((n + j) as i32)
                     / ctx.factorial(n - j)
-                    * T::from_f64(2.0).unwrap().pow((n - j + 1) as i32);
+                    * T::mp(2.0).pow((n - j + 1) as i32);
             }
         }
     }
@@ -81,9 +81,7 @@ impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
     /// a little bit different from Galway's definition
     /// I divied it by x^sigma.
     fn Psi(&mut self, s: Complex<T>, ln_x: T, eps: f64) -> Complex<T> {
-        ((self.lambda * s).powi(2) / T::from_f64(2.0).unwrap()
-            + Complex::new(T::zero(), s.im * ln_x))
-        .exp()
+        ((self.lambda * s).powi(2) / T::mp(2.0) + Complex::new(T::zero(), s.im * ln_x)).exp()
             * self.fn_zeta.zeta(s, eps).ln()
             / s
     }
@@ -91,11 +89,7 @@ impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
     fn calc_pi_star(&mut self, x: T, eps: f64) -> T {
         let n_total_evals = (self.integral_limit / self.h).ceil().to_i64().unwrap();
 
-        let eps = eps
-            / 4.0
-            / x.to_f64().unwrap().powf(self.sigma.to_f64().unwrap())
-            / x.to_f64().unwrap().ln()
-            / n_total_evals as f64;
+        let eps = eps / 4.0 / x.mp().powf(self.sigma.mp()) / x.mp().ln() / n_total_evals as f64;
         let ln_x = x.ln();
 
         let mut ans = Complex::<T>::zero();
@@ -117,9 +111,7 @@ impl<T: MyReal, Z: FnZeta<T>> Galway<'_, T, Z> {
         }
         // multiply the result by x^sigma, as noted in Psi.
         self.h / T::PI()
-            * (self.Psi(Complex::new(self.sigma, T::zero()), ln_x, eps) / T::from_f64(2.0).unwrap()
-                + ans)
-                .re
+            * (self.Psi(Complex::new(self.sigma, T::zero()), ln_x, eps) / T::mp(2.0) + ans).re
             * x.powf(self.sigma)
     }
 }
@@ -175,10 +167,10 @@ impl<'a, T: MyReal, Z: FnZeta<T>> Galway<'a, T, Z> {
             (integral_limit / h).ceil()
         );
 
-        self.sigma = T::from_f64(sigma).unwrap();
-        self.lambda = T::from_f64(lambda).unwrap();
-        self.h = T::from_f64(h).unwrap();
-        self.integral_limit = T::from_f64(integral_limit).unwrap();
+        self.sigma = T::mp(sigma);
+        self.lambda = T::mp(lambda);
+        self.h = T::mp(h);
+        self.integral_limit = T::mp(integral_limit);
         self.x1 = x1;
         self.x2 = x2;
         self.fn_zeta.prepare_multi_eval(self.h, 0.0);

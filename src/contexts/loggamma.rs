@@ -1,5 +1,5 @@
 use crate::traits::MyReal;
-use num::Complex;
+use num::{Complex, Signed};
 
 use super::{Bernoulli, ComplexFunctions};
 
@@ -24,7 +24,7 @@ fn loggamma_err(ln_z: Complex<f64>, n: usize) -> f64 {
         * err_coef
 }
 
-impl<T: MyReal + Bernoulli> Loggamma for Complex<T>
+impl<T: MyReal + Bernoulli + Signed> Loggamma for Complex<T>
 where
     Complex<T>: ComplexFunctions,
 {
@@ -34,7 +34,7 @@ where
         const N: usize = 20;
         let mut z = *self;
 
-        assert!(z.re > T::from_f64(-20.0f64).unwrap(), "beyond impl {:?}", z);
+        assert!(z.re > T::mp(-20.0f64), "beyond impl {:?}", z);
         let mut result = Complex::zero();
         while z.re < T::from_usize(N).unwrap() {
             result -= z.ln();
@@ -43,7 +43,7 @@ where
 
         let ln_z = z.ln();
 
-        result += (z - T::from_f64(0.5).unwrap()) * ln_z - z + (T::PI() * 2.0).ln() / 2.0;
+        result += (z - T::mp(0.5)) * ln_z - z + (T::PI() * 2.0).ln() / 2.0;
         let z2 = z * z;
         let mut zpow = z;
         for i in 1..N {
@@ -51,7 +51,7 @@ where
             result += contrib;
 
             zpow *= z2;
-            if contrib.l1_norm().to_f64().unwrap() * 10.0 < eps {
+            if contrib.l1_norm().fp() * 10.0 < eps {
                 break;
             }
         }

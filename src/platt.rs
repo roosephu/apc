@@ -189,13 +189,8 @@ fn cramer_stats(x: f64, λ: f64, d: f64) -> (f64, f64, f64) {
 // this requires high precision: result ≈ # primes
 fn integrate_offline<T: MyReal>(x: u64, λ: f64, max_order: usize) -> T {
     // the result = n / log(n) + o(n)
-    let mut integrator = PlattIntegrator::<T>::new(
-        T::from_u64(x).unwrap(),
-        T::one(),
-        T::from_f64(λ).unwrap(),
-        max_order,
-        0.01,
-    );
+    let mut integrator =
+        PlattIntegrator::<T>::new(T::from_u64(x).unwrap(), T::one(), T::mp(λ), max_order, 0.01);
     let result = integrator.query(T::zero()).im;
     info!("Φ̂(1) = {}", result);
 
@@ -366,7 +361,7 @@ impl Platt {
         let mut integrator = HybridPrecIntegrator::new(
             T::from_u64(x).unwrap(),
             T::one() / 2.0,
-            T::from_f64(λ).unwrap(),
+            T::mp(λ),
             max_order,
             1e-20,
         );
@@ -386,7 +381,7 @@ impl Platt {
         info!(
             "∑ Φ̂(ρ) = {}, Φ̂(ρ_max) = {:.6e}, max_err/f64::eps = {:.6e}",
             result,
-            last_contribution.to_f64().unwrap(),
+            last_contribution.fp(),
             max_err
         );
         assert!(max_err < 1e13, "possible loss of precision! use PlattIntegrator instead");

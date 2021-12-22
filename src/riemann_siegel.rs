@@ -9,7 +9,7 @@ use crate::{
 };
 
 fn riemann_siegel_chi<T: MyReal>(ctx: &Context<T>, z: Complex<T>, eps: f64) -> Complex<T> {
-    let half = T::from_f64(0.5).unwrap();
+    let half = T::mp(0.5);
     let log_chi = (z - half) * T::PI().ln() + ctx.loggamma((T::one() - z) * half, eps)
         - ctx.loggamma(z * half, eps);
     assert!(!log_chi.re.is_nan(), "{:?} {}", z, eps);
@@ -31,7 +31,7 @@ fn gen_rs_power_series<T: MyReal>(z: T, N: usize) -> PowerSeries<Complex<T>> {
 
     let mut denom = PowerSeries::<T>::from_vec(N, vec![z * T::PI(), T::PI()]);
     denom.cos_();
-    denom *= T::from_f64(2.0).unwrap();
+    denom *= T::mp(2.0);
 
     let mut real_series = zpoly.clone();
     real_series.cos_();
@@ -96,8 +96,8 @@ impl<T: MyReal> RiemannSiegelPlanner<T> {
     }
 
     pub fn plan(&self, t: f64, eps: f64) -> Option<Plan<T>> {
-        let a = (t.to_f64().unwrap() / f64::PI() / 2.0).sqrt();
-        let sigma = self.sigma.to_f64().unwrap();
+        let a = (t.fp() / f64::PI() / 2.0).sqrt();
+        let sigma = self.sigma.fp();
 
         let mut k;
         let c1;
@@ -113,7 +113,7 @@ impl<T: MyReal> RiemannSiegelPlanner<T> {
         let b = 10.0 / 11.0 * a;
         let mut bpow = b.powi(k as i32 + 1);
 
-        let coeff_bound = eps / T::epsilon().to_f64().unwrap() / 10.0f64;
+        let coeff_bound = eps / T::epsilon().fp() / 10.0f64;
         while k <= self.K {
             // bpow = b.powi(k + 1)
             let err = c1 * self.gamma_half[k] / bpow;
@@ -140,7 +140,7 @@ impl<T: MyReal> RiemannSiegelPlanner<T> {
 impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
     fn gen_coeffs(ctx: &'a Context<T>, sigma: T, K: usize) -> Vec<Vec<T>> {
         let mut coeffs: Vec<Vec<T>> = vec![];
-        let w = T::one() - T::from_f64(2.0).unwrap() * sigma;
+        let w = T::one() - T::mp(2.0) * sigma;
         for k in 0..=K {
             let J = 3 * k / 2;
             let mut d = vec![T::zero(); J + 1];
@@ -163,7 +163,7 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
                     d[j] = T::zero();
                     if r >= 3 {
                         // 2 * j <= 3 * (k - 1)  <=>  r >= 2
-                        d[j] += coeffs[k - 1][j] * T::from_f64(0.5).unwrap();
+                        d[j] += coeffs[k - 1][j] * T::mp(0.5);
                     }
                     if 1 <= j && r >= 1 {
                         // 2 * (j - 1) <= 3 * (k - 1)  <=>  r >= 1
@@ -198,8 +198,8 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
             coeffs1,
             coeffs2,
             planners: [
-                RiemannSiegelPlanner::new(sigma.to_f64().unwrap(), K),
-                RiemannSiegelPlanner::new(1.0 - sigma.to_f64().unwrap(), K),
+                RiemannSiegelPlanner::new(sigma.mp(), K),
+                RiemannSiegelPlanner::new(1.0 - sigma.mp(), K),
             ],
         }
     }
@@ -263,8 +263,8 @@ impl<'a, T: MyReal> RiemannSiegelZeta<'a, T> {
         let chi = riemann_siegel_chi(self.ctx, z, eps / 3.0);
 
         let t = z.im;
-        let plan0 = self.planners[0].plan(t.to_f64().unwrap(), eps / 3.0)?;
-        let plan1 = self.planners[1].plan(t.to_f64().unwrap(), eps / 3.0)?;
+        let plan0 = self.planners[0].plan(t.mp(), eps / 3.0)?;
+        let plan1 = self.planners[1].plan(t.mp(), eps / 3.0)?;
 
         let K = std::cmp::max(plan0.0, plan1.0);
         let two = self.ctx.two();
@@ -295,7 +295,7 @@ impl<'a, T: MyReal> RiemannSiegelTheta<'a, T> {
         // (1 - T(2)^(1 - 2 * j)) * abs(T(_bernoulli[j + 1])) / (4 * j * (2 * j - 1))
         let mut coeffs = vec![T::zero(); K + 1];
         for j in 1..=K {
-            coeffs[j] = (T::one() - T::from_f64(2.0).unwrap().powi(1 - 2 * j as i32))
+            coeffs[j] = (T::one() - T::mp(2.0).powi(1 - 2 * j as i32))
                 * ctx.bernoulli(2 * j).abs()
                 / (4 * j * (2 * j - 1)) as f64;
         }
@@ -305,7 +305,7 @@ impl<'a, T: MyReal> RiemannSiegelTheta<'a, T> {
     // See [Sec 3.11, Pugh].
     pub fn theta(&self, t: T, eps: f64) -> T {
         // as it's typically used with RiemannSiegelZ, we hope it's not too small.
-        assert!(t.to_f64().unwrap() >= 200.0 && eps > 1e-33);
+        assert!(t.fp() >= 200.0 && eps > 1e-33);
         const K: usize = 7;
 
         // needs high precision base computation here.
@@ -384,10 +384,10 @@ impl<T: MyReal + GabckeExpansion> RiemannSiegelZ<'_, T> {
             [0.127, 0.053, 0.011, 0.031, 0.017, 0.061, 0.661, 9.2, 130.0, 1837.0];
         let mut pow = t.powf(-0.75);
         let sqrt_t = t.sqrt();
-        let coeff_bound = eps / T::epsilon().to_f64().unwrap() / 10.0f64;
+        let coeff_bound = eps / T::epsilon().fp() / 10.0f64;
 
         for (k, c) in COEFFS.iter().enumerate() {
-            if self.coeffs[k][0].to_f64().unwrap() > coeff_bound {
+            if self.coeffs[k][0].fp() > coeff_bound {
                 return None;
             }
             if pow * c <= eps {
@@ -403,7 +403,7 @@ impl<T: MyReal + GabckeExpansion> RiemannSiegelZ<'_, T> {
         let a = (t / T::PI() / 2.0).sqrt();
         let n = a.floor();
         let (K, plan_sum_trunc_dirichlet) = plan;
-        // let z = Complex::new(T::from_f64(0.25).unwrap(), t * 0.5);
+        // let z = Complex::new(T::fp(0.25), t * 0.5);
         // let theta = self.ctx.loggamma(z, eps).im - t * 0.5 * T::PI().ln();
         let theta = self.theta.theta(t, eps);
 
@@ -432,7 +432,7 @@ impl<T: MyReal + GabckeExpansion> RiemannSiegelZ<'_, T> {
     }
 
     pub fn Z(&self, t: T, eps: f64) -> Option<T> {
-        let plan = self.plan(t.to_f64().unwrap(), eps / 3.0)?;
+        let plan = self.plan(t.fp(), eps / 3.0)?;
         let K = plan.0;
         let a = (t / T::PI() / 2.0).sqrt();
         let n = a.floor();

@@ -23,10 +23,7 @@ const EXP_POLY_EXP_F64: [Complex<f64>; 18] = [
 ];
 
 const F64X2_EXP_POLY_COEFFS: [Complex<f64x2>; 28] = [
-    Complex::<f64x2> {
-        re: f64x2::new(1.0, -7.41592015742533e-33),
-        im: f64x2::new(0.0, 0.0),
-    },
+    Complex::<f64x2> { re: f64x2::new(1.0, -7.41592015742533e-33), im: f64x2::new(0.0, 0.0) },
     Complex::<f64x2> {
         re: f64x2::new(-4.1405847908859944e-150, -2.7044188792406287e-166),
         im: f64x2::new(1.0, -7.278167722215507e-33),

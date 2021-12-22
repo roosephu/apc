@@ -27,7 +27,7 @@ impl<T: MyReal + GabckeSeriesCoeffs> GabckeSeries for T {
         let z = Self::one() - (a - n) * 2.0;
 
         let mut expansion = Self::zero();
-        let K = calc_gabcke_n_terms(a.approx(), eps);
+        let K = calc_gabcke_n_terms(a.fp(), eps);
 
         // We evaluate T_{2k}(z) = T_k(T_2(z)).
         let t2_z = z * z * 2.0 - 1.0;

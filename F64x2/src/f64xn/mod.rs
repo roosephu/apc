@@ -12,14 +12,16 @@ struct f64x<const N: usize> {
 }
 
 impl<const N: usize> f64x<N> {
-    const ONE: Self = Self::from_f64(1.0);
-    const ZERO: Self = Self::from_f64(0.0);
+    const ONE: Self = Self::mp(1.0);
+    const ZERO: Self = Self::mp(0.0);
 
-    const fn from_f64(x: f64) -> Self {
+    const fn mp(x: f64) -> Self {
         let mut data = [0.0; N];
         data[0] = x;
         Self { data }
     }
+
+    const fn fp(&self) -> f64 { self.data[0] }
 }
 
 impl<const N: usize> Neg for f64x<N> {
@@ -51,7 +53,7 @@ where
 {
     type Output = f64x<N>;
 
-    fn div(self, rhs: f64x<N>) -> Self::Output { f64x::<N>::from_f64(self) / rhs }
+    fn div(self, rhs: f64x<N>) -> Self::Output { f64x::<N>::mp(self) / rhs }
 }
 
 // impl_f64x!(1);

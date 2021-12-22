@@ -107,7 +107,7 @@ impl<T: MyReal> ExpansionIntegrator<T> {
             }
         }
 
-        let poly_eps = T::from_f64(eps).unwrap() / coeff.norm() / T::from_usize(order).unwrap();
+        let poly_eps = T::mp(eps) / coeff.norm() / T::from_usize(order).unwrap();
         let radius = Self::calc_radius(&poly.coeffs, poly_eps) / w;
         debug!(
             "[Expansion] prepare {}, radius = {}, {}, {}",
@@ -195,7 +195,7 @@ impl<T: MyReal> PlattIntegrator<T> {
         }
         info!(
             "[PlattIntegrator] up to {:.6e}, {} segments, integral = {:.6}",
-            limit.to_f64().unwrap(),
+            limit.fp(),
             expansions.len(),
             to_inf[0].approx(),
         );
@@ -286,8 +286,8 @@ impl<T: MyReal> HybridPrecIntegrator<T> {
     // the `ExpansionIntegrator.coeff` involves exp(ln(x) t), which might lose
     // precision if computed in f64.
     fn calc_low_prec_expansion(high_prec: &ExpansionIntegrator<T>) -> ExpansionIntegrator<f64> {
-        let t = high_prec.t.to_f64().unwrap();
-        let radius = high_prec.radius.to_f64().unwrap();
+        let t = high_prec.t.fp();
+        let radius = high_prec.radius.fp();
         let coeff = high_prec.coeff.approx();
 
         let max_order = high_prec.poly.N;
@@ -296,22 +296,21 @@ impl<T: MyReal> HybridPrecIntegrator<T> {
         for i in 0..max_order {
             poly.coeffs[i] = high_prec.poly.coeffs[i].approx();
         }
-        ExpansionIntegrator { t, radius, w: high_prec.w.to_f64().unwrap(), coeff, poly }
+        ExpansionIntegrator { t, radius, w: high_prec.w.fp(), coeff, poly }
     }
 
     pub fn query(&mut self, t: T) -> Complex<T> {
-        let t_ = t.to_f64().unwrap();
+        let t_ = t.fp();
         let index = self.items.partition_point(|key| key.expansion.t <= t_);
         assert!(index > 0);
         let item = &self.items[index - 1];
 
         let z = self.w * (t - item.t);
-        let z_ = z.to_f64().unwrap();
+        let z_ = z.fp();
 
         // z = O(ln(x) * radius), and exp(iz) has relative error O(|z|)
         // we here compute (z % 2π) using high precision
-        let reduced_z =
-            (z - T::PI() * (2.0 * (z_ / std::f64::consts::PI / 2.0).round())).to_f64().unwrap();
+        let reduced_z = (z - T::PI() * (2.0 * (z_ / std::f64::consts::PI / 2.0).round())).fp();
         let (sin_z, cos_z) = reduced_z.sin_cos();
         let exp_i_z = Complex::new(cos_z, sin_z);
 
@@ -339,21 +338,10 @@ mod tests {
         let eps = 1e-20;
         type T = f64x2;
 
-        let mut high_prec = PlattIntegrator::new(
-            T::from_f64(x).unwrap(),
-            T::from_f64(σ).unwrap(),
-            T::from_f64(λ).unwrap(),
-            max_order,
-            eps,
-        );
-        let mut hybrid_prec = HybridPrecIntegrator::new(
-            T::from_f64(x).unwrap(),
-            T::from_f64(σ).unwrap(),
-            T::from_f64(λ).unwrap(),
-            max_order,
-            eps,
-        );
-        let limit = T::from_f64((x.ln() + x.ln().ln()).sqrt() / λ).unwrap();
+        let mut high_prec = PlattIntegrator::new(T::mp(x), T::mp(σ), T::mp(λ), max_order, eps);
+        let mut hybrid_prec =
+            HybridPrecIntegrator::new(T::mp(x), T::mp(σ), T::mp(λ), max_order, eps);
+        let limit = T::mp((x.ln() + x.ln().ln()).sqrt() / λ);
 
         let m = 1000;
         for j in 0..=m {

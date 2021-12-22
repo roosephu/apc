@@ -1,5 +1,4 @@
-use log::info;
-use num::Complex;
+use num::{Complex, Signed};
 
 use crate::{
     bandwidth_interp::BandwidthInterp, contexts::*, sum_trunc_dirichlet::sum_trunc_dirichlet,
@@ -33,7 +32,14 @@ fn isolate_zeros(n: usize) {
             let z = (dir_sum[i] * Complex::from_polar(1.0, x.rs_theta(eps))).re * 2.0
                 + x.gabcke_series(eps);
             let dir_query = dir.query(x, eps);
-            assert!((dir_query - dir_sum[i]).norm() <= x * eps, "x = {}, query = {}, func = {}, z = {}", x, dir_query, dir_sum[i], z);
+            assert!(
+                (dir_query - dir_sum[i]).norm() <= x * eps,
+                "x = {}, query = {}, func = {}, z = {}",
+                x,
+                dir_query,
+                dir_sum[i],
+                z
+            );
             signs.push(z.is_sign_positive());
         }
         let n_roots = (0..n_points).filter(|&i| signs[i] != signs[i + 1]).count();
@@ -65,8 +71,8 @@ fn isolate_zeros(n: usize) {
     // }
 }
 
-fn find_zeros<T: MyReal + Sinc + GabckeSeries + Contexts + RiemannSiegelTheta>(n: usize) {
-    let sigma = T::from_f64(0.5).unwrap();
+fn find_zeros<T: MyReal + Sinc + GabckeSeries + Contexts + RiemannSiegelTheta + Signed>(n: usize) {
+    let sigma = T::mp(0.5);
     let dir = BandwidthInterp::new(n, sigma);
     let lo = T::PI() * (2 * n * n) as f64;
     let hi = T::PI() * (2 * (n + 1) * (n + 1)) as f64;

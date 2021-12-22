@@ -46,7 +46,7 @@ impl<T: MyReal> Context<T> {
     pub fn pow2(&self, n: usize) -> T { self.pow2[n] }
 
     #[inline]
-    pub fn two(&self) -> T { T::from_f64(2.0).unwrap() }
+    pub fn two(&self) -> T { T::mp(2.0) }
 }
 
 impl<T: MyReal> Context<T> {}
@@ -71,7 +71,7 @@ impl<T: MyReal> Context<T> {
         info!("initialize factorial up to {}", n);
         let mut factorial = vec![T::one(); n + 1];
         for i in 1..=n {
-            factorial[i] = factorial[i - 1] * T::from_usize(i).unwrap();
+            factorial[i] = factorial[i - 1] * T::mp(i as f64);
         }
         self.factorial = factorial;
     }
@@ -92,7 +92,7 @@ impl<T: MyReal> Context<T> {
             bernoulli[2 * i] = (T::one() - b) / self.factorial(2 * i);
         }
         for i in 1..=n / 2 {
-            bernoulli[i * 2] *= self.factorial(2 * i) / T::from_f64(4.0).unwrap().pow(i as i32);
+            bernoulli[i * 2] *= self.factorial(2 * i) / T::mp(4.0).pow(i as i32);
         }
 
         debug!("bernoulli numbers = {:?}", &bernoulli[..10]);

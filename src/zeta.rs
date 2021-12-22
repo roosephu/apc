@@ -33,7 +33,7 @@ fn ln_g_norm(z: Complex<f64>, s: Complex<f64>) -> f64 {
 
 /// z = O(n) + i O(ln(n)), s = O(1) + i t.
 fn f<T: MyReal>(z: Complex<T>, s: Complex<T>) -> Complex<T> {
-    let z_im: f64 = z.im.to_f64().unwrap();
+    let z_im: f64 = z.im.fp();
     if z_im > 100.0 {
         let a = z.scale(T::PI()).mul_i().exp();
         g(z, s) / a
@@ -57,7 +57,7 @@ fn ln_f_norm(z: Complex<f64>, s: Complex<f64>) -> f64 {
 }
 
 fn H<T: MyReal>(w: Complex<T>) -> Complex<T> {
-    if w.im < T::from_f64(-30.0f64).unwrap() {
+    if w.im < T::mp(-30.0f64) {
         Complex::<T>::zero()
     } else {
         T::one() / (T::one() - w.mul_i().scale(T::TAU()).exp())
@@ -253,7 +253,7 @@ impl<T: MyReal + ExpPolyApprox + FftNum> ZetaGalwayPlanner<T> {
             let idx = (s.im - self.s0.im) / h;
             let round_idx = idx.round();
             let int_idx = round_idx.to_usize().unwrap();
-            assert!((idx - round_idx).abs().to_f64().unwrap() <= 1e-8);
+            assert!((idx - round_idx).abs().fp() <= 1e-8);
 
             plan.6 = Some(self.sum_trunc_dirichlet[int_idx]);
         }
@@ -277,8 +277,8 @@ impl<T: MyReal> ZetaGalway<'_, T> {
     fn I0(&self, s: Complex<T>, plan: Plan<T>) -> Complex<T> {
         let (n, m, n_l, n_r, h, z_1, plan_sum_trunc_dirichlet) = plan;
         // we don't care the precise value of z_1 and h, as it's only for correction.
-        let z_1 = Complex::<T>::new(T::from_f64(z_1.re).unwrap(), T::from_f64(z_1.im).unwrap());
-        let h = Complex::<T>::new(T::from_f64(h.re).unwrap(), T::from_f64(h.im).unwrap());
+        let z_1 = Complex::<T>::new(T::mp(z_1.re), T::mp(z_1.im));
+        let h = Complex::<T>::new(T::mp(h.re), T::mp(h.im));
 
         let mut s0;
         match plan_sum_trunc_dirichlet {
@@ -320,11 +320,11 @@ impl<T: MyReal> ZetaGalway<'_, T> {
     }
 
     fn test(&mut self, s: Complex<T>, eps: f64) {
-        let log_chi = (s - T::from_f64(0.5).unwrap()) * T::PI().ln()
-            + self.ctx.loggamma((T::one() - s) * T::from_f64(0.5).unwrap(), eps)
-            - self.ctx.loggamma(s * T::from_f64(0.5).unwrap(), eps);
-        let a = self.ctx.loggamma((T::one() - s) * T::from_f64(0.5).unwrap(), eps);
-        let b = self.ctx.loggamma(s * T::from_f64(0.5).unwrap(), eps);
+        let log_chi = (s - T::mp(0.5)) * T::PI().ln()
+            + self.ctx.loggamma((T::one() - s) * T::mp(0.5), eps)
+            - self.ctx.loggamma(s * T::mp(0.5), eps);
+        let a = self.ctx.loggamma((T::one() - s) * T::mp(0.5), eps);
+        let b = self.ctx.loggamma(s * T::mp(0.5), eps);
         println!("a = {:?}, b = {:?}", a, b);
         println!("log chi = {:?}", log_chi);
     }
@@ -333,9 +333,9 @@ impl<T: MyReal> ZetaGalway<'_, T> {
 impl<T: MyReal> FnZeta<T> for ZetaGalway<'_, T> {
     fn zeta(&mut self, s: Complex<T>, eps: f64) -> Complex<T> {
         // println!("??? s = {}, eps = {}", s, eps);
-        let log_chi = (s - T::from_f64(0.5).unwrap()) * T::PI().ln()
-            + self.ctx.loggamma((T::one() - s) * T::from_f64(0.5).unwrap(), eps)
-            - self.ctx.loggamma(s * T::from_f64(0.5).unwrap(), eps);
+        let log_chi = (s - T::mp(0.5)) * T::PI().ln()
+            + self.ctx.loggamma((T::one() - s) * T::mp(0.5), eps)
+            - self.ctx.loggamma(s * T::mp(0.5), eps);
         assert!(!log_chi.re.is_nan(), "{:?} {}", s, eps);
         let chi = log_chi.exp();
 

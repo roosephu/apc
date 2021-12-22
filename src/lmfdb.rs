@@ -26,8 +26,8 @@ pub(crate) fn LMFDB_reader<T: MyReal, F: FnMut(T)>(
     }
     indices.sort_unstable();
 
-    let eps = T::from_f64(2.0).unwrap().powi(-101);
-    let limit = T::from_f64(limit).unwrap();
+    let eps = T::mp(2.0).powi(-101);
+    let limit = T::mp(limit);
 
     let mut n_roots = 0usize;
     for &index in indices.iter() {
@@ -44,7 +44,7 @@ pub(crate) fn LMFDB_reader<T: MyReal, F: FnMut(T)>(
             let n0 = reader.read_u64::<LittleEndian>()?;
             let n1 = reader.read_u64::<LittleEndian>()?;
 
-            let t0 = T::from_f64(t0).unwrap();
+            let t0 = T::mp(t0);
             let mut z = 0u128;
 
             for _ in n0..n1 {

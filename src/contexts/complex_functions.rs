@@ -24,9 +24,7 @@ impl<T: MyReal> ComplexFunctions for Complex<T> {
     }
 
     #[inline]
-    fn approx(self) -> Complex<f64> {
-        Complex::<f64> { re: self.re.to_f64().unwrap(), im: self.im.to_f64().unwrap() }
-    }
+    fn approx(self) -> Complex<f64> { Complex::<f64> { re: self.re.fp(), im: self.im.fp() } }
 
     #[inline(never)]
     fn exp_simul(self) -> Self {

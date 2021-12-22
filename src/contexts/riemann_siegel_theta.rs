@@ -17,7 +17,7 @@ impl<T: MyReal + RiemannSiegelThetaCoeffs> RiemannSiegelTheta for T {
         let t = *self;
 
         // as it's typically used with RiemannSiegelZ, we hope it's not too small.
-        assert!(t.to_f64().unwrap() >= 200.0 && eps > 1e-33);
+        assert!(t.fp() >= 200.0 && eps > 1e-33);
         const K: usize = 7;
 
         // needs high precision base computation here.

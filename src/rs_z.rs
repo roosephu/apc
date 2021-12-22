@@ -24,10 +24,10 @@ impl<T: MyReal + GabckeExpansion> RiemannSiegelZ<'_, T> {
             [0.127, 0.053, 0.011, 0.031, 0.017, 0.061, 0.661, 9.2, 130.0, 1837.0];
         let mut pow = t.powf(-0.75);
         let sqrt_t = t.sqrt();
-        let coeff_bound = eps / T::epsilon().to_f64().unwrap() / 10.0f64;
+        let coeff_bound = eps / T::epsilon().fp() / 10.0f64;
 
         for (k, c) in COEFFS.iter().enumerate() {
-            if self.coeffs[k][0].to_f64().unwrap() > coeff_bound {
+            if self.coeffs[k][0].fp() > coeff_bound {
                 return None;
             }
             if pow * c <= eps {
@@ -43,7 +43,7 @@ impl<T: MyReal + GabckeExpansion> RiemannSiegelZ<'_, T> {
         let a = (t / T::PI() / 2.0).sqrt();
         let n = a.floor();
         let (K, plan_sum_trunc_dirichlet) = plan;
-        // let z = Complex::new(T::from_f64(0.25).unwrap(), t * 0.5);
+        // let z = Complex::new(T::mp(0.25), t * 0.5);
         // let theta = self.ctx.loggamma(z, eps).im - t * 0.5 * T::PI().ln();
 
         let mut sum_trunc_dirichlet;
@@ -72,7 +72,7 @@ impl<T: MyReal + GabckeExpansion> RiemannSiegelZ<'_, T> {
     }
 
     pub fn Z(&self, t: T, eps: f64) -> Option<T> {
-        let plan = self.plan(t.to_f64().unwrap(), eps / 3.0)?;
+        let plan = self.plan(t.fp(), eps / 3.0)?;
         let K = plan.0;
         let a = (t / T::PI() / 2.0).sqrt();
         let n = a.floor();
