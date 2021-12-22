@@ -405,8 +405,6 @@ impl f64x2 {
         let r1 = C1 + x2 * C3 + x4 * C5 + x6 * C7 + x8 * C9;
         let r2 = x10 * (C11 + x2 * C13 + x4 * C15 + x6 * C17 + x8 * C19);
         let r3 = x20 * (C21 + x2 * C23 + x4 * C25 + x6 * C27 + x8 * C29);
-        println!("{} {} {} {} {}", s, x, x2, x4, x6);
-        println!("{} {} {}", r1, r2, r3);
 
         x * (r1 + r2 + r3)
     }
