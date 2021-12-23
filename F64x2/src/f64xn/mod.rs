@@ -6,7 +6,7 @@ mod multi_floats;
 use crate::blocks::*;
 
 #[allow(non_camel_case_types)]
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 struct f64x<const N: usize> {
     pub(crate) data: [f64; N],
 }
@@ -40,8 +40,8 @@ where
 
 // impl_f64x!(1);
 // impl_f64x!(2);
-// impl_f64x!(3);
-impl_f64x!(4);
+impl_f64x!(3);
+// impl_f64x!(4);
 // impl_f64x!(5);
 // impl_f64x!(6);
 // impl_f64x!(7);

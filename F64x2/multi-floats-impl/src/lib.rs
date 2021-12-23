@@ -2,7 +2,7 @@
 
 extern crate proc_macro;
 
-use std::{borrow::Borrow, collections::VecDeque, ops::{SubAssign, Mul}};
+use std::{borrow::Borrow, collections::VecDeque, ops::SubAssign};
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -229,6 +229,7 @@ fn gen_add(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
             fn add(self, #other: Self) -> Self {
                 #destruct_a;
                 #destruct_b;
+                #(#code)*
                 let (#(#outputs,)*) = #merge_sum;
                 Self::renormalize(#(#outputs,)*)
             }
@@ -282,6 +283,7 @@ fn gen_sub(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
             fn sub(self, #other: Self) -> Self {
                 #destruct_a;
                 #destruct_b;
+                #(#code)*
                 let (#(#outputs,)*) = #merge_sum;
                 Self::renormalize(#(#outputs,)*)
             }
@@ -382,15 +384,16 @@ fn gen_div_f64(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
         let qi = &q[i];
         code.push(quote! { let #qi = self.data[0] / #other; });
         if i < m - 1 {
-            code.push(quote! { let #r = #r + #other * -#qi; });
+            code.push(quote! { let #r = #r - #other * #qi; }); // TODO: #other * #qi is floating point operation!
         }
     }
     quote! {
         impl Div<f64> for #multifloats<#n> {
             type Output = Self;
             fn div(self, #other: f64) -> Self {
-                #(#code)*;
-                Self::renormalize(#(#q),*)
+                self / Self::mp(#other)
+                // #(#code)*;
+                // Self::renormalize(#(#q),*)
             }
         }
     }
@@ -407,9 +410,9 @@ fn gen_div(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
 
     for i in 0..m {
         let qi = &q[i];
-        code.push(quote! { let #qi = self.data[0] / #other.data[0]; });
+        code.push(quote! { let #qi = r.data[0] / #other.data[0]; });
         if i < m - 1 {
-            code.push(quote! { let #r = #r + #other * -#qi; });
+            code.push(quote! { let #r = #r - #other * #qi; });
         }
     }
     quote! {
@@ -506,6 +509,6 @@ pub fn impl_f64x(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         type #f64xn = #multifloats<#n>;
     };
-    // println!("{}", expanded);
+    println!("{}", expanded);
     expanded.into()
 }

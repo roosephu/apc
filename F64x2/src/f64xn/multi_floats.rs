@@ -1,6 +1,7 @@
 use crate::{f64xn::f64x, traits::FpOps};
 use num::{Float, One, Zero};
-use std::ops::{Add, Mul};
+use num_traits::NumOps;
+use std::ops::{Add, Div, Mul, Sub};
 
 impl<const N: usize> Zero for f64x<N>
 where
@@ -88,5 +89,95 @@ where
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", (*self).into())
+    }
+}
+
+impl<const N: usize> FpOps for f64x<N>
+where
+    f64x<N>: Add<f64, Output = Self>
+        + Sub<f64, Output = Self>
+        + Mul<f64, Output = Self>
+        + Div<f64, Output = Self>,
+{
+    fn fp(&self) -> f64 { Self::fp(self) }
+
+    fn mp(x: f64) -> Self { Self::mp(x) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand;
+    use rug::{ops::CompleteRound, Float};
+
+    const N: usize = 3;
+    const PREC: u32 = N as u32 * 53;
+    type f64xn = f64x<N>;
+
+    fn assert_rug_close(a: &f64xn, b: &Float, rtol: f64, atol: f64) {
+        if b.to_f64() == 0.0 || b.is_nan() || a.data[0].is_nan() {
+            return;
+        }
+        let diff = f64xn_to_float(*a) - b;
+        let abs = diff.to_f64().abs();
+        let rel = abs / b.to_f64().abs();
+        assert!(rel <= rtol || abs <= atol, "rel = {:.3e}, abs = {:.3e}", rel, abs);
+    }
+
+    fn rand_f64xn(k: usize, p: f64) -> (f64x<N>, Float) {
+        let mut x = f64x::<N>::zero();
+        let mut rug_float = Float::with_val(PREC, 0.0f64);
+        for _ in 0..k {
+            let mut bits = 0x7ff0000000000000u64;
+            while (bits & 0x7ff0000000000000u64) == 0x7ff0000000000000u64 {
+                bits = 0;
+                for i in 0..62 {
+                    bits |= ((rand::random::<f64>() < p) as u64) << i;
+                }
+            }
+            let f = f64::from_bits(bits) * (if rand::random::<u8>() % 2 == 0 { 1.0 } else { -1.0 });
+            assert_rug_close(&(x + f), &(rug_float.clone() + f), 1e-40, 1e-300);
+            assert_rug_close(&(x - f), &(rug_float.clone() - f), 1e-40, 1e-300);
+            assert_rug_close(&(x * f), &(rug_float.clone() * f), 1e-40, 1e-300);
+            assert_rug_close(&(x / f), &(rug_float.clone() / f), 1e-40, 1e-300 / f.abs());
+
+            x = x + f;
+
+            rug_float += f;
+        }
+
+        (x, rug_float)
+    }
+
+    fn f64xn_to_float(x: f64x<N>) -> Float {
+        let mut float = Float::with_val(PREC, 0.0);
+        for i in 0..N {
+            float += x.data[i];
+        }
+        float
+    }
+
+    #[test]
+    fn basic_ops() {
+        const M: usize = 10000;
+        // creation, f64xn + f64
+        for _ in 0..M {
+            rand_f64xn(100, 0.7);
+        }
+
+        // f64xn + f64xn
+        for _ in 0..M {
+            let a = rand_f64xn(10, 0.8);
+            let b = rand_f64xn(10, 0.8);
+            assert_rug_close(&(a.0 + b.0), &(a.1.clone() + &b.1), 1e-40, 1e-300);
+            assert_rug_close(&(a.0 - b.0), &(a.1.clone() - &b.1), 1e-40, 1e-300);
+            assert_rug_close(&(a.0 * b.0), &(a.1.clone() * &b.1), 1e-40, 1e-300);
+            assert_rug_close(
+                &(a.0 / b.0),
+                &(a.1.clone() / &b.1),
+                1e-40,
+                1e-300 / &b.1.to_f64().abs(),
+            );
+        }
     }
 }
