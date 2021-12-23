@@ -9,6 +9,7 @@
 #![feature(destructuring_assignment)]
 #![feature(const_float_bits_conv)]
 #![feature(trait_alias)]
+#![feature(test)]
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default)]

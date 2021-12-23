@@ -29,24 +29,6 @@ impl<const N: usize> Neg for f64x<N> {
     fn neg(self) -> Self::Output { Self { data: self.data.map(|x| -x) } }
 }
 
-impl<const N: usize> Sub for f64x<N>
-where
-    f64x<N>: Add<Output = Self>,
-{
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output { self + (-rhs) }
-}
-
-impl<const N: usize> Sub<f64> for f64x<N>
-where
-    f64x<N>: Add<f64, Output = Self>,
-{
-    type Output = Self;
-
-    fn sub(self, rhs: f64) -> Self::Output { self + (-rhs) }
-}
-
 impl<const N: usize> Div<f64x<N>> for f64
 where
     f64x<N>: Div<f64x<N>, Output = f64x<N>>,

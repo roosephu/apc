@@ -118,7 +118,7 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64, segment: u64) -> f6
     let mut n_primes_less_than_x = 0u64;
 
     let mut calc = |p: u64| {
-        let t = (p - x) as i64;
+        let t = p as i64 - x as i64;
         if t <= 0 {
             n_primes_less_than_x += 1;
         }

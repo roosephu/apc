@@ -19,6 +19,10 @@ fn gen_two_add(x: &Ident, y: &Ident, a: &Ident, b: &Ident) -> TokenStream {
     quote! { let (#x, #y) = two_add(#a, #b); }
 }
 
+fn gen_two_sub(x: &Ident, y: &Ident, a: &Ident, b: &Ident) -> TokenStream {
+    quote! { let (#x, #y) = two_sub(#a, #b); }
+}
+
 fn gen_two_mul(x: &Ident, y: &Ident, a: &Ident, b: &Ident) -> TokenStream {
     quote! { let (#x, #y) = two_mul(#a, #b); }
 }
@@ -200,7 +204,6 @@ fn gen_add_f64(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
                 Self::renormalize(#(#outputs,)*)
             }
         }
-
     }
 }
 
@@ -210,9 +213,11 @@ fn gen_add(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
     let (destruct_b, b) = destruct(&other, n, "b");
 
     let mut idents = vec![];
+    let mut code = vec![];
     for i in 0..n {
+        code.push(gen_two_add(&a[i], &b[i], &a[i], &b[i]));
         idents.push((&a[i], i));
-        idents.push((&b[i], i));
+        idents.push((&b[i], i + 1));
     }
 
     let (merge_sum, outputs) = gen_merge_sum(&idents, n + !sloppy as usize);
@@ -222,6 +227,59 @@ fn gen_add(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
             type Output = Self;
             #[inline]
             fn add(self, #other: Self) -> Self {
+                #destruct_a;
+                #destruct_b;
+                let (#(#outputs,)*) = #merge_sum;
+                Self::renormalize(#(#outputs,)*)
+            }
+        }
+    }
+}
+
+fn gen_sub_f64(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
+    let b = format_ident!("b");
+    let (destruct_a, a) = destruct(&format_ident!("self"), n, "a");
+
+    let mut code = vec![];
+    code.push(gen_two_sub(&a[0], &b, &a[0], &b));
+    let mut inputs: Vec<_> = a.iter().zip(0..n).collect();
+    inputs.push((&b, 1));
+    let (merge_sum, outputs) = gen_merge_sum(&inputs, n + !sloppy as usize);
+
+    quote! {
+        impl Sub<f64> for #multifloats<#n> {
+            type Output = Self;
+            #[inline]
+            fn sub(self, #b: f64) -> Self {
+                #destruct_a;
+                #(#code)*
+                let (#(#outputs,)*) = #merge_sum;
+                Self::renormalize(#(#outputs,)*)
+            }
+        }
+    }
+}
+
+fn gen_sub(multifloats: &Ident, n: usize, sloppy: bool) -> TokenStream {
+    let other = format_ident!("b");
+    let (destruct_a, a) = destruct(&format_ident!("self"), n, "a");
+    let (destruct_b, b) = destruct(&other, n, "b");
+
+    let mut idents = vec![];
+    let mut code = vec![];
+    for i in 0..n {
+        code.push(gen_two_sub(&a[i], &b[i], &a[i], &b[i]));
+        idents.push((&a[i], i));
+        idents.push((&b[i], i + 1));
+    }
+
+    let (merge_sum, outputs) = gen_merge_sum(&idents, n + !sloppy as usize);
+
+    quote! {
+        impl Sub for #multifloats<#n> {
+            type Output = Self;
+            #[inline]
+            fn sub(self, #other: Self) -> Self {
                 #destruct_a;
                 #destruct_b;
                 let (#(#outputs,)*) = #merge_sum;
@@ -423,9 +481,11 @@ pub fn impl_f64x(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let renormalize = gen_two_pass_renorm(n, sloppy);
     let constructor = gen_constructor(n);
     let add = gen_add(&multifloats, n, sloppy);
+    let sub = gen_sub(&multifloats, n, sloppy);
     let mul = gen_mul(&multifloats, n, sloppy);
     let div = gen_div(&multifloats, n, sloppy);
     let add_f64 = gen_add_f64(&multifloats, n, sloppy);
+    let sub_f64 = gen_sub_f64(&multifloats, n, sloppy);
     let mul_f64 = gen_mul_f64(&multifloats, n, sloppy);
     let div_f64 = gen_div_f64(&multifloats, n, sloppy);
     let float_consts = gen_float_consts(&multifloats, n);
@@ -435,9 +495,11 @@ pub fn impl_f64x(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #renormalize
         }
         #add
+        #sub
         #mul
         #div
         #add_f64
+        #sub_f64
         #mul_f64
         #div_f64
         #float_consts
