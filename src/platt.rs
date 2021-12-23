@@ -395,8 +395,9 @@ mod tests {
     use std::path::PathBuf;
 
     use super::{calc_Δ1_f64, Platt};
+    use crate::test_utils::*;
     use log::info;
-    use F64x2::{f64x2, test_utils::init_logger};
+    use F64x2::f64x2;
 
     #[test]
     fn test_Δ_bounds_heuristic() {

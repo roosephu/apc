@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
 use crate::traits::FpOps;
-use env_logger;
 use num::{Complex, Float};
 use num_traits::NumOps;
 
@@ -18,5 +17,3 @@ pub fn assert_complex_close<T: FpOps + Float + Display + Copy>(
     let rel_abs = (a - b).norm().fp() / b.norm().fp();
     assert!(rel_abs < eps, "rel abs = {:.E}, a = {}, b = {}, diff = {}", rel_abs, a, b, a - b);
 }
-
-pub fn init_logger() { let _ = env_logger::builder().is_test(true).try_init(); }

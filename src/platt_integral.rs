@@ -324,8 +324,8 @@ impl<T: MyReal> HybridPrecIntegrator<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::*;
     use F64x2::f64x2;
-    use F64x2::test_utils::*;
 
     #[test]
     fn test_hybrid_prec() {

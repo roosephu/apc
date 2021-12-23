@@ -5,16 +5,25 @@ use crate::f64x2;
 
 /// Algorithm 1
 #[inline]
-pub(crate) fn two_add_fast(a: f64, b: f64) -> (f64, f64) {
+pub fn two_add_fast(a: f64, b: f64) -> (f64, f64) {
     let hi = a + b;
     let z = hi - a;
     let lo = b - z;
     (hi, lo)
 }
 
+#[inline]
+pub fn two_add_if(a: f64, b: f64) -> (f64, f64) {
+    if a.abs() > b.abs() {
+        two_add_fast(a, b)
+    } else {
+        two_add_fast(b, a)
+    }
+}
+
 /// Algorithm 2
 #[inline]
-pub(crate) fn two_add(a: f64, b: f64) -> (f64, f64) {
+pub fn two_add(a: f64, b: f64) -> (f64, f64) {
     let hi = a + b;
     let a1 = hi - b;
     let b1 = hi - a1;
@@ -23,7 +32,7 @@ pub(crate) fn two_add(a: f64, b: f64) -> (f64, f64) {
 }
 
 #[inline]
-pub(crate) fn two_sub(a: f64, b: f64) -> (f64, f64) {
+pub fn two_sub(a: f64, b: f64) -> (f64, f64) {
     let hi = a - b;
     let a1 = hi + b;
     let b1 = hi - a1;
@@ -200,52 +209,5 @@ impl Div<f64x2> for f64 {
     fn div(self, y: f64x2) -> f64x2 {
         let x = self;
         f64x2 { hi: x, lo: 0.0 } / y
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    extern crate test;
-    use test::{black_box, Bencher};
-
-    use super::{two_add, two_add_fast};
-
-    #[inline]
-    fn two_add_if(a: f64, b: f64) -> (f64, f64) {
-        if (a.to_bits() & 0x7ff000000000000u64) > (b.to_bits() & 0x7ff000000000000u64) {
-            two_add_fast(a, b)
-        } else {
-            two_add_fast(b, a)
-        }
-    }
-
-    #[bench]
-    fn bench_two_add_if(b: &mut Bencher) {
-        b.iter(|| {
-            let n = black_box(100_000);
-            let mut s = black_box(0.5);
-            let mut t = black_box(0.1);
-            for i in 0..n {
-                let (x, y) = two_add_if(s, t);
-                s = x;
-                t = y;
-            }
-            s
-        });
-    }
-
-    #[bench]
-    fn bench_two_add(b: &mut Bencher) {
-        b.iter(|| {
-            let n = black_box(100_000);
-            let mut s = black_box(0.5);
-            let mut t = black_box(0.1);
-            for i in 0..n {
-                let (x, y) = two_add(s, t);
-                s = x;
-                t = y;
-            }
-            s
-        });
     }
 }
