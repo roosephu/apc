@@ -22,5 +22,7 @@ mod f64xn;
 mod functions;
 mod impl_traits;
 mod remez;
-pub mod test_utils;
 pub mod traits;
+
+#[cfg(test)]
+pub mod test_utils;

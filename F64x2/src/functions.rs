@@ -85,7 +85,7 @@ impl f64x2 {
     }
 
     pub fn ln(self) -> Self {
-        let bits = self.hi.to_bits();
+        let bits = self.fp().to_bits();
         let mut e = ((bits >> 52) & 0x7ff) as i32 - 0x3ff;
         let mantissa = bits & 0xfffffffffffff;
         if mantissa > 1865452045155277u64 {
@@ -95,7 +95,7 @@ impl f64x2 {
         }
 
         let p2 = pow2(e);
-        let normalized = Self { hi: self.hi / p2, lo: self.lo / p2 };
+        let normalized = Self::new(self.hi / p2, self.lo / p2);
         normalized.ln_remez() + Self::from(e) * Self::LN_2()
     }
 
@@ -147,9 +147,10 @@ impl f64x2 {
         if self.is_zero() {
             return self;
         }
+        let fp = self.fp();
         assert!(self.hi >= 0.0, "self = {:?}", self);
-        let x = self.hi.sqrt().recip();
-        let y = self.hi * x;
+        let x = fp.sqrt().recip();
+        let y = fp * x;
         Self::from(two_add(y, (self - Self::from(two_mul(y, y))).hi * (x * 0.5)))
     }
 
@@ -160,7 +161,8 @@ impl f64x2 {
     pub fn hypot(self, other: Self) -> Self { (self.square() + other.square()).sqrt() }
 
     pub fn exp_m1(self) -> Self {
-        if -0.34657359028 <= self.hi && self.hi <= 0.34657359028 {
+        let fp = self.fp();
+        if -0.34657359028 <= fp && fp <= 0.34657359028 {
             self.expm1_remez()
         } else {
             self.exp() - 1.0
@@ -174,7 +176,8 @@ impl f64x2 {
 
     pub fn sinh(self) -> Self {
         let threshold = 0.34657359028; // ln(2) / 2
-        if -threshold <= self.hi && self.hi <= threshold {
+        let fp = self.fp();
+        if -threshold <= fp && fp <= threshold {
             let t = self.expm1_remez();
             t - t * t / (t + 1.0) * 0.5
             // (t + t / (t + 1.0)) * 0.5
@@ -185,10 +188,11 @@ impl f64x2 {
     }
 
     pub fn floor(self) -> Self {
-        let ret = if self.hi.fract() == 0.0 {
-            Self::from(two_add_fast(self.hi, self.lo.floor()))
+        let fp = self.fp();
+        let ret = if fp.fract() == 0.0 {
+            Self::from(two_add_fast(fp, self.lo.floor()))
         } else {
-            Self { hi: self.hi.floor(), lo: 0.0 }
+            Self { hi: fp.floor(), lo: 0.0 }
         };
         // let diff = self - ret;
         // assert!(0.0 <= diff.hi && diff.hi <= 1.0, "self = {:?}", self);
@@ -197,6 +201,9 @@ impl f64x2 {
 
     pub fn ceil(self) -> Self { -(-self).floor() }
 
+    /// compute the round(x)
+    /// bad case: hi = 2^{52}(1 + 2^{-53}), lo = +/- 2^{-50}(1 + anything).
+    /// Depending the sign of lo, round(hi + lo) can be either 2^{52} + 1 or 2^{52}.
     pub fn round(self) -> Self {
         let ret = two_add_fast(self.hi.round(), self.lo.round());
         // let diff = ret - self;
@@ -276,6 +283,7 @@ impl f64x2 {
     #[inline]
     pub fn powf(self, other: Self) -> Self { (self.ln() * other).exp() }
 
+    #[inline]
     pub fn abs(self) -> Self {
         if self.hi < 0.0 {
             -self

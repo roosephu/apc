@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-use multi_floats_impl::impl_f64x;
+// use multi_floats_impl::impl_f64x;
 mod multi_floats;
 
 use crate::blocks::*;
@@ -40,9 +40,11 @@ where
 
 // impl_f64x!(1);
 // impl_f64x!(2);
-impl_f64x!(3);
+// impl_f64x!(3);
 // impl_f64x!(4);
 // impl_f64x!(5);
 // impl_f64x!(6);
 // impl_f64x!(7);
 // impl_f64x!(8);
+
+include!(concat!(env!("OUT_DIR"), "/impl_f64xn.rs"));
