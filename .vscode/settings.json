@@ -1,6 +1,6 @@
 {
     "jupyter.jupyterServerType": "remote",
     "rust-analyzer.cargo.features": [
-        "zeta"
+        "zeta",
     ]
 }

@@ -1,6 +1,5 @@
 use crate::{f64xn::f64x, traits::FpOps};
 use num::{Float, One, Zero};
-use num_traits::NumOps;
 use std::ops::{Add, Div, Mul, Sub};
 
 impl<const N: usize> Zero for f64x<N>
@@ -158,8 +157,8 @@ mod tests {
     }
 
     #[test]
-    fn basic_ops() {
-        const M: usize = 10000;
+    fn arith() {
+        const M: usize = 1000;
         // creation, f64xn + f64
         for _ in 0..M {
             rand_f64xn(100, 0.7);

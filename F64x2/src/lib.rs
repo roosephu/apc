@@ -6,7 +6,6 @@
 #![allow(clippy::let_and_return)]
 #![allow(clippy::approx_constant)]
 #![feature(type_alias_impl_trait)]
-#![feature(destructuring_assignment)]
 #![feature(const_float_bits_conv)]
 #![feature(trait_alias)]
 
@@ -24,5 +23,4 @@ mod impl_traits;
 mod remez;
 pub mod traits;
 
-#[cfg(test)]
 pub mod test_utils;
