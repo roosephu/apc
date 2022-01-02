@@ -89,7 +89,7 @@ pub fn minimize(
     let mut tol2 = tol1 * 2.0;
     let mut fu;
 
-    for t in 0..iter {
+    for _ in 0..iter {
         if (&xf - &xm).complete(prec).abs() <= tol2 - (&xb - &xa).complete(prec) * 0.5f64 {
             // println!("early stop {t}");
             return Some(x);

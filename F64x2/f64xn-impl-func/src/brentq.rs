@@ -33,7 +33,7 @@ pub fn find_zeros(
         return Some(xcur);
     }
 
-    for t in 0..iter {
+    for _ in 0..iter {
         if fpre.to_f64() * fcur.to_f64() < 0.0 {
             xblk.assign(&xpre);
             fblk.assign(&fpre);
