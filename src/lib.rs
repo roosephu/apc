@@ -70,7 +70,6 @@ I also briefly summarized these papers [here](https://www.roosephu.xyz/2021/03/0
 #![allow(clippy::let_and_return)]
 #![allow(clippy::approx_constant)]
 #![feature(trait_alias)]
-#![feature(destructuring_assignment)]
 #![feature(type_alias_impl_trait)]
 
 #[cfg(test)]

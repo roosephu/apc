@@ -1,7 +1,8 @@
+#![allow(dead_code)]
 mod brentq;
 mod remez;
 
-use proc_macro2::TokenStream;
+use proc_macro2::{TokenStream, Ident};
 use quote::{format_ident, quote};
 use rug::{float::Constant, Float};
 use std::ops::SubAssign;
@@ -43,8 +44,13 @@ fn gen_float_consts(n: usize) -> TokenStream {
         implement.push(quote! { #[inline] fn #name() -> Self { Self::#name } });
     }
 
+    let prec = 53 * n as u32;
+    let epsilon = 0.5f64.powi(prec as i32);
+
     quote! {
         impl f64x::<#n> {
+            const EPSILON: f64 = #epsilon;
+            const PREC: u32 = #prec;
             #(#def)*
         }
 
@@ -58,6 +64,23 @@ fn impl_f64xn_consts(n: usize) -> TokenStream {
     let float_const = gen_float_consts(n);
     quote! {
         #float_const
+    }
+}
+
+fn gen_poly_eval(x: &Ident, n: usize, coeffs: &Ident) -> TokenStream {
+    let y = format_ident!("y");
+    let mut code = vec![];
+    code.push(quote! { let mut #y = #x; });
+
+    for i in (0..n).rev() {
+        code.push(quote! { #y = #y * #x + #coeffs[#i]; });
+    }
+
+    quote! {
+        {
+            #(#code)*
+            #y
+        }
     }
 }
 

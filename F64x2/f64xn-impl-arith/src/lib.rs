@@ -325,7 +325,7 @@ fn gen_mul(n: usize, sloppy: bool) -> TokenStream {
     }
 }
 
-fn gen_div_f64(n: usize, sloppy: bool) -> TokenStream {
+fn gen_div_f64(n: usize, _: bool) -> TokenStream {
     // let other = format_ident!("rhs");
     // let m = n + !sloppy as usize;
     // let q = vec_tokens(m, "q");
@@ -411,6 +411,6 @@ pub fn f64xn_impl_arith(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
     let sloppy = false;
 
     let expanded = impl_f64xn_array_ops(n, sloppy);
-    println!("{}", expanded);
+    // println!("{}", expanded);
     expanded.into()
 }

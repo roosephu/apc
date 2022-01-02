@@ -193,12 +193,6 @@ fn gen_coeff_remez(
         for i in 0..=n {
             A[i][n] = Float::with_val(prec, if i % 2 == 0 { 1i32 } else { -1i32 }) * &b[i];
         }
-        // for i in 0..=n {
-        //     for j in 0..=n {
-        //         print!("{:.6e} ", A[i][j].to_f64());
-        //     }
-        //     println!(";");
-        // }
 
         let coeffs = solve(&A, &b, prec);
 

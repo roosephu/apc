@@ -1,7 +1,7 @@
 use std::{num::ParseIntError, path::PathBuf};
 
 use apc::*;
-use clap::{clap_app, crate_authors, crate_description, crate_version};
+use clap::Parser;
 use log::info;
 
 type T = F64x2::f64x2;
@@ -20,37 +20,53 @@ fn parse_int(s: &str) -> Result<u64, ParseIntError> {
     }
 }
 
+#[derive(Parser, Debug)]
+#[clap(about, version, author)]
+struct Args {
+    #[clap(short, long, help = "Compute π(x)")]
+    x: String,
+
+    #[clap(
+        short,
+        long,
+        default_value_t = 15,
+        help = "Degree of polynomial approximation used in Φ̂(s)"
+    )]
+    poly_order: usize,
+
+    #[clap(short, long, default_value_t = 10.0, help = "Hint of λ")]
+    lambda_hint: f64,
+
+    #[clap(short, long, default_value = "2^32", help = "Segment size in sieve")]
+    sieve_segment: String,
+
+    #[clap(short, long, default_value = "./data/zeros", help = "Path to LMFDB ζ zeros")]
+    zeta_zeros_path: String,
+
+    #[clap(short, long, help = "Shows debugging information")]
+    verbose: bool,
+}
+
 fn main() {
-    let opts = clap_app!(apc =>
-        (@arg x: * "Compute π(x)")
-        (@arg poly_order: --("poly-order") default_value("15") "Degree of polynomial approximation used in Φ̂(s)")
-        (@arg lambda_hint: --("lambda-hint") default_value("10") "Hint of λ")
-        (@arg sieve_segment: --("sieve-segment") default_value("2^32") "Segment size in sieve")
-        (@arg zeta_zeros_path: --("zeta-zeros-path")  default_value("./data/zeros") "Path to LMFDB ζ zeros")
-        (@arg verbose: --verbose "Shows debugging information")
-    )
-    .version(crate_version!())
-    .author(crate_authors!())
-    .about(crate_description!())
-    .get_matches();
+    let opts = Args::parse();
 
     let mut builder = env_logger::builder();
     builder.format_timestamp_micros();
-    if opts.is_present("verbose") {
+    if opts.verbose {
         builder.filter_level(log::LevelFilter::Info);
     }
     builder.init();
 
-    let x = parse_int(opts.value_of("x").unwrap()).unwrap();
+    let x = parse_int(&opts.x).unwrap();
     info!("======= computing π({}) ======", x);
     // assert!(n >= 100000);
 
-    let mut builder = PlattBuilder::default();
-    opts.value_of("lambda_hint").map(|v| builder.hint_λ(v.parse::<f64>().unwrap()));
-    opts.value_of("sieve_segment").map(|v| builder.sieve_segment(parse_int(v).unwrap()));
-    opts.value_of("poly_order").map(|v| builder.poly_order(v.parse::<usize>().unwrap()));
-    opts.value_of("zeta_zero_path").map(|v| builder.ζ_zeros_path(PathBuf::from(v)));
-    let mut platt = builder.build(x);
+    let mut platt = PlattBuilder::default()
+        .hint_λ(opts.lambda_hint)
+        .sieve_segment(parse_int(&opts.sieve_segment).unwrap())
+        .poly_order(opts.poly_order)
+        .ζ_zeros_path(PathBuf::from(opts.zeta_zeros_path))
+        .build(x);
 
     let ans = platt.compute::<T>();
     println!("{}", ans);

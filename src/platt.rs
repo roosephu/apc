@@ -32,7 +32,7 @@ pub struct Platt {
     x2: u64,
     max_order: usize,
     ζ_zeros: PathBuf,
-    builder: PlattBuilder,
+    hint_λ: f64,
 }
 
 impl Default for PlattBuilder {
@@ -50,7 +50,7 @@ impl PlattBuilder {
     /// During planning, these hyperparameters (λ, sigma, h, x1, x2, integral_limits)
     /// doesn't need to be very accurate
     /// as long as they satisfy the error bound.
-    pub fn build(self, x: u64) -> Platt {
+    pub fn build(&self, x: u64) -> Platt {
         let x_ = x as f64;
         let λ = (self.hint_λ * x_.ln() / x_).sqrt();
         // Lemma 4.5
@@ -71,7 +71,7 @@ impl PlattBuilder {
             x2,
             max_order: self.poly_order,
             ζ_zeros: self.ζ_zeros.clone(),
-            builder: self,
+            hint_λ: self.hint_λ,
         }
     }
 
@@ -253,7 +253,7 @@ impl Platt {
             time_sieve,
             time_integral / time_sieve
         );
-        info!("Suggested: --lambda-hint {:.3}", self.builder.hint_λ * time_integral / time_sieve);
+        info!("Suggested: --lambda-hint {:.3}", self.hint_λ * time_integral / time_sieve);
 
         n_ans as u64
     }
