@@ -78,6 +78,11 @@ mod test_utils;
 mod contexts;
 mod types;
 
+pub fn init() {
+    contexts::init();
+    let _ = env_logger::builder().is_test(true).try_init();
+}
+
 cfg_if::cfg_if! {
     if #[cfg(any(feature = "zeta", feature = "galway"))] {
         mod context;

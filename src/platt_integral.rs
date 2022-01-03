@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn test_hybrid_prec() {
-        init_logger();
+        crate::init();
 
         let x = 1e16;
         let λ = 4.986774e-8;

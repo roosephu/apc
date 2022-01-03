@@ -48,7 +48,7 @@ pub(crate) fn sum_trunc_dirichlet<T: MyReal + FftNum + ExpPolyApprox>(
     m: usize,
     delta: T,
 ) -> Vec<Complex<T>> {
-    debug!("[OS-FKBJ] s = {:.6}, n = [{}, {}], m = {}, delta = {:.6}", s, n0, n1, m, delta);
+    // debug!("[OS-FKBJ] s = {:.6}, n = [{}, {}], m = {}, delta = {:.6}", s, n0, n1, m, delta);
     let M2 = (m + m % 2) / 2;
     let s = s + Complex::new(T::zero(), delta * M2 as f64);
 

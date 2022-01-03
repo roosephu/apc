@@ -22,11 +22,11 @@ impl<T: MyReal + RiemannSiegelThetaCoeffs> RiemannSiegelTheta for T {
 
         // needs high precision base computation here.
         let mut ret = t / 2.0 * (t / 2.0 / T::PI() / T::E()).ln() - T::FRAC_PI_8();
-        let mut tpow = t;
-        let tsqr = t * t;
+        let mut tpow_inv = t.recip();
+        let tsqr_inv = tpow_inv * tpow_inv;
         for i in 1..=K {
-            ret += T::rs_theta_coeff(i) / tpow;
-            tpow *= tsqr;
+            ret += T::rs_theta_coeff(i) * tpow_inv;
+            tpow_inv *= tsqr_inv;
         }
         ret
     }

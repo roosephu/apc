@@ -8,6 +8,7 @@ mod gamma;
 mod lazy_static;
 mod loggamma;
 mod riemann_siegel_theta;
+mod riemann_siegel_theta_integral;
 mod sinc;
 mod utils;
 
@@ -18,6 +19,9 @@ pub use exp_poly_approx::ExpPolyApprox;
 pub use factorial::Factorial;
 pub use gabcke_series::GabckeSeries;
 pub use riemann_siegel_theta::{RiemannSiegelTheta, RiemannSiegelThetaCoeffs};
+pub use riemann_siegel_theta_integral::{
+    RiemannSiegelThetaIntegral, RiemannSiegelThetaIntegralCoeffs,
+};
 pub use sinc::Sinc;
 
 pub trait Contexts = Bernoulli + Factorial + Sinc + Erfc + ExpPolyApprox;

@@ -54,7 +54,7 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
             .enumerate()
             .map(|(i, &x)| Complex::new(T::zero(), (t0 + delta * i as f64) * alpha).exp() * x)
             .collect();
-        debug!("precompute {} terms", m);
+        // debug!("precompute {} terms", m);
 
         Self { k0: k0_int, k1: k, tau, sigma, alpha, beta, data, gap, t0, delta }
     }

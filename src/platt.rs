@@ -395,13 +395,12 @@ mod tests {
     use std::path::PathBuf;
 
     use super::{calc_Δ1_f64, Platt};
-    use crate::test_utils::*;
     use log::info;
     use F64x2::f64x2;
 
     #[test]
     fn test_Δ_bounds_heuristic() {
-        init_logger();
+        crate::init();
 
         let x = 1e11f64;
         let λ = 3e-5;
@@ -428,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_integrate_critical() {
-        init_logger();
+        crate::init();
 
         let x = 1_000_000_000_000_000u64;
         let λ = 3.324516e-7;
