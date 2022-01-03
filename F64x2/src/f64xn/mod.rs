@@ -75,9 +75,5 @@ macro_rules! f64xn_define {
     };
 }
 
-// f64xn_define!(f64x3, 3);
-f64xn_define!(g64x2, 2);
-
-// f64xn_impl_arith!(3);
-
-// include!(concat!(env!("OUT_DIR"), "/impl_f64xn.rs"));
+f64xn_define!(f64x3, 3);
+// f64xn_define!(g64x2, 2);

@@ -42,20 +42,13 @@ struct Args {
 
     #[clap(short, long, default_value = "./data/zeros", help = "Path to LMFDB ζ zeros")]
     zeta_zeros_path: String,
-
-    #[clap(short, long, help = "Shows debugging information")]
-    verbose: bool,
+    // #[clap(short, long, help = "Shows debugging information")]
+    // verbose: bool,
 }
 
 fn main() {
+    apc::init();
     let opts = Args::parse();
-
-    let mut builder = env_logger::builder();
-    builder.format_timestamp_micros();
-    if opts.verbose {
-        builder.filter_level(log::LevelFilter::Info);
-    }
-    builder.init();
 
     let x = parse_int(&opts.x).unwrap();
     info!("======= computing π({}) ======", x);

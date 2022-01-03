@@ -65,6 +65,7 @@ I also briefly summarized these papers [here](https://www.roosephu.xyz/2021/03/0
 #![allow(dead_code)]
 #![allow(confusable_idents)]
 #![allow(uncommon_codepoints)]
+#![allow(unused_imports)]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::let_and_return)]
@@ -80,7 +81,10 @@ mod types;
 
 pub fn init() {
     contexts::init();
-    let _ = env_logger::builder().is_test(true).try_init();
+
+    let mut builder = env_logger::builder();
+    builder.format_timestamp_micros();
+    builder.init();
 }
 
 cfg_if::cfg_if! {
@@ -94,7 +98,7 @@ cfg_if::cfg_if! {
         mod sum_trunc_dirichlet;
         mod bandwidth_interp;
         // mod rs_z;
-        mod zeta_zeros;
+        pub mod zeta_zeros;
         // mod riemann_siegel;
         // mod zeta;
         // pub use riemann_siegel::{RiemannSiegelZ, RiemannSiegelZeta};

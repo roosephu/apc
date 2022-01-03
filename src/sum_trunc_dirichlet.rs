@@ -33,7 +33,7 @@ pub(crate) fn sum_weighted_exp<T: MyReal + FftNum>(
         }
         fft.process(f.as_mut_slice());
         for x in 0..=m * 2 {
-            ret[x] += c * f[(x + R - m) % R] * (T::from_usize(x).unwrap() / TM - 1.0).pow(e as i32);
+            ret[x] += c * f[(x + R - m) % R] * (T::mp(x as f64) / TM - 1.0).pow(e as i32);
         }
     }
 

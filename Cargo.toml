@@ -1,15 +1,15 @@
 [package]
 name = "apc"
-version = "0.2.7"
+version = "0.2.8"
 authors = ["Yuping Luo <roosephu@gmail.com>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 description = "Analytical Prime Counting"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]
 debug = true
-incremental = true
+# incremental = true
 
 [[bin]]
 name = "profile"
