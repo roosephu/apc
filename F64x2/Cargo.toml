@@ -10,13 +10,17 @@ edition = "2021"
 name = "low-level"
 harness = false
 
+[[bench]]
+name = "exp"
+harness = false
+
 [dependencies]
 num-traits = "0.2.14"
 num = "0.4.0"
 f64xn-impl-arith = { path = './f64xn-impl-arith' }
 f64xn-impl-func = { path = './f64xn-impl-func' }
 
-[dev-dependencies]
+# [dev-dependencies]
 criterion = { version = "0.3.5", features = ["real_blackbox"] }
 rand = "0.8.4"
 rug = "1.14.0"

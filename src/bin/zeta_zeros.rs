@@ -6,7 +6,7 @@ use F64x2::f64x2;
 fn main() {
     apc::init();
 
-    let mut rsz = RiemannSiegelZ::<f64>::new(1e8, 1e-12);
+    let mut rsz = RiemannSiegelZ::<f64x2>::new(1e8, 1e-12);
 
     let roots = try_isolate(&mut rsz, 100002, 300000, 1e-5, 1e-30);
     let n_calls_separate = rsz.counts[0];

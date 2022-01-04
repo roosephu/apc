@@ -261,6 +261,9 @@ const EXP_I_TABLE: [Complex<f64x2>; 65] = [
     },
 ];
 
+const EXP_TABLE: [f64x2; 32769] = include!("../data/exp_table.txt");
+
+
 impl f64x2 {
     // |x| < π / 4
     #[inline]
@@ -411,7 +414,7 @@ impl f64x2 {
 
     // |x| <= 0.34657359028 = ln(2) / 2
     #[inline]
-    pub(crate) fn expm1_remez(self) -> Self {
+    pub(crate) fn expm1_remez_old(self) -> Self {
         debug_assert!(-0.3466 <= self.hi && self.hi <= 0.3466);
 
         let x = self;
@@ -439,6 +442,34 @@ impl f64x2 {
         // r = x (exp(x) + 1) / (exp(x) - 1) => exp(x) = 1 + 2r / (r - x)
         let c = x - (r1 + r2 + r3);
         x + x * c / (2.0 - c)
+    }
+
+    #[inline]
+    pub(crate) fn expm1_remez(self) -> Self {
+        debug_assert!(self.hi.abs() <= 0.3466);
+        let x = self;
+        const FRAC_LN2_32768: f64 = 2.115317323486161e-5;
+        const REMEZ_UPPER_BOUND: f64 = 1.1634245279173887e-5; // 0.55 * FRAC_LN2_32768
+
+        let k = (x.fp() / FRAC_LN2_32768).round() as i32;
+        assert!(-16384 <= k && k <= 16384);
+        let tabled = EXP_TABLE[(k + 16384) as usize];
+
+        // further reduction: find t such that |t| < ln(2)/2 / 32768
+        let t = x - k as f64 * FRAC_LN2_32768;
+        assert!(t.fp().abs() <= REMEZ_UPPER_BOUND);
+
+        // Remez algorith on x_
+        const C2: f64x2 = f64x2 { hi: 0.16666666666666666, lo: 9.251858016558928e-18 };
+        const C4: f64x2 = f64x2 { hi: -0.002777777777765314, lo: 1.618670039762001e-19 };
+
+        let t2 = t * t;
+        let t4 = t2 * t2;
+        let c = t - (t2 * C2 + t4 * C4);
+        let y = t + t * c / (2.0 - c); // y = expm1(t)
+        // println!("{:?} {:?}", y, t.hi.exp());
+
+        y * tabled + (tabled - 1.0)
     }
 
     pub(crate) fn atan_remez(self) -> Self {
