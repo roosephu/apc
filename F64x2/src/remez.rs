@@ -261,7 +261,7 @@ const EXP_I_TABLE: [Complex<f64x2>; 65] = [
     },
 ];
 
-const EXP_TABLE: [f64x2; 32769] = include!("../data/exp_table.txt");
+const EXPM1_TABLE: [f64x2; 32769] = include!("../data/expm1_table.txt");
 
 
 impl f64x2 {
@@ -453,23 +453,25 @@ impl f64x2 {
 
         let k = (x.fp() / FRAC_LN2_32768).round() as i32;
         assert!(-16384 <= k && k <= 16384);
-        let tabled = EXP_TABLE[(k + 16384) as usize];
+        let tabled = EXPM1_TABLE[(k + 16384) as usize];
 
         // further reduction: find t such that |t| < ln(2)/2 / 32768
         let t = x - k as f64 * FRAC_LN2_32768;
         assert!(t.fp().abs() <= REMEZ_UPPER_BOUND);
 
-        // Remez algorith on x_
-        const C2: f64x2 = f64x2 { hi: 0.16666666666666666, lo: 9.251858016558928e-18 };
-        const C4: f64x2 = f64x2 { hi: -0.002777777777765314, lo: 1.618670039762001e-19 };
-
+        // We don't compute s = (exp(t) + 1) / (exp(t) - 1) any more, as it
+        // requires division to recover exp(t) from s. Here we simply
+        // apply Remez algorithm on exp(t) directly.
+        const C1: f64x2 = f64x2 { hi: 1.0, lo: 7.303488631984844e-30 };
+        const C2: f64x2 = f64x2 { hi: 0.5, lo: -8.897755395523407e-24 };
+        const C3: f64x2 = f64x2 { hi: 0.16666666666666666, lo: 1.2772072381708735e-17 };
+        const C4: f64x2 = f64x2 { hi: 0.04166666666605887, lo: 2.724896173105683e-18 };
+        const C5: f64x2 = f64x2 { hi: 0.008333380969300301, lo: 2.8923587972823527e-19 };
         let t2 = t * t;
-        let t4 = t2 * t2;
-        let c = t - (t2 * C2 + t4 * C4);
-        let y = t + t * c / (2.0 - c); // y = expm1(t)
-        // println!("{:?} {:?}", y, t.hi.exp());
+        let t3 = t2 * t;
+        let y = (C1 * t + C2 * t2) + (C3 + C4 * t + C5 * t2) * t3;
 
-        y * tabled + (tabled - 1.0)
+        y * (tabled + 1.0) + tabled
     }
 
     pub(crate) fn atan_remez(self) -> Self {
