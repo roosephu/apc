@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use super::brentq::EvalPoint;
 use log::debug;
 use num::{Complex, Signed};
@@ -8,6 +10,7 @@ use crate::{
     bandwidth_interp::BandwidthInterp,
     brentq::{brentq2, Brentq, BrentqStatus},
     contexts::*,
+    illinois::Illinois,
     traits::MyReal,
 };
 
@@ -23,84 +26,133 @@ fn count_variations<T: Copy + Signed>(block: &[EvalPoint<T>]) -> usize {
     variations
 }
 
-// /// For root finding
-// struct Lounge<T> {
-//     intervals: Vec<T>,
-// }
+pub struct SameSign<T: MyReal> {
+    xa: EvalPoint<T>,
+    xb: EvalPoint<T>,
+}
 
-// impl<T: MyReal> Lounge<T> {
-//     pub fn new() -> Self {
-//         Self { intervals: vec![] }
-//     }
+pub enum BracketMaintainer<T: MyReal> {
+    DiffSign(Illinois<T>),
+    SameSign(SameSign<T>),
+}
 
-//     pub fn add()
-// }
+pub struct Bracket<T: MyReal> {
+    entry: BracketMaintainer<T>,
+    priority: f64,
+}
 
-/// We want to solve f(x) = 0 in [a, b] but now f(a) f(b) > 0.
-/// So we model f(x) as $f(x) = p (x - q)^2$ and use $q$ here.
-/// TODO: recursive?
-#[inline]
-fn try_separate_same_sign<T: MyReal>(
-    block: &mut Vec<EvalPoint<T>>,
-    p: &EvalPoint<T>,
-    q: &EvalPoint<T>,
-    f: impl FnMut(T) -> T,
-) {
-    let g;
-    if rand::random::<u8>() % 2 == 0 {
-        let t = (q.f / p.f).sqrt();
-        g = EvalPoint::new((t * p.x + q.x) / (t + 1.0), f);
-    } else {
-        g = EvalPoint::new((p.x + q.x) * 0.5, f);
+impl<T: MyReal> Bracket<T> {
+    fn new_diffsign(entry: Illinois<T>) -> Bracket<T> {
+        let priority = (entry.xa.x.fp() - entry.xb.x.fp()).abs();
+        Self { entry: BracketMaintainer::DiffSign(entry), priority }
     }
-    // let should_dfs = g.has_same_sign(p) && g.f.abs() < p.f.abs() && g.f.abs() < q.f.abs();
-    // if should_dfs {
-    //     try_separate_same_sign(block, p, &g, rsz);
-    // }
-    block.push(g);
-    // if should_dfs {
-    //     try_separate_same_sign(block, &g, q, rsz);
-    // }
-}
 
-/// TODO: Illinois/Brentq?
-#[inline]
-fn try_separate_diff_sign<T: MyReal>(
-    block: &mut Vec<EvalPoint<T>>,
-    p: &EvalPoint<T>,
-    q: &EvalPoint<T>,
-    f: impl FnMut(T) -> T,
-) {
-    block.push(EvalPoint::new((p.x + q.x) / 2.0, f));
-}
+    fn new_samesign(entry: SameSign<T>) -> Bracket<T> {
+        let priority = (entry.xa.x.fp() - entry.xb.x.fp()).abs();
+        Self { entry: BracketMaintainer::SameSign(entry), priority }
+    }
 
-/// Given a Rosser block, try to separate all zeros in the block.
-/// `n_zeros`: Expected number of zeros in the block
-#[inline(never)]
-fn try_separate_rosser_block<T: MyReal>(
-    mut block: Vec<EvalPoint<T>>,
-    n_zeros: usize,
-    n_iters: usize,
-    mut f: impl FnMut(T) -> T,
-) -> (bool, Vec<EvalPoint<T>>) {
-    for _ in 0..n_iters {
-        if count_variations(&block) == n_zeros {
-            return (true, block);
+    fn get_interval(&self) -> (EvalPoint<T>, EvalPoint<T>) {
+        match &self.entry {
+            BracketMaintainer::DiffSign(x) => (x.xa, x.xb),
+            BracketMaintainer::SameSign(x) => (x.xa, x.xb),
         }
-        let mut new_block = vec![block[0]];
-        for i in 1..block.len() {
-            let p = &block[i - 1];
-            let q = &block[i];
-            if p.has_same_sign(q) {
-                try_separate_same_sign(&mut new_block, p, q, &mut f);
-            } else {
-                try_separate_diff_sign(&mut new_block, p, q, &mut f);
+    }
+}
+
+/// For root finding
+struct Lounge<T: MyReal> {
+    brackets: Vec<Bracket<T>>,
+    variations: usize,
+    xtol: f64,
+    rtol: f64,
+}
+
+impl<T: MyReal> Lounge<T> {
+    pub fn new(xtol: f64, rtol: f64) -> Self {
+        Self { brackets: vec![], variations: 0, xtol, rtol }
+    }
+
+    pub fn add(&mut self, xa: EvalPoint<T>, xb: EvalPoint<T>) {
+        if xa.has_same_sign(&xb) {
+            self.brackets.push(Bracket::new_samesign(SameSign { xa, xb }));
+        } else {
+            self.brackets.push(Bracket::new_diffsign(Illinois::new(xa, xb)));
+            self.variations += 1;
+        }
+    }
+
+    pub fn count_variations(&mut self) -> usize {
+        let mut ret = 0;
+        for bracket in &self.brackets {
+            if let BracketMaintainer::DiffSign(_) = bracket.entry {
+                ret += 1;
             }
-            new_block.push(*q);
         }
-        block = new_block;
+        ret
     }
-    (false, block)
+
+    fn select(&mut self) -> Bracket<T> {
+        let mut cur_idx = 0;
+        let mut cur_priority = f64::MIN;
+        for (i, bracket) in self.brackets.iter().enumerate() {
+            if bracket.priority > cur_priority {
+                cur_priority = bracket.priority;
+                cur_idx = i;
+            }
+        }
+        // debug!(
+        //     "selected interval = {:?}, priority = {}",
+        //     self.brackets[cur_idx].get_interval(),
+        //     cur_priority
+        // );
+        self.brackets.remove(cur_idx)
+    }
+
+    pub fn try_isolate(
+        &mut self,
+        n_zeros: usize,
+        n_iters: usize,
+        mut f: impl FnMut(T) -> T,
+    ) -> bool {
+        for _ in 0..n_iters {
+            if self.variations == n_zeros {
+                break;
+            }
+            // select the one bracket
+            let bracket = self.select();
+
+            // split the bracket
+            match bracket.entry {
+                BracketMaintainer::DiffSign(mut x) => {
+                    let xa = x.xa;
+                    let xb = x.xb;
+                    x.step(&mut f);
+                    if x.xa.x != xa.x {
+                        assert!(x.xb.x == xb.x);
+                        self.add(xa, x.xa);
+                    } else {
+                        assert!(x.xa.x == xa.x);
+                        self.add(xb, x.xb);
+                    }
+                    self.brackets.push(Bracket::new_diffsign(x));
+                }
+                BracketMaintainer::SameSign(x) => {
+                    let (p, q) = (x.xa, x.xb);
+                    let g = if rand::random::<u8>() % 2 == 0 {
+                        let t = (q.f / p.f).sqrt();
+                        EvalPoint::new((t * p.x + q.x) / (t + 1.0), &mut f)
+                    } else {
+                        EvalPoint::new((p.x + q.x) * 0.5, &mut f)
+                    };
+                    // let g = EvalPoint::new((p.x + q.x) * 0.5, &mut f);
+                    self.add(x.xa, g);
+                    self.add(g, x.xb);
+                }
+            }
+        }
+        self.variations == n_zeros
+    }
 }
 
 /// Compute Lambert W function $W(x)$, which is the solution to $t e^t = x$ for
@@ -128,8 +180,8 @@ fn gram_point<T: MyReal + RiemannSiegelTheta>(n: usize, eps: f64) -> T {
     let x0 = T::PI() * 2.0 * T::E() * t / w;
     let a = x0 - 1.0;
     let b = x0 + 1.0;
-    let result = Brentq::new(EvalPoint::new(a, gram), EvalPoint::new(b, gram), eps, 0.0)
-        .solve(gram, 100);
+    let result =
+        Brentq::new(EvalPoint::new(a, gram), EvalPoint::new(b, gram), eps, 0.0).solve(gram, 100);
     assert!(result.status != BrentqStatus::SignError);
     // assert!(result.status == BrentqStatus::Converged, "{:?}", result); // TODO: find good stop criterion
     result.x
@@ -227,20 +279,26 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
         let block = next_rosser_block(n, g, |x| rsz.query(x, QueryMode::Separate));
         let initial_block = block.clone();
         let n_zeros = block.len() - 1;
+        // if n_zeros > 1 {
+        //     debug!("initial block {:?}", block);
+        // }
 
-        let (separated, block) =
-            try_separate_rosser_block(block, n_zeros, 10, |x| rsz.query(x, QueryMode::Separate));
-        if block.len() > max_n_intervals {
-            max_n_intervals = block.len();
+        let mut lounge = Lounge::new(xtol, 0.0);
+        for i in 0..n_zeros {
+            lounge.add(block[i], block[i + 1]);
+        }
+        let separated = lounge.try_isolate(n_zeros, 1000, |x| rsz.query(x, QueryMode::Separate));
+        let n_blocks_evaled = lounge.brackets.len();
+
+        if n_blocks_evaled > max_n_intervals {
+            max_n_intervals = n_blocks_evaled;
             debug!("{max_n_intervals} blocks!");
         }
         if separated {
             // yeah!
-            for i in 1..block.len() {
-                let a = block[i - 1];
-                let b = block[i];
-                if !a.has_same_sign(&b) {
-                    let result = Brentq::new(a, b, xtol, 0.0)
+            for bracket in lounge.brackets {
+                if let BracketMaintainer::DiffSign(x) = bracket.entry {
+                    let result = Brentq::new(x.xa, x.xb, xtol, 0.0)
                         .solve(|x| rsz.query(x, QueryMode::Locate), 100);
                     assert!(result.status == BrentqStatus::Converged);
                     roots.push(result.x);
@@ -248,7 +306,7 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
             }
         } else {
             panic!(
-                "Exception of Rosser's rule! n = {n}, block = {:?}, expect variations = {}, variations = {}",
+                "Exception of Rosser's rule! n = {n}, block = {:?}, expect variations = {}, found = {}",
                 initial_block,
                 n_zeros,
                 count_variations(&block),
