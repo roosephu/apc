@@ -8,6 +8,9 @@ fn bench_exp(c: &mut Criterion) {
     c.bench_function("exp", |b| {
         b.iter(|| s.exp());
     });
+    c.bench_function("float exp", |b| {
+        b.iter(|| s.fp().exp())
+    });
 }
 
 criterion_group!(benches, bench_exp);

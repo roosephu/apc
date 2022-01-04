@@ -28,10 +28,12 @@ fn find_c(eps: f64) -> f64 {
     c
 }
 
+
 impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
     /// tau = ln(k1/k0)
     /// precompute = O((c + k1 eps)(tau/gap + 2))
     /// query = O(k0 + c (tau/gap + 1))
+    #[inline(never)]
     pub fn new(k: usize, sigma: T) -> Self {
         // let k0_int = std::cmp::min(4, k);
         let k0_int = 1;
@@ -77,15 +79,24 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
         let c_over_c_sinh = c / c.sinh();
 
         let dt = t - self.t0;
-        let r = ((dt + c / self.gap) / self.delta).floor().fp() as usize;
-        let l = ((dt - c / self.gap) / self.delta).ceil().fp() as usize;
 
         let mut ret = Complex::<T>::zero();
-        for a in l..=r {
-            ret += self.data[a]
-                * self.h(c, dt - self.delta * (a as f64))
-                * (self.beta * dt * T::FRAC_1_PI() - a as f64).sinc();
-            // println!("{} {}", self.h(c, dt - delta * (a as f64)), (self.beta * dt - T::PI() * (a as f64)).sinc());
+        let u = self.beta * dt;
+        let frac_u_pi = u * T::FRAC_1_PI();
+        if frac_u_pi.floor() == frac_u_pi { // u is an integer, which means it's on a grid
+            let idx = frac_u_pi.floor().fp() as usize;
+            ret = self.data[idx];
+        } else {
+            let r = ((dt + c / self.gap) / self.delta).fp().floor() as usize;
+            let l = ((dt - c / self.gap) / self.delta).fp().ceil() as usize;
+            let sin_u = u.sin();
+
+            for a in l..=r {
+                ret += self.data[a]
+                    * self.h(c, dt - self.delta * (a as f64))
+                    / ((frac_u_pi - a as f64) * (if a % 2 == 1 { -1.0f64 } else { 1.0f64 }));
+            }
+            ret = ret * sin_u * T::FRAC_1_PI();
         }
         ret *= Complex::new(T::zero(), -self.alpha * t).exp() * c_over_c_sinh;
 
