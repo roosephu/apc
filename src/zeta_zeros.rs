@@ -6,7 +6,7 @@ use F64x2::traits::FpOps;
 
 use crate::{
     bandwidth_interp::BandwidthInterp,
-    brentq::{brentq2, BrentqStatus},
+    brentq::{brentq2, Brentq, BrentqStatus},
     contexts::*,
     traits::MyReal,
 };
@@ -22,6 +22,19 @@ fn count_variations<T: Copy + Signed>(block: &[EvalPoint<T>]) -> usize {
     }
     variations
 }
+
+// /// For root finding
+// struct Lounge<T> {
+//     intervals: Vec<T>,
+// }
+
+// impl<T: MyReal> Lounge<T> {
+//     pub fn new() -> Self {
+//         Self { intervals: vec![] }
+//     }
+
+//     pub fn add()
+// }
 
 /// We want to solve f(x) = 0 in [a, b] but now f(a) f(b) > 0.
 /// So we model f(x) as $f(x) = p (x - q)^2$ and use $q$ here.
@@ -98,7 +111,7 @@ fn approx_lambert_w(x: f64) -> f64 {
     let r = x.ln();
     let l = r - r.ln();
     let f = |t: f64| t.exp() * t - x;
-    let result = brentq2(f, EvalPoint::new(l, f), EvalPoint::new(r, f), 1e-11, 0.0, 20);
+    let result = Brentq::new(EvalPoint::new(l, f), EvalPoint::new(r, f), 1e-11, 0.0).solve(f, 20);
     assert!(result.status == BrentqStatus::Converged);
     result.x
 }
@@ -115,16 +128,8 @@ fn gram_point<T: MyReal + RiemannSiegelTheta>(n: usize, eps: f64) -> T {
     let x0 = T::PI() * 2.0 * T::E() * t / w;
     let a = x0 - 1.0;
     let b = x0 + 1.0;
-    let fa = gram(a);
-    let fb = gram(b);
-    let result = crate::brentq::brentq2(
-        gram,
-        EvalPoint { x: a, f: fa },
-        EvalPoint { x: b, f: fb },
-        eps,
-        0.0,
-        100,
-    );
+    let result = Brentq::new(EvalPoint::new(a, gram), EvalPoint::new(b, gram), eps, 0.0)
+        .solve(gram, 100);
     assert!(result.status != BrentqStatus::SignError);
     // assert!(result.status == BrentqStatus::Converged, "{:?}", result); // TODO: find good stop criterion
     result.x
@@ -235,8 +240,8 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
                 let a = block[i - 1];
                 let b = block[i];
                 if !a.has_same_sign(&b) {
-                    let z_locate = |x| rsz.query(x, QueryMode::Locate);
-                    let result = crate::brentq::brentq2(z_locate, a, b, xtol, 0.0, 100);
+                    let result = Brentq::new(a, b, xtol, 0.0)
+                        .solve(|x| rsz.query(x, QueryMode::Locate), 100);
                     assert!(result.status == BrentqStatus::Converged);
                     roots.push(result.x);
                 }
