@@ -40,7 +40,7 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
         let k0 = T::mp(k0_int as f64);
         let k1 = T::mp(k as f64);
         let tau = (k1 / k0).ln();
-        let gap = tau * 0.5;
+        let gap = tau * 2.0;
         let beta = tau + gap * 2.0;
         let alpha = (k0 * k1).ln() / 2.0;
         let max_c = T::mp(80.0);
