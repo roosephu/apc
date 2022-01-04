@@ -105,27 +105,27 @@ impl<T: Copy + Signed> EvalPoint<T> {
     pub fn new(x: T, f: impl FnOnce(T) -> T) -> Self { Self { x, f: f(x) } }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BrentqStatus {
     Converged,
     SignError,
     ConvError,
+    InProgress,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct BrentqResult<T: Copy> {
     pub status: BrentqStatus,
     pub n_iters: usize,
     pub x: T,
     pub f: T,
-    pub xl: T,
-    pub xr: T,
 }
 
 impl<T: Copy> BrentqResult<T> {
     pub fn result(&self) -> EvalPoint<T> { EvalPoint { x: self.x, f: self.f } }
 }
 
+#[inline(never)]
 pub fn brentq2<T: MyReal>(
     mut f: impl FnMut(T) -> T,
     a: EvalPoint<T>,
@@ -141,34 +141,13 @@ pub fn brentq2<T: MyReal>(
     let mut scur = T::zero();
 
     if pre.has_same_sign(&cur) {
-        return BrentqResult {
-            status: BrentqStatus::SignError,
-            n_iters: 0,
-            x: cur.x,
-            f: cur.f,
-            xl: a.x,
-            xr: b.x,
-        };
+        return BrentqResult { status: BrentqStatus::SignError, n_iters: 0, x: cur.x, f: cur.f };
     }
     if pre.f.is_zero() {
-        return BrentqResult {
-            status: BrentqStatus::Converged,
-            n_iters: 0,
-            x: pre.x,
-            f: pre.f,
-            xl: a.x,
-            xr: b.x,
-        };
+        return BrentqResult { status: BrentqStatus::Converged, n_iters: 0, x: pre.x, f: pre.f };
     }
     if cur.f.is_zero() {
-        return BrentqResult {
-            status: BrentqStatus::Converged,
-            n_iters: 0,
-            x: cur.x,
-            f: cur.f,
-            xl: a.x,
-            xr: b.x,
-        };
+        return BrentqResult { status: BrentqStatus::Converged, n_iters: 0, x: cur.x, f: cur.f };
     }
 
     for t in 1..=iter {
@@ -193,8 +172,6 @@ pub fn brentq2<T: MyReal>(
                 n_iters: t,
                 x: cur.x,
                 f: cur.f,
-                xl: blk.x,
-                xr: cur.x,
             };
         }
         if spre.abs() > delta && cur.f.abs() < pre.f.abs() {
@@ -227,13 +204,116 @@ pub fn brentq2<T: MyReal>(
 
         cur.f = f(cur.x);
     }
-    BrentqResult {
-        status: BrentqStatus::ConvError,
-        n_iters: iter,
-        x: cur.x,
-        f: cur.f,
-        xl: blk.x,
-        xr: cur.x,
+    BrentqResult { status: BrentqStatus::ConvError, n_iters: iter, x: cur.x, f: cur.f }
+}
+
+#[derive(Clone, Copy)]
+pub struct Brentq<T: MyReal> {
+    pub status: BrentqStatus,
+    xtol: f64,
+    rtol: f64,
+    n_iters: usize,
+    pre: EvalPoint<T>,
+    cur: EvalPoint<T>,
+    blk: EvalPoint<T>,
+    spre: T,
+    scur: T,
+}
+
+impl<T: MyReal> Brentq<T> {
+    pub fn new(a: EvalPoint<T>, b: EvalPoint<T>, xtol: f64, rtol: f64) -> Self {
+        let default = Self {
+            status: BrentqStatus::InProgress,
+            n_iters: 0,
+            cur: b,
+            pre: a,
+            blk: EvalPoint { x: T::zero(), f: T::zero() },
+            spre: T::zero(),
+            scur: T::zero(),
+            xtol,
+            rtol,
+        };
+        if a.has_same_sign(&b) {
+            Self { status: BrentqStatus::SignError, ..default }
+        } else {
+            default
+        }
+    }
+
+    // return whether we should stop
+    pub fn step(&mut self, f: impl FnOnce(T) -> T) -> bool {
+        if self.status != BrentqStatus::InProgress {
+            return true;
+        }
+        self.n_iters += 1;
+        if !self.pre.has_same_sign(&self.cur) {
+            self.blk = self.pre;
+            self.spre = self.cur.x - self.pre.x;
+            self.scur = self.spre;
+        }
+
+        if self.blk.f.abs() < self.cur.f.abs() {
+            self.pre = self.cur;
+            self.cur = self.blk;
+            self.blk = self.pre;
+        }
+
+        let delta = (self.cur.x.abs() * self.rtol + self.xtol) * 0.5;
+        let sbis = (self.blk.x - self.cur.x) * 0.5;
+
+        if self.cur.f.is_zero() || sbis.abs() < delta {
+            self.status = BrentqStatus::Converged;
+            return true;
+        }
+
+        if self.spre.abs() > delta && self.cur.f.abs() < self.pre.f.abs() {
+            let stry = if self.pre.x == self.blk.x {
+                -self.cur.f * (self.cur.x - self.pre.x) / (self.cur.f - self.pre.f)
+            } else {
+                let dpre = self.cur.slope(&self.pre);
+                let dblk = self.cur.slope(&self.blk);
+                -self.cur.f * (self.blk.f * dblk - self.pre.f * dpre)
+                    / (dblk * dpre * (self.blk.f - self.pre.f))
+            };
+            if stry.abs() * 2.0 < self.spre.abs().min(sbis.abs() * 3.0 - delta) {
+                self.spre = self.scur;
+                self.scur = stry;
+            } else {
+                self.spre = sbis;
+                self.scur = sbis;
+            }
+        } else {
+            self.spre = sbis;
+            self.scur = sbis;
+        }
+
+        self.pre = self.cur;
+
+        if self.scur.abs() > delta {
+            self.cur.x += self.scur;
+        } else {
+            self.cur.x += if sbis.is_sign_positive() { delta } else { -delta };
+        }
+
+        self.cur.f = f(self.cur.x);
+        false
+    }
+
+    pub fn result(&self) -> BrentqResult<T> {
+        BrentqResult { status: self.status, n_iters: self.n_iters, x: self.cur.x, f: self.cur.f }
+    }
+
+    #[inline(never)]
+    pub fn solve(&mut self, mut f: impl FnMut(T) -> T, n_iters: usize) -> BrentqResult<T> {
+        for _ in 0..n_iters {
+            if self.step(&mut f) {
+                break;
+            }
+        }
+        if self.status == BrentqStatus::InProgress {
+            self.status = BrentqStatus::ConvError;
+        }
+        self.result()
     }
 }
 

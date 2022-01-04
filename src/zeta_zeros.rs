@@ -33,8 +33,13 @@ fn try_separate_same_sign<T: MyReal>(
     q: &EvalPoint<T>,
     f: impl FnMut(T) -> T,
 ) {
-    let t = (q.f / p.f).sqrt();
-    let g = EvalPoint::new((t * p.x + q.x) / (t + 1.0), f);
+    let g;
+    if rand::random::<u8>() % 2 == 0 {
+        let t = (q.f / p.f).sqrt();
+        g = EvalPoint::new((t * p.x + q.x) / (t + 1.0), f);
+    } else {
+        g = EvalPoint::new((p.x + q.x) * 0.5, f);
+    }
     // let should_dfs = g.has_same_sign(p) && g.f.abs() < p.f.abs() && g.f.abs() < q.f.abs();
     // if should_dfs {
     //     try_separate_same_sign(block, p, &g, rsz);
@@ -62,9 +67,10 @@ fn try_separate_diff_sign<T: MyReal>(
 fn try_separate_rosser_block<T: MyReal>(
     mut block: Vec<EvalPoint<T>>,
     n_zeros: usize,
+    n_iters: usize,
     mut f: impl FnMut(T) -> T,
 ) -> (bool, Vec<EvalPoint<T>>) {
-    for _ in 0..5 {
+    for _ in 0..n_iters {
         if count_variations(&block) == n_zeros {
             return (true, block);
         }
@@ -102,8 +108,8 @@ fn approx_lambert_w(x: f64) -> f64 {
 fn gram_point<T: MyReal + RiemannSiegelTheta>(n: usize, eps: f64) -> T {
     assert!(n <= (1usize << 52), "`n as f64` has rounding error");
 
-    let gram = |x: T| x.rs_theta(eps) - n as f64 * f64::PI();
-    let t = (T::mp(n as f64) + 0.125) / f64::E();
+    let gram = |x: T| x.rs_theta(eps) - T::PI() * n as f64;
+    let t = (T::mp(n as f64) + 0.125) / T::E();
     assert!(t >= T::E());
     let w = approx_lambert_w(t.fp());
     let x0 = T::PI() * 2.0 * T::E() * t / w;
@@ -130,7 +136,8 @@ fn is_good_gram_point<T: Copy + Signed>(n: usize, g: &EvalPoint<T>) -> bool {
     g.f.is_positive() == (n % 2 == 0)
 }
 
-/// returns whether if g_n is a good Gram point
+/// Returns whether if g_n is a good Gram point. Note that the
+/// Gram points are not accurate: we don't need them to be accurate.
 fn next_rosser_block<T: MyReal + RiemannSiegelTheta>(
     mut n: usize,
     g: EvalPoint<T>,
@@ -141,7 +148,7 @@ fn next_rosser_block<T: MyReal + RiemannSiegelTheta>(
     let mut ret = vec![g];
     loop {
         n += 1;
-        let x = gram_point(n, 1e-13);
+        let x = T::mp(gram_point::<f64>(n, 1e-13));
         let g = EvalPoint::new(x, &mut f);
         ret.push(g);
         if is_good_gram_point(n, &g) {
@@ -161,14 +168,13 @@ pub struct RiemannSiegelZ<T: RiemannSiegelZReq> {
     pub dirichlet: Vec<Option<BandwidthInterp<T>>>,
     pub eps: f64,
     pub counts: [usize; 2],
-    pub mode: QueryMode,
 }
 
 impl<T: RiemannSiegelZReq> RiemannSiegelZ<T> {
     pub fn new(max_height: f64, eps: f64) -> Self {
         let n = (max_height / 2.0 / f64::PI()).sqrt().ceil() as usize + 10;
         let dirichlet = (0..n).map(|_| None).collect::<Vec<_>>();
-        Self { dirichlet, eps, counts: [0, 0], mode: QueryMode::Separate }
+        Self { dirichlet, eps, counts: [0, 0] }
     }
 
     fn get(&mut self, n: usize) -> &BandwidthInterp<T> {
@@ -189,11 +195,7 @@ impl<T: RiemannSiegelZReq> RiemannSiegelZ<T> {
             + x.gabcke_series(eps)
     }
 
-    pub fn drop(&mut self, n: usize) {
-        for i in 0..n {
-            self.dirichlet[i] = None;
-        }
-    }
+    pub fn purge(&mut self) { todo!() }
 }
 
 /// Sketch of the algorithm
@@ -213,13 +215,20 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
     let mut g = EvalPoint::new(x, |x| rsz.query(x, QueryMode::Separate));
     assert!(is_good_gram_point(n, &g));
 
+    let mut max_n_intervals = 0;
+
     let mut roots = vec![];
     while n < n1 {
         let block = next_rosser_block(n, g, |x| rsz.query(x, QueryMode::Separate));
+        let initial_block = block.clone();
         let n_zeros = block.len() - 1;
 
         let (separated, block) =
-            try_separate_rosser_block(block, n_zeros, |x| rsz.query(x, QueryMode::Separate));
+            try_separate_rosser_block(block, n_zeros, 10, |x| rsz.query(x, QueryMode::Separate));
+        if block.len() > max_n_intervals {
+            max_n_intervals = block.len();
+            debug!("{max_n_intervals} blocks!");
+        }
         if separated {
             // yeah!
             for i in 1..block.len() {
@@ -234,20 +243,17 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
             }
         } else {
             panic!(
-                "Exception of Rosser's rule! block = {:?}, variations = {}",
-                block,
-                count_variations(&block)
+                "Exception of Rosser's rule! n = {n}, block = {:?}, expect variations = {}, variations = {}",
+                initial_block,
+                n_zeros,
+                count_variations(&block),
             );
         }
 
         n += n_zeros;
         g = block[block.len() - 1];
-        let n0 = rsz.level(block[0].x);
-        let n1 = rsz.level(g.x);
-        if n0 != n1 && n0 >= 10 {
-            rsz.drop(n0 - 10);
-        }
     }
+    // rsz.purge();
     roots
 }
 

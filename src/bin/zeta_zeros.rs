@@ -4,9 +4,10 @@ use log::info;
 
 fn main() {
     apc::init();
+
     let mut rsz = RiemannSiegelZ::<f64>::new(1e8, 1e-12);
 
-    let roots = try_isolate(&mut rsz, 1000000, 10000000, 1e-8, 1e-30);
+    let roots = try_isolate(&mut rsz, 100002, 1000000, 1e-8, 1e-30);
     let n_calls_separate = rsz.counts[0];
     let n_calls_locate = rsz.counts[1];
     let n_zeros = roots.len();
