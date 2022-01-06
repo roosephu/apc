@@ -113,6 +113,7 @@ impl<T: MyReal> Kernel<T> for SinhKernel<T> {
     #[inline]
     fn window(&self) -> f64 { self.c.fp() / (self.γ.fp() / 2.0) }
 
+    /// TODO: multiply self.c_over_c_sinh in a single place speeds up for 5%.
     #[inline]
     fn query(&self, x: T, n: usize) -> T {
         let t = x - self.δ * n as f64;
