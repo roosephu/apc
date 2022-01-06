@@ -23,6 +23,10 @@ harness = false
 name = "brentq"
 harness = false
 
+[[bench]]
+name = "bandwidth_interp"
+harness = false
+
 [dependencies]
 num = "0.4.0"
 rustfft =  { git = "https://github.com/roosephu/RustFFT.git", optional = true }

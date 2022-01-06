@@ -97,7 +97,7 @@ cfg_if::cfg_if! {
 cfg_if::cfg_if! {
     if #[cfg(feature = "zeta")] {
         mod sum_trunc_dirichlet;
-        mod bandwidth_interp;
+        pub mod bandwidth_interp;
         // mod rs_z;
         pub mod zeta_zeros;
         // mod riemann_siegel;
@@ -123,7 +123,7 @@ mod platt;
 mod platt_integral;
 mod power_series;
 mod sieve;
-mod traits;
+pub mod traits;
 
 pub use fast_phi::LittlePhiSum;
 pub use platt::PlattBuilder;

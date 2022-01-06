@@ -113,9 +113,10 @@ impl<T: MyReal> Kernel<T> for SinhKernel<T> {
     #[inline]
     fn window(&self) -> f64 { self.c.fp() / (self.γ.fp() / 2.0) }
 
+    #[inline]
     fn query(&self, x: T, n: usize) -> T {
         let t = x - self.δ * n as f64;
-        let gap = self.γ / 2.0;
+        let gap = self.γ * 0.5;
         let w = (self.c * self.c - gap * gap * t * t).sqrt();
         if w.is_zero() {
             self.c_over_c_sinh
@@ -157,16 +158,6 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
         h.init(delta, gap * 2.0, eps);
 
         Self { k0: k0_int, k1: k, tau, sigma, alpha, beta, data, gap, t0, delta, h }
-    }
-
-    #[inline]
-    fn h(&self, c: T, t: T) -> T {
-        let w = (c * c - self.gap * self.gap * t * t).sqrt();
-        if w.is_zero() {
-            T::one()
-        } else {
-            w.sinh() / w
-        }
     }
 
     /// we have all precomputed data of
