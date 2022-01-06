@@ -435,7 +435,7 @@ mod tests {
         let result = Brentq::new(xa, xb, 0.0, rtol).solve(f, 100);
         println!("status = {:?}, x = {},f = {}", result.status, result.x, result.f);
         let x = result.x;
-        assert_close(x, center, 0.0, rtol);
+        assert_close(x, f64x2::new(74929.812159119, -4.328667942455271e-13), 0.0, rtol);
     }
 
     #[test]
