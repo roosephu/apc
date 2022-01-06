@@ -26,11 +26,13 @@ impl<T: MyReal + GabckeSeriesCoeffs> GabckeSeries for T {
     /// See [Gabcke] Section 2.2. See also Theorem 2.1.6.
     /// For numerical stability, we use the Chebyshev's version (Eq 2.38)
     /// instead of polynomial version (Eq 2.34, 2.35).
-    fn gabcke_series(&self, order: usize, _eps: f64) -> Self {
+    #[inline(never)]
+    fn gabcke_series(&self, order: usize, atol: f64) -> Self {
         let t = *self;
         let a = (t / T::PI() / 2.0).sqrt();
         let n = a.floor().fp();
         let z = T::one() - (a - n) * 2.0;
+        let eps = atol * 0.1;
 
         let mut expansion = T::zero();
 
@@ -41,11 +43,15 @@ impl<T: MyReal + GabckeSeriesCoeffs> GabckeSeries for T {
             let series = T::gabcke_series_coeffs(k);
             let m = series.len();
             let mut s = series[0];
+            let eps = eps / inv_pow_a.fp().abs();
 
             let mut pre = T::one();
             let mut cur = t2_z;
             for j in 1..m {
                 s += series[j] * cur;
+                if series[j].fp().abs() < eps {
+                    break;
+                }
                 (pre, cur) = (cur, cur * t2_z * 2.0 - pre);
             }
             if k % 2 == 1 {
