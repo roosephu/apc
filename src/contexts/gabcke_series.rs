@@ -11,8 +11,8 @@ pub trait GabckeSeriesCoeffs: Sized {
     fn gabcke_series_coeffs(k: usize) -> &'static [Self];
 }
 
-const GABCKE_SERIES_F64X2: [[f64x2; 26]; 11] = include!("../../data/gabcke_series_f64x2.txt");
-const GABCKE_SERIES_F64: [[f64; 26]; 11] = include!("../../data/gabcke_series_f64.txt");
+const GABCKE_SERIES_F64X2: [[f64x2; 26]; 11] = include!("../../const_table/gabcke_series_f64x2.rs");
+const GABCKE_SERIES_F64: [[f64; 26]; 11] = include!("../../const_table/gabcke_series_f64.rs");
 
 impl GabckeSeriesCoeffs for f64 {
     fn gabcke_series_coeffs(k: usize) -> &'static [f64] { &GABCKE_SERIES_F64[k] }

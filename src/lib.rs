@@ -81,8 +81,6 @@ mod illinois;
 mod types;
 
 pub fn init() {
-    contexts::init();
-
     let mut builder = env_logger::builder();
     builder.format_timestamp_micros();
     let _ = builder.try_init();

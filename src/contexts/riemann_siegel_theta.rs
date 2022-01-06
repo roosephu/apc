@@ -3,43 +3,83 @@ use crate::traits::MyReal;
 use F64x2::f64x2;
 
 pub trait RiemannSiegelTheta {
-    fn rs_theta(&self, eps: f64) -> Self;
+    fn rs_theta(&self, atol: f64) -> Self;
 }
 
 pub trait RiemannSiegelThetaCoeffs {
     fn rs_theta_coeff(n: usize) -> Self;
 }
 
+const RIEMANN_SIEGEL_THETA_COEFFS_F64: [f64; 31] =
+    include!("../../const_table/rs_theta_coeffs_f64.rs");
+const RIEMANN_SIEGEL_THETA_COEFFS_F64X2: [f64x2; 31] =
+    include!("../../const_table/rs_theta_coeffs_f64x2.rs");
+
+impl RiemannSiegelThetaCoeffs for f64 {
+    fn rs_theta_coeff(n: usize) -> Self { RIEMANN_SIEGEL_THETA_COEFFS_F64[n] }
+}
+
+impl RiemannSiegelThetaCoeffs for f64x2 {
+    fn rs_theta_coeff(n: usize) -> Self { RIEMANN_SIEGEL_THETA_COEFFS_F64X2[n] }
+}
+
 impl<T: MyReal + RiemannSiegelThetaCoeffs> RiemannSiegelTheta for T {
-    /// See [Sec 3.11, Pugh].
-    /// TODO: add test
+    /// See On asymptotic approximations to the log-Gamma and Riemann-Siegel
+    /// theta functions, by Richard Brent.
+    ///
+    /// We use an asymptotic expansion, which has an error term of $exp(-\pi t)$.
+    /// So we can't deal with too small atol for a small $t$.
+    /// Cutting off at k-th term has error of $exp(-\pi t) / 2 + \eta_k
+    /// \sqrt{\pi t} T_k$. For k <= 20, we have $\eta_k \sqrt{\pi k} ≤ 7.93$.
     #[inline]
-    fn rs_theta(&self, eps: f64) -> T {
+    fn rs_theta(&self, atol: f64) -> T {
         let t = *self;
 
-        // as it's typically used with RiemannSiegelZ, we hope it's not too small.
-        assert!(t.fp() >= 200.0 && eps > 1e-33);
-        const K: usize = 7;
+        assert!(t.fp() >= 30.0 && atol > 1e-33);
+        let eps = atol / 7.93;
 
         // needs high precision base computation here.
         let mut ret = t / 2.0 * (t / 2.0 / T::PI() / T::E()).ln() - T::FRAC_PI_8();
         let mut tpow_inv = t.recip();
         let tsqr_inv = tpow_inv * tpow_inv;
-        for i in 1..=K {
-            ret += T::rs_theta_coeff(i) * tpow_inv;
+        for k in 1..=20 {
+            let term = T::rs_theta_coeff(k) * tpow_inv;
+            ret += term;
+
+            if term.fp() < eps {
+                break;
+            }
             tpow_inv *= tsqr_inv;
         }
         ret
     }
 }
 
-impl_from_uninit_cell!(RiemannSiegelThetaCoeffs, rs_theta_coeff, f64);
-impl_from_uninit_cell!(RiemannSiegelThetaCoeffs, rs_theta_coeff, f64x2);
+#[cfg(test)]
+mod test {
+    use F64x2::test_utils::assert_close;
 
-pub fn init() {
-    let data = read_data("data/rs_theta_coeffs.txt", 1000)
-        .expect("can't load Bernoulli numbers from `data/rs_theta_coeffs.txt`");
+    use super::*;
 
-    TABLE_f64.set(data.iter().map(|x| x.to_f64()).collect());
-    TABLE_f64x2.set(data.iter().map(mpf_to_f64x2).collect());
+    #[test]
+    fn rs_theta() {
+        crate::init();
+
+        let x = f64x2::mp(101.0);
+        let atol = 1e-28;
+        let y = x.rs_theta(atol);
+        let gt = f64x2::new(89.35830143691956, 6.162759849478704e-15);
+        assert_close(y, gt, atol, 0.0);
+
+        let atol = 1e-12;
+        let y = x.fp().rs_theta(atol);
+        assert_close(y, gt.fp(), atol, 0.0);
+
+        let t = f64x2::new(1000.0, 0.0);
+        let eps = 1e-27;
+        let gt = f64x2::new(2034.5464280380315, 7.28690383001782e-14);
+        let output = t.rs_theta(eps);
+
+        assert_close(output, gt, eps, 0.0);
+    }
 }

@@ -109,13 +109,13 @@ impl<T: MyReal> ExpansionIntegrator<T> {
 
         let poly_eps = T::mp(eps) / coeff.norm() / T::from_usize(order).unwrap();
         let radius = Self::calc_radius(&poly.coeffs, poly_eps) / w;
-        debug!(
-            "[Expansion] prepare {}, radius = {}, {}, {}",
-            t,
-            radius,
-            poly_eps,
-            poly.coeffs[order - 1].norm()
-        );
+        // debug!(
+        //     "[Expansion] prepare {}, radius = {}, {}, {}",
+        //     t,
+        //     radius,
+        //     poly_eps,
+        //     poly.coeffs[order - 1].norm()
+        // );
 
         // we've expanded in a new t0, and should clear cache.
         Self::normalize_(&mut poly, Complex::<T>::new(T::zero(), w));

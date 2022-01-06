@@ -4,17 +4,14 @@ use F64x2::f64x2;
 pub trait Factorial {
     fn factorial(n: usize) -> Self;
 }
-// fn binom(n: usize, m: usize) -> Self {
-//     Self::factorial(n) / Self::factorial(m) / Self::factorial(n - m)
-// }
 
-impl_from_uninit_cell!(Factorial, factorial, f64);
-impl_from_uninit_cell!(Factorial, factorial, f64x2);
+const FACTORIAL_F64: [f64; 101] = include!("../../const_table/factorial_f64.rs");
 
-pub fn init() {
-    let data = read_data("data/factorial.txt", 1000)
-        .expect("can't load Bernoulli numbers from `data/factorial.txt`");
+impl Factorial for f64 {
+    fn factorial(n: usize) -> Self { FACTORIAL_F64[n] }
+}
 
-    TABLE_f64.set(data.iter().map(|x| x.to_f64()).collect());
-    TABLE_f64x2.set(data.iter().map(mpf_to_f64x2).collect());
+const FACTORIAL_F64X2: [f64x2; 101] = include!("../../const_table/factorial_f64x2.rs");
+impl Factorial for f64x2 {
+    fn factorial(n: usize) -> Self { FACTORIAL_F64X2[n] }
 }

@@ -300,7 +300,7 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
             if min_t < 200.0 {
                 // Riemann-Siegel formula doesn't work for too small $t$.
                 // Use Euler-Maclaurin instead.
-                break
+                break;
             }
             if min_t < cur_t {
                 levels.push((min_t, k));

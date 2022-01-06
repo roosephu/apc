@@ -2,5 +2,8 @@
     "jupyter.jupyterServerType": "remote",
     "rust-analyzer.cargo.features": [
         "zeta",
-    ]
+    ],
+    "rust-analyzer.files.excludeDirs": [
+        "const_table"
+    ],
 }
