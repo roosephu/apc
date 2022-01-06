@@ -1,10 +1,10 @@
 #![allow(uncommon_codepoints)]
 #![allow(non_snake_case)]
 
-use F64x2::f64x2;
-use apc::traits::MyReal;
 use apc::bandwidth_interp::BandwidthInterp;
+use apc::traits::MyReal;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use F64x2::f64x2;
 
 fn bench_bandwidth_interp(c: &mut Criterion) {
     type T = f64x2;

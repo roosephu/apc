@@ -85,7 +85,7 @@ pub fn init() {
 
     let mut builder = env_logger::builder();
     builder.format_timestamp_micros();
-    builder.init();
+    let _ = builder.try_init();
 }
 
 cfg_if::cfg_if! {

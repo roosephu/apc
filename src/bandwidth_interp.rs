@@ -18,7 +18,7 @@ pub struct BandwidthInterp<T> {
     beta: T,
     delta: T,
     data: Vec<Complex<T>>,
-    h: SinhKernel<T>,
+    h: SincKernel<T>,
 }
 
 /// determine c: c / sinh(c) = eps
@@ -47,9 +47,10 @@ fn interpolate<T: MyReal>(data: &[Complex<T>], x: T, beta: T, h: &impl Kernel<T>
         assert!(x.fp() >= w);
         let l = (center - window).ceil() as usize;
         let r = (center + window).floor() as usize;
+        let cache = h.prepare(x);
 
         for n in l..=r {
-            ret += data[n] * h.query(x, n)
+            ret += data[n] * h.query(&cache, n)
                 / ((center_T - n as f64) * (if n % 2 == 1 { -1.0f64 } else { 1.0f64 }));
         }
         ret = ret * sin_u * T::FRAC_1_PI();
@@ -76,18 +77,88 @@ struct BandwithInterploation<T, K: Kernel<T>> {
     γ: T,
     m: usize,
     data: Vec<Complex<T>>,
-    sin_cos: Vec<(T, T)>,
     kernel: K,
 }
 
+/// `window`: Only $h(t)$ with $|t| < \text{window}$ is considered.
+/// `query`: Query $h(x - n \delta)$.
 trait Kernel<T> {
+    type Cache;
+
     fn init(&mut self, δ: T, γ: T, eps: f64);
     fn window(&self) -> f64;
-    fn query(&self, x: T, n: usize) -> T;
+    fn prepare(&self, x: T) -> Self::Cache;
+    fn query(&self, cache: &Self::Cache, n: usize) -> T;
 }
 
-// struct SincKernel<T>();
+struct SincKernel<T> {
+    m: usize,
+    log_m: u32,
+    offset: usize,
+    δ: T,
+    γ: T,
+    w: f64,
+    sin_cos: Vec<(T, T)>,
+}
 
+impl<T: MyReal> SincKernel<T> {
+    #[inline]
+    pub fn new(m: usize) -> Self {
+        assert!(m.is_power_of_two());
+        Self { m, δ: T::zero(), γ: T::zero(), sin_cos: vec![], log_m: 0, w: 0.0, offset: 0 }
+    }
+}
+
+impl<T: MyReal> Kernel<T> for SincKernel<T> {
+    type Cache = (T, usize, (T, T));
+
+    fn init(&mut self, δ: T, γ: T, atol: f64) {
+        let r = δ * γ / self.m as f64;
+        self.δ = δ;
+        self.γ = γ;
+        self.log_m = self.m.trailing_zeros();
+        self.w = (atol / 10.0).powf(-1.0 / self.m as f64) * self.m as f64 / γ.fp() * 1.2;
+        debug!(
+            "[SincKernel] w = {:.3e}, δ = {:.3e}, est # intervals = {:.0}",
+            self.w,
+            δ.fp(),
+            (self.w / δ.fp()).round()
+        );
+        assert!(self.w <= 80.0);
+        self.offset = (self.w / δ.fp()) as usize + 10;
+        self.sin_cos = (0..=2 * self.offset)
+            .map(|n| (r * (n as f64 - self.offset as f64)).sin_cos())
+            .collect();
+    }
+
+    #[inline]
+    fn window(&self) -> f64 { self.w }
+
+    #[inline]
+    fn prepare(&self, x: T) -> Self::Cache {
+        let center_z = (x.fp() / self.δ.fp()) as usize;
+        (x, center_z, ((x - self.δ * center_z as f64) * self.γ / self.m as f64).sin_cos())
+    }
+
+    #[inline]
+    fn query(&self, cache: &Self::Cache, n: usize) -> T {
+        let &(x, center_z, (sin_xp, cos_xp)) = cache;
+        let t = (x - self.δ * (n as f64)) * self.γ / self.m as f64;
+        assert!(!t.is_zero());
+        // xp = x * γ / m, np = δ * n * γ / m, t = xp + np
+        let (sin_np, cos_np) = self.sin_cos[n + self.offset - center_z];
+        let sin_t = sin_xp * cos_np - cos_xp * sin_np;
+
+        let mut sinc = sin_t / t;
+        for _ in 0..self.log_m {
+            sinc = sinc * sinc
+        }
+        sinc
+        // sinc.powi(self.m as i32)
+    }
+}
+
+#[derive(Default)]
 struct SinhKernel<T> {
     δ: T,
     γ: T,
@@ -95,13 +166,9 @@ struct SinhKernel<T> {
     c_over_c_sinh: T,
 }
 
-impl<T: MyReal> SinhKernel<T> {
-    fn new() -> Self {
-        Self { δ: T::zero(), γ: T::zero(), c: T::zero(), c_over_c_sinh: T::zero() }
-    }
-}
-
 impl<T: MyReal> Kernel<T> for SinhKernel<T> {
+    type Cache = T;
+
     #[inline]
     fn init(&mut self, δ: T, γ: T, eps: f64) {
         self.δ = δ;
@@ -113,9 +180,13 @@ impl<T: MyReal> Kernel<T> for SinhKernel<T> {
     #[inline]
     fn window(&self) -> f64 { self.c.fp() / (self.γ.fp() / 2.0) }
 
+    #[inline]
+    fn prepare(&self, x: T) -> Self::Cache { x }
+
     /// TODO: multiply self.c_over_c_sinh in a single place speeds up for 5%.
     #[inline]
-    fn query(&self, x: T, n: usize) -> T {
+    fn query(&self, x: &T, n: usize) -> T {
+        let x = *x;
         let t = x - self.δ * n as f64;
         let gap = self.γ * 0.5;
         let w = (self.c * self.c - gap * gap * t * t).sqrt();
@@ -155,7 +226,8 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
             .map(|(i, &x)| Complex::from_polar(T::one(), (t0 + delta * i as f64) * alpha) * x)
             .collect();
         // debug!("precompute {} terms", m);
-        let mut h = SinhKernel::new();
+        // let mut h = SinhKernel::default();
+        let mut h = SincKernel::new(64);
         h.init(delta, gap * 2.0, eps);
 
         Self { k0: k0_int, k1: k, tau, sigma, alpha, beta, data, gap, t0, delta, h }
@@ -189,6 +261,8 @@ mod tests {
 
     #[test]
     fn test_bandwidth_limited_interp() {
+        crate::init();
+
         type T = f64x2;
 
         let k = 100;
@@ -215,11 +289,12 @@ mod tests {
 
     #[test]
     fn test_bandwidth_limited_interp_f64() {
+        crate::init();
         type T = f64;
 
         let k = 100;
         let sigma = T::mp(0.5);
-        let eps = 1e-10;
+        let eps = 2e-10;
         let min_t = T::mp(2.0 * f64::PI() * (k as f64).powi(2));
         let max_t = T::mp(2.0 * f64::PI() * (k as f64 + 1.0).powi(2));
         let ds = BandwidthInterp::<T>::new(k, min_t, max_t, sigma, eps);
