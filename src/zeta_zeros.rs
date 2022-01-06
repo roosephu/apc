@@ -214,11 +214,6 @@ fn next_rosser_block<T: MyReal + RiemannSiegelTheta>(
     }
 }
 
-pub enum QueryMode {
-    Separate,
-    Locate,
-}
-
 pub trait RiemannSiegelZReq =
     MyReal + Sinc + ExpPolyApprox + RiemannSiegelTheta + GabckeSeries + Bernoulli + Factorial;
 
@@ -243,6 +238,7 @@ impl<T: RiemannSiegelZReq> EulerMaclaurinMethod<T> {
         Self { dirichlet, n, atol }
     }
 
+    #[inline(never)]
     pub fn query(&self, x: T) -> T {
         let atol = self.atol;
 
@@ -275,7 +271,6 @@ impl<T: RiemannSiegelZReq> EulerMaclaurinMethod<T> {
 pub struct HardyZ<T: RiemannSiegelZReq> {
     pub dirichlet: Vec<Option<BandwidthInterp<T>>>,
     pub eps: f64,
-    pub counts: [usize; 2],
     pub levels: Vec<(f64, usize)>,
     pub euler_maclaurin: EulerMaclaurinMethod<T>,
 }
@@ -286,11 +281,12 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
         let n = (max_height / 2.0 / f64::PI()).sqrt().ceil() as usize + 10;
         let dirichlet = (0..=n).map(|_| None).collect::<Vec<_>>();
         let (levels, em_height) = Self::get_plans(max_height, max_order, eps);
+        debug!("levels = {:?}, em height = {:.3e}", levels, em_height);
         let euler_maclaurin = EulerMaclaurinMethod::new(em_height as usize, eps);
-        Self { dirichlet, eps, counts: [0, 0], levels, euler_maclaurin }
+        Self { dirichlet, eps, levels, euler_maclaurin }
     }
 
-    fn get_plans(max_height: f64, max_order: usize, eps: f64) -> (Vec<(f64, usize)>, f64) {
+    fn get_plans(max_height: f64, max_order: usize, atol: f64) -> (Vec<(f64, usize)>, f64) {
         const COEFFS: [f64; 11] =
             [0.127, 0.053, 0.011, 0.031, 0.017, 0.061, 0.661, 9.2, 130.0, 1837.0, 25966.0];
         assert!(
@@ -300,7 +296,12 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
         let mut levels: Vec<(f64, usize)> = vec![];
         let mut cur_t = max_height;
         for k in 0..=max_order {
-            let min_t = (COEFFS[k] / eps).powf(4.0 / (3.0 + k as f64 * 2.0));
+            let min_t = (COEFFS[k] / atol).powf(4.0 / (3.0 + k as f64 * 2.0));
+            if min_t < 200.0 {
+                // Riemann-Siegel formula doesn't work for too small $t$.
+                // Use Euler-Maclaurin instead.
+                break
+            }
             if min_t < cur_t {
                 levels.push((min_t, k));
                 cur_t = min_t;
@@ -328,8 +329,7 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
             + x.gabcke_series(order, eps)
     }
 
-    pub fn query(&mut self, x: T, mode: QueryMode) -> T {
-        self.counts[mode as usize] += 1;
+    pub fn query(&mut self, x: T) -> T {
         let x_fp = x.fp();
         for &(min_t, order) in &self.levels {
             if x_fp >= min_t {
@@ -342,28 +342,64 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
     pub fn purge(&mut self) { todo!() }
 }
 
+pub struct HybridPrecHardyZ<T: RiemannSiegelZReq> {
+    lo: HardyZ<f64>,
+    hi: HardyZ<T>,
+    lo_eps: f64,
+}
+
+impl<T: RiemannSiegelZReq> HybridPrecHardyZ<T> {
+    pub fn new(max_height: f64, max_order: usize, eps: f64) -> Self {
+        // TODO: need analysis
+        let lo_eps = 1e-3;
+        let lo = HardyZ::<f64>::new(max_height, max_order, lo_eps);
+        let hi = HardyZ::<T>::new(max_height, max_order, eps);
+        Self { lo, hi, lo_eps }
+    }
+
+    pub fn query(&mut self, x: T) -> T {
+        let result = self.lo.query(x.fp());
+        if result.abs() > self.lo_eps {
+            T::mp(result)
+        } else {
+            self.hi.query(x)
+        }
+    }
+}
+
+pub struct IsolationStats {
+    pub count: [usize; 2],
+}
+
 /// Sketch of the algorithm
 /// 1. We focus on Gram points
 /// 2. Each time we find a Rosser block, and assume it satisfies Rosser's rule
 /// 3. If it contains one Gram interval: done isolating
 /// 4. Otherwise, we find one
 pub fn try_isolate<T: RiemannSiegelZReq>(
-    rsz: &mut HardyZ<T>,
+    hardy_z: &mut HybridPrecHardyZ<T>,
     n0: usize,
     n1: usize,
     xtol: f64,
     _rtol: f64,
-) -> Vec<T> {
+) -> (Vec<T>, IsolationStats) {
     let mut n = n0;
     let x = gram_point(n, xtol);
-    let mut g = EvalPoint::new(x, |x| rsz.query(x, QueryMode::Separate));
+    let mut stats = IsolationStats { count: [0, 0] };
+    let mut g = EvalPoint::new(x, |x: T| {
+        stats.count[0] += 1;
+        hardy_z.query(x)
+    });
     assert!(is_good_gram_point(n, &g));
 
     let mut max_n_intervals = 0;
 
     let mut roots = vec![];
     while n < n1 {
-        let block = next_rosser_block(n, g, |x| rsz.query(x, QueryMode::Separate));
+        let block = next_rosser_block(n, g, |x: T| {
+            stats.count[0] += 1;
+            hardy_z.query(x)
+        });
         let initial_block = block.clone();
         let n_zeros = block.len() - 1;
 
@@ -371,7 +407,10 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
         for i in 0..n_zeros {
             lounge.add(block[i], block[i + 1]);
         }
-        let separated = lounge.try_isolate(n_zeros, 1000, |x| rsz.query(x, QueryMode::Separate));
+        let separated = lounge.try_isolate(n_zeros, 1000, |x: T| {
+            stats.count[0] += 1;
+            hardy_z.query(x)
+        });
         let n_blocks_evaled = lounge.brackets.len();
 
         if n_blocks_evaled > max_n_intervals {
@@ -382,8 +421,13 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
             // yeah!
             for bracket in lounge.brackets {
                 if let BracketMaintainer::DiffSign(x) = bracket.entry {
-                    let result = Brentq::new(x.xa, x.xb, xtol, 0.0)
-                        .solve(|x| rsz.query(x, QueryMode::Locate), 100);
+                    let result = Brentq::new(x.xa, x.xb, xtol, 0.0).solve(
+                        |x: T| {
+                            stats.count[1] += 1;
+                            hardy_z.query(x)
+                        },
+                        100,
+                    );
                     assert!(result.status == BrentqStatus::Converged);
                     roots.push(result.x);
                 }
@@ -401,7 +445,7 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
         g = block[block.len() - 1];
     }
     // rsz.purge();
-    roots
+    (roots, stats)
 }
 
 #[cfg(test)]
@@ -426,7 +470,7 @@ mod tests {
         type T = f64x2;
         let mut rsz = HardyZ::<T>::new(1e8, 10, 1e-18);
 
-        let mut f = |x: T| rsz.query(x, QueryMode::Locate);
+        let mut f = |x: T| rsz.query(x);
         let center = T::mp(74929.812159119);
         let xa = EvalPoint::new(center - 0.4, &mut f);
         let xb = EvalPoint::new(center + 0.3, &mut f);

@@ -1,15 +1,16 @@
 #![allow(dead_code)]
-use apc::zeta_zeros::{try_isolate, HardyZ};
+use apc::zeta_zeros::{try_isolate, HybridPrecHardyZ};
 use log::info;
 use F64x2::f64x2;
 
 fn main() {
     apc::init();
 
-    let mut rsz = HardyZ::<f64x2>::new(1e8, 10, 1e-18);
-    let roots = try_isolate(&mut rsz, 100002, 300000, 1e-18, 1e-30);
-    let n_calls_separate = rsz.counts[0];
-    let n_calls_locate = rsz.counts[1];
+    // let mut hardy_z = HardyZ::<f64x2>::new(1e8, 10, 1e-18);
+    let mut hardy_z = HybridPrecHardyZ::<f64x2>::new(1e8, 10, 1e-18);
+    let (roots, stats) = try_isolate(&mut hardy_z, 100002, 300000, 1e-18, 1e-30);
+    let n_calls_separate = stats.count[0];
+    let n_calls_locate = stats.count[1];
     let n_zeros = roots.len();
     info!(
         "To separate {} zeros: {:.3} calls to separate, {:.3} calls to locate, total = {:.3}",
