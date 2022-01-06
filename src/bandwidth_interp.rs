@@ -28,13 +28,72 @@ fn find_c(eps: f64) -> f64 {
     c
 }
 
+/// Proposition 3 in [Gourdon].
+/// We'd like to interpolate a function G(x) satisfying $|G(z) = O(e^{\tau y})|$.
+/// We have a kernel function $h(z)$ such that $h(0) = 1$ and $h(z) = o(e^{
+/// \gamma y})$. Let $\beta >= \gamma + \tau$. We have evaluations of $G(x)$ on
+/// a grid $\{x = \delta n\}_{0 \leq n < N}$ where $\delta = \pi / \beta$.
+///
+/// $w$ is the window size of $h$: $|h(w)|$ is very small so that we can
+/// safely ignore it.
+fn interpolate<T: MyReal>(
+    data: &[Complex<T>],
+    x: T,
+    beta: T,
+    mut h: impl FnMut(T) -> T,
+    w: T,
+    eps: f64,
+) -> Complex<T> {
+    let mut ret = Complex::<T>::zero();
+    let delta = T::PI() / beta;
+    let window = w.fp() / delta.fp();
+    let center = x.fp() / delta.fp();
+    let u = beta * x;
+    let center_T = u * T::FRAC_1_PI();
 
+    if (center - center.round()).abs() < eps {
+        // x is very close to a grid point.
+        // Assuming G is 1-Lipschitz, we can simply use the data in the grid.
+        ret = data[center as usize];
+    } else {
+        let sin_u = u.sin();
+        assert!(x >= w);
+        let l = (center - window).ceil() as usize;
+        let r = (center + window).floor() as usize;
+
+        for n in l..=r {
+            ret += data[n] * h(x - delta * (n as f64))
+                / ((center_T - n as f64) * (if n % 2 == 1 { -1.0f64 } else { 1.0f64 }));
+        }
+        ret = ret * sin_u * T::FRAC_1_PI();
+    }
+    ret
+}
+
+// struct SumTruncDirichlet<T> {
+//     data: Vec<Complex<T>>,
+// }
+
+// impl<T: MyReal + Sinc + ExpPolyApprox + Signed> SumTruncDirichlet<T> {
+//     #[inline(never)]
+//     pub fn new(k: usize, t0: T, t1: T) -> Self {
+//         let m = 0;
+//         if !m.is_power_of_two() {
+//             log::warn!("use a power of 2 for faster FFT");
+//         }
+//         let delta =
+//         todo!()
+//     }
+// }
+
+/// TODO: refactor: this should only include bandwithinterp, no how parameters
+/// should  be selected.
 impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
     /// tau = ln(k1/k0)
     /// precompute = O((c + k1 eps)(tau/gap + 2))
     /// query = O(k0 + c (tau/gap + 1))
     #[inline(never)]
-    pub fn new(k: usize, sigma: T) -> Self {
+    pub fn new(k: usize, min_t: T, max_t: T, sigma: T) -> Self {
         // let k0_int = std::cmp::min(4, k);
         let k0_int = 1;
         let k0 = T::mp(k0_int as f64);
@@ -44,8 +103,6 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
         let beta = tau + gap * 2.0;
         let alpha = (k0 * k1).ln() / 2.0;
         let max_c = T::mp(80.0);
-        let min_t = T::PI() * 2.0 * k1 * k1;
-        let max_t = T::PI() * 2.0 * (k1 + 1.0) * (k1 + 1.0);
         let t0 = min_t - max_c / gap;
         let t1 = max_t + max_c / gap;
         let delta = T::PI() / beta;
@@ -54,7 +111,7 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
         let data = data
             .iter()
             .enumerate()
-            .map(|(i, &x)| Complex::new(T::zero(), (t0 + delta * i as f64) * alpha).exp() * x)
+            .map(|(i, &x)| Complex::from_polar(T::one(), (t0 + delta * i as f64) * alpha) * x)
             .collect();
         // debug!("precompute {} terms", m);
 
@@ -80,29 +137,14 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
 
         let dt = t - self.t0;
 
-        let mut ret = Complex::<T>::zero();
-        let u = self.beta * dt;
-        let frac_u_pi = u * T::FRAC_1_PI();
-        if frac_u_pi.floor() == frac_u_pi { // u is an integer, which means it's on a grid
-            let idx = frac_u_pi.floor().fp() as usize;
-            ret = self.data[idx];
-        } else {
-            let r = ((dt + c / self.gap) / self.delta).fp().floor() as usize;
-            let l = ((dt - c / self.gap) / self.delta).fp().ceil() as usize;
-            let sin_u = u.sin();
-
-            for a in l..=r {
-                ret += self.data[a]
-                    * self.h(c, dt - self.delta * (a as f64))
-                    / ((frac_u_pi - a as f64) * (if a % 2 == 1 { -1.0f64 } else { 1.0f64 }));
-            }
-            ret = ret * sin_u * T::FRAC_1_PI();
-        }
-        ret *= Complex::new(T::zero(), -self.alpha * t).exp() * c_over_c_sinh;
+        let h = |x: T| self.h(c, x);
+        let w = c / self.gap;
+        let mut ret = interpolate(&self.data, dt, self.beta, h, w, eps);
+        ret *= Complex::from_polar(T::one(), -self.alpha * t) * c_over_c_sinh;
 
         let s = Complex::new(self.sigma, t);
         for n in 1..self.k0 {
-            ret += (-s * T::from_i32(n as i32).unwrap().ln()).exp();
+            ret += (-s * T::mp(n as f64).ln()).exp();
         }
         // println!(
         //     "c = {}, coeff = {}, # interp terms = {:}, l = {}, r = {}",
@@ -132,7 +174,9 @@ mod tests {
         let k = 100;
         let sigma = T::mp(0.5);
         let eps = 1e-26;
-        let ds = BandwidthInterp::<T>::new(k, sigma);
+        let min_t = T::mp(2.0 * f64::PI() * (k as f64).powi(2));
+        let max_t = T::mp(2.0 * f64::PI() * (k as f64 + 1.0).powi(2));
+        let ds = BandwidthInterp::<T>::new(k, min_t, max_t, sigma);
         let t = T::PI() * 2.0 * 10100.0;
         // let t = ds.t0;
         let mut gt = Complex::<T>::zero();
@@ -156,7 +200,9 @@ mod tests {
         let k = 100;
         let sigma = T::mp(0.5);
         let eps = 1e-10;
-        let ds = BandwidthInterp::<T>::new(k, sigma);
+        let min_t = T::mp(2.0 * f64::PI() * (k as f64).powi(2));
+        let max_t = T::mp(2.0 * f64::PI() * (k as f64 + 1.0).powi(2));
+        let ds = BandwidthInterp::<T>::new(k, min_t, max_t, sigma);
         let t = T::PI() * 2.0 * 10100.0;
         let mut gt = Complex::<T>::zero();
         let s = Complex::new(sigma, t);

@@ -60,7 +60,7 @@ impl<T: MyReal> Bracket<T> {
     }
 }
 
-/// For root finding
+/// A `Lounge` is a place where roots are waiting to be separated.
 struct Lounge<T: MyReal> {
     brackets: Vec<Bracket<T>>,
     variations: usize,
@@ -219,37 +219,122 @@ pub enum QueryMode {
     Locate,
 }
 
-pub trait RiemannSiegelZReq = MyReal + Sinc + ExpPolyApprox + RiemannSiegelTheta + GabckeSeries;
+pub trait RiemannSiegelZReq =
+    MyReal + Sinc + ExpPolyApprox + RiemannSiegelTheta + GabckeSeries + Bernoulli + Factorial;
 
-pub struct RiemannSiegelZ<T: RiemannSiegelZReq> {
+/// Apply Euler-Maclaurin formula to compute $\zeta(1/2 + i t)$.
+/// See Eq (1.2) and (1.3) in Fast Algorithm For Multiple Evaluation Of
+/// The Riemann Zeta Function, A.M. Odlyzko and A. Schonhage.
+///
+/// Although Euler-Maclaurin method requires O(t) time, the $n$ we used is
+/// fixed as we only apply Euler-Maclaurin to small $t$ where Riemann-Siegel
+/// can't provide enough precision, and larger $n$ always works better.
+
+pub struct EulerMaclaurinMethod<T> {
+    dirichlet: BandwidthInterp<T>,
+    n: usize,
+    atol: f64,
+}
+
+impl<T: RiemannSiegelZReq> EulerMaclaurinMethod<T> {
+    pub fn new(n: usize, atol: f64) -> Self {
+        let dirichlet = BandwidthInterp::<T>::new(n - 1, T::zero(), T::mp(n as f64), T::mp(0.5));
+        Self { dirichlet, n, atol }
+    }
+
+    pub fn query(&self, x: T) -> T {
+        let abstol = self.atol;
+
+        let n = self.n; // or another?
+        let s = Complex::new(T::mp(0.5), x);
+        let n_t = T::mp(n as f64);
+        let ln_n = n_t.ln();
+        let n_pow_minus_s = (-s * ln_n).exp();
+        let mut zeta = self.dirichlet.query(x, abstol)
+            + n_pow_minus_s * T::mp(0.5)
+            + n_pow_minus_s * n_t / (s - T::one()); // TODO: merge two
+
+        let mut term = n_pow_minus_s / n_t * s;
+        let n_sqr = T::mp((n * n) as f64);
+        for k in 1..=n {
+            let value = term * T::bernoulli(2 * k) / T::factorial(2 * k);
+            let error = value * (s + T::mp((2 * k + 1) as f64)) / T::mp((2 * k + 1) as f64 + 0.5);
+            if error.norm().fp() < abstol {
+                break;
+            }
+            zeta += value;
+            term = term / n_sqr * (s + T::mp((2 * k - 1) as f64)) * (s + T::mp((2 * k) as f64));
+        }
+        (zeta * Complex::from_polar(T::mp(1.0), x.rs_theta(abstol))).re
+    }
+}
+
+/// Compute HardyZ function by different methods: Euler-Maclaurin method
+/// or Riemann-Siegel method.
+pub struct HardyZ<T: RiemannSiegelZReq> {
     pub dirichlet: Vec<Option<BandwidthInterp<T>>>,
     pub eps: f64,
     pub counts: [usize; 2],
+    pub levels: Vec<(f64, usize)>,
+    pub euler_maclaurin: EulerMaclaurinMethod<T>,
 }
 
-impl<T: RiemannSiegelZReq> RiemannSiegelZ<T> {
-    pub fn new(max_height: f64, eps: f64) -> Self {
+impl<T: RiemannSiegelZReq> HardyZ<T> {
+    pub fn new(max_height: f64, max_order: usize, eps: f64) -> Self {
         let n = (max_height / 2.0 / f64::PI()).sqrt().ceil() as usize + 10;
-        let dirichlet = (0..n).map(|_| None).collect::<Vec<_>>();
-        Self { dirichlet, eps, counts: [0, 0] }
+        let dirichlet = (0..=n).map(|_| None).collect::<Vec<_>>();
+        let (levels, em_height) = Self::get_plans(max_height, max_order, eps);
+        let euler_maclaurin = EulerMaclaurinMethod::new(em_height as usize, eps);
+        Self { dirichlet, eps, counts: [0, 0], levels, euler_maclaurin }
+    }
+
+    fn get_plans(max_height: f64, max_order: usize, eps: f64) -> (Vec<(f64, usize)>, f64) {
+        const COEFFS: [f64; 11] =
+            [0.127, 0.053, 0.011, 0.031, 0.017, 0.061, 0.661, 9.2, 130.0, 1837.0, 25966.0];
+        assert!(
+            max_order < COEFFS.len(),
+            "don't have enough information about Riemann-Siegel formula"
+        );
+        let mut levels: Vec<(f64, usize)> = vec![];
+        let mut cur_t = max_height;
+        for k in 0..=max_order {
+            let min_t = (COEFFS[k] / eps).powf(4.0 / (3.0 + k as f64 * 2.0));
+            if min_t < cur_t {
+                levels.push((min_t, k));
+                cur_t = min_t;
+            }
+        }
+        (levels, cur_t)
     }
 
     fn get(&mut self, n: usize) -> &BandwidthInterp<T> {
         if self.dirichlet[n].is_none() {
-            self.dirichlet[n] = Some(BandwidthInterp::new(n, T::mp(0.5)));
+            let min_t = T::mp(f64::PI() * 2.0 * (n as f64).powi(2));
+            let max_t = T::mp(f64::PI() * 2.0 * (n as f64 + 1.0).powi(2));
+            self.dirichlet[n] = Some(BandwidthInterp::new(n, min_t, max_t, T::mp(0.5)));
         }
         self.dirichlet[n].as_ref().unwrap()
     }
 
     pub fn level(&self, x: T) -> usize { (x.fp() / f64::PI() / 2.0).sqrt().floor() as usize }
 
-    pub fn query(&mut self, x: T, mode: QueryMode) -> T {
-        self.counts[mode as usize] += 1;
-        let n = self.level(x);
+    pub fn riemann_siegel(&mut self, x: T, order: usize) -> T {
         let eps = self.eps;
+        let n = self.level(x);
         let dir = self.get(n);
         (Complex::from_polar(T::mp(1.0), x.rs_theta(eps)) * dir.query(x, eps)).re * 2.0
-            + x.gabcke_series(eps)
+            + x.gabcke_series(order, eps)
+    }
+
+    pub fn query(&mut self, x: T, mode: QueryMode) -> T {
+        self.counts[mode as usize] += 1;
+        let x_fp = x.fp();
+        for &(min_t, order) in &self.levels {
+            if x_fp >= min_t {
+                return self.riemann_siegel(x, order);
+            }
+        }
+        self.euler_maclaurin.query(x)
     }
 
     pub fn purge(&mut self) { todo!() }
@@ -261,7 +346,7 @@ impl<T: RiemannSiegelZReq> RiemannSiegelZ<T> {
 /// 3. If it contains one Gram interval: done isolating
 /// 4. Otherwise, we find one
 pub fn try_isolate<T: RiemannSiegelZReq>(
-    rsz: &mut RiemannSiegelZ<T>,
+    rsz: &mut HardyZ<T>,
     n0: usize,
     n1: usize,
     xtol: f64,
@@ -279,9 +364,6 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
         let block = next_rosser_block(n, g, |x| rsz.query(x, QueryMode::Separate));
         let initial_block = block.clone();
         let n_zeros = block.len() - 1;
-        // if n_zeros > 1 {
-        //     debug!("initial block {:?}", block);
-        // }
 
         let mut lounge = Lounge::new(xtol, 0.0);
         for i in 0..n_zeros {
@@ -326,12 +408,43 @@ mod tests {
 
     use super::*;
     use crate::types::T;
+    use F64x2::f64x2;
 
     #[test]
     fn test_gram() {
         crate::init();
         let eps1 = 1e-11;
         let eps2 = 1e-9;
-        assert_close(gram_point(100, eps1), 238.5825905145, eps2);
+        assert_close(gram_point(100, eps1), 238.5825905145, eps2, 0.0);
+    }
+
+    #[test]
+    fn test_root_find() {
+        crate::init();
+        type T = f64x2;
+        let mut rsz = HardyZ::<T>::new(1e8, 10, 1e-18);
+
+        let mut f = |x: T| rsz.query(x, QueryMode::Locate);
+        let center = T::mp(74929.812159119);
+        let xa = EvalPoint::new(center - 0.4, &mut f);
+        let xb = EvalPoint::new(center + 0.3, &mut f);
+
+        let rtol = 1e-18;
+        let result = Brentq::new(xa, xb, 0.0, rtol).solve(f, 100);
+        println!("status = {:?}, x = {},f = {}", result.status, result.x, result.f);
+        let x = result.x;
+        assert_close(x, center, 0.0, rtol);
+    }
+
+    #[test]
+    fn test_euler_maclaurin() {
+        crate::init();
+        type T = f64x2;
+        let atol = 1e-18;
+        let euler_maclaurin = EulerMaclaurinMethod::new(1000, atol);
+        let x = T::mp(1000.0);
+        let z = euler_maclaurin.query(x);
+        let z_gt = f64x2::new(0.9977946375215866, 2.2475077894406e-17);
+        assert_close(z, z_gt, atol, 0.0);
     }
 }

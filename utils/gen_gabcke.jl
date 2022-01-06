@@ -215,12 +215,23 @@ for j in 0:n
     γ[j, :] = transform_to_chebyshev(C[j, :])
 end
 
-output_m = 50
-for i in 0:n
-    for j in 0:2:output_m
-        println("$(repr(j == 0 ? γ[i, 0] / 2 : γ[i, j]))")
-    end
+function repr(x::BigFloat)
+    hi = Float64(x)
+    lo = Float64(x - hi)
+    "f64x2::new($hi, $lo)"
+    # "$hi"
 end
+
+output_m = 50
+println("[")
+for i in 0:n
+    println("  [")
+    for j in 0:2:output_m
+        println("    $(repr(j == 0 ? γ[i, 0] / 2 : γ[i, j])),")
+    end
+    println("  ],")
+end
+println("]")
 
 # println("[")
 # for i in 0:n

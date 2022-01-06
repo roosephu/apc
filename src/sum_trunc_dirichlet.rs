@@ -48,12 +48,13 @@ pub(crate) fn sum_trunc_dirichlet<T: MyReal + FftNum + ExpPolyApprox>(
     m: usize,
     delta: T,
 ) -> Vec<Complex<T>> {
+    assert!(n1 <= 1usize << 52);
     // debug!("[OS-FKBJ] s = {:.6}, n = [{}, {}], m = {}, delta = {:.6}", s, n0, n1, m, delta);
     let M2 = (m + m % 2) / 2;
     let s = s + Complex::new(T::zero(), delta * M2 as f64);
 
     // ans[t] = \sum_{j=0}^{n - 1} a[j] * exp(i gamma[j] (t - M2))
-    let ln_x: Vec<_> = (n0..=n1).map(|x| T::from_usize(x).unwrap().ln()).collect();
+    let ln_x: Vec<_> = (n0..=n1).map(|x| T::mp(x as f64).ln()).collect();
     let a: Vec<_> = ln_x.iter().map(|&ln_x| (-s * ln_x).exp()).collect();
     let gamma: Vec<T> = ln_x.iter().map(|&ln_x| -delta * ln_x).collect();
 

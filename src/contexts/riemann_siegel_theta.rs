@@ -11,7 +11,8 @@ pub trait RiemannSiegelThetaCoeffs {
 }
 
 impl<T: MyReal + RiemannSiegelThetaCoeffs> RiemannSiegelTheta for T {
-    // See [Sec 3.11, Pugh].
+    /// See [Sec 3.11, Pugh].
+    /// TODO: add test
     #[inline]
     fn rs_theta(&self, eps: f64) -> T {
         let t = *self;

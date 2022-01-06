@@ -33,7 +33,6 @@ pub fn init() {
         factorial::init();
         bernoulli::init();
         riemann_siegel_theta::init();
-        gabcke_series::init();
     });
 }
 
@@ -65,6 +64,6 @@ mod tests {
         let gt = f64x2::new(2034.5464280380315, 7.28690383001782e-14);
         let output = t.rs_theta(eps);
 
-        assert_close(output, gt, eps);
+        assert_close(output, gt, 0.0, eps);
     }
 }
