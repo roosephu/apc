@@ -169,7 +169,7 @@ fn approx_lambert_w(x: f64) -> f64 {
 }
 
 /// computes the Gram point $g_n$ with accuracy $\epsilon$.
-#[inline]
+#[inline(never)]
 fn gram_point<T: MyReal + RiemannSiegelTheta>(n: usize, eps: f64) -> T {
     assert!(n <= (1usize << 52), "`n as f64` has rounding error");
 
@@ -238,19 +238,20 @@ pub struct EulerMaclaurinMethod<T> {
 
 impl<T: RiemannSiegelZReq> EulerMaclaurinMethod<T> {
     pub fn new(n: usize, atol: f64) -> Self {
-        let dirichlet = BandwidthInterp::<T>::new(n - 1, T::zero(), T::mp(n as f64), T::mp(0.5));
+        let dirichlet =
+            BandwidthInterp::<T>::new(n - 1, T::zero(), T::mp(n as f64), T::mp(0.5), atol);
         Self { dirichlet, n, atol }
     }
 
     pub fn query(&self, x: T) -> T {
-        let abstol = self.atol;
+        let atol = self.atol;
 
         let n = self.n; // or another?
         let s = Complex::new(T::mp(0.5), x);
         let n_t = T::mp(n as f64);
         let ln_n = n_t.ln();
         let n_pow_minus_s = (-s * ln_n).exp();
-        let mut zeta = self.dirichlet.query(x, abstol)
+        let mut zeta = self.dirichlet.query(x)
             + n_pow_minus_s * T::mp(0.5)
             + n_pow_minus_s * n_t / (s - T::one()); // TODO: merge two
 
@@ -259,13 +260,13 @@ impl<T: RiemannSiegelZReq> EulerMaclaurinMethod<T> {
         for k in 1..=n {
             let value = term * T::bernoulli(2 * k) / T::factorial(2 * k);
             let error = value * (s + T::mp((2 * k + 1) as f64)) / T::mp((2 * k + 1) as f64 + 0.5);
-            if error.norm().fp() < abstol {
+            if error.norm().fp() < atol {
                 break;
             }
             zeta += value;
             term = term / n_sqr * (s + T::mp((2 * k - 1) as f64)) * (s + T::mp((2 * k) as f64));
         }
-        (zeta * Complex::from_polar(T::mp(1.0), x.rs_theta(abstol))).re
+        (zeta * Complex::from_polar(T::mp(1.0), x.rs_theta(atol))).re
     }
 }
 
@@ -279,6 +280,7 @@ pub struct HardyZ<T: RiemannSiegelZReq> {
     pub euler_maclaurin: EulerMaclaurinMethod<T>,
 }
 
+/// TODO: mixed precision
 impl<T: RiemannSiegelZReq> HardyZ<T> {
     pub fn new(max_height: f64, max_order: usize, eps: f64) -> Self {
         let n = (max_height / 2.0 / f64::PI()).sqrt().ceil() as usize + 10;
@@ -311,7 +313,7 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
         if self.dirichlet[n].is_none() {
             let min_t = T::mp(f64::PI() * 2.0 * (n as f64).powi(2));
             let max_t = T::mp(f64::PI() * 2.0 * (n as f64 + 1.0).powi(2));
-            self.dirichlet[n] = Some(BandwidthInterp::new(n, min_t, max_t, T::mp(0.5)));
+            self.dirichlet[n] = Some(BandwidthInterp::new(n, min_t, max_t, T::mp(0.5), self.eps));
         }
         self.dirichlet[n].as_ref().unwrap()
     }
@@ -322,7 +324,7 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
         let eps = self.eps;
         let n = self.level(x);
         let dir = self.get(n);
-        (Complex::from_polar(T::mp(1.0), x.rs_theta(eps)) * dir.query(x, eps)).re * 2.0
+        (Complex::from_polar(T::mp(1.0), x.rs_theta(eps)) * dir.query(x)).re * 2.0
             + x.gabcke_series(order, eps)
     }
 
