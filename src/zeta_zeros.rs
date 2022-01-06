@@ -230,7 +230,7 @@ pub trait RiemannSiegelZReq =
 /// fixed as we only apply Euler-Maclaurin to small $t$ where Riemann-Siegel
 /// can't provide enough precision, and larger $n$ always works better.
 
-pub struct EulerMaclaurinMethod<T> {
+pub struct EulerMaclaurinMethod<T: MyReal> {
     dirichlet: BandwidthInterp<T>,
     n: usize,
     atol: f64,

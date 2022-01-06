@@ -6,7 +6,7 @@ use crate::traits::MyReal;
 use log::debug;
 
 /// a data structure for querying \sum_{t=1}^k n^{-sigma - i t}
-pub struct BandwidthInterp<T> {
+pub struct BandwidthInterp<T: MyReal, K: Kernel<T> = SincKernel<T>> {
     k0: usize,
     k1: usize,
     tau: T,
@@ -18,7 +18,7 @@ pub struct BandwidthInterp<T> {
     beta: T,
     delta: T,
     data: Vec<Complex<T>>,
-    h: SincKernel<T>,
+    h: K,
 }
 
 /// determine c: c / sinh(c) = eps
@@ -71,7 +71,7 @@ fn interpolate<T: MyReal>(data: &[Complex<T>], x: T, beta: T, h: &impl Kernel<T>
 /// [Gourdon]). That is, the kernel is
 /// $h(t) = (sin(\gamma t / m) / (\gamma t/m))^m$. We choose $M$ to be a power
 /// of 2.
-struct BandwithInterploation<T, K: Kernel<T>> {
+pub struct BandwithInterploation<T, K: Kernel<T>> {
     β: T,
     δ: T,
     γ: T,
@@ -82,7 +82,7 @@ struct BandwithInterploation<T, K: Kernel<T>> {
 
 /// `window`: Only $h(t)$ with $|t| < \text{window}$ is considered.
 /// `query`: Query $h(x - n \delta)$.
-trait Kernel<T> {
+pub trait Kernel<T>: Default {
     type Cache;
 
     fn init(&mut self, δ: T, γ: T, eps: f64);
@@ -91,7 +91,8 @@ trait Kernel<T> {
     fn query(&self, cache: &Self::Cache, n: usize) -> T;
 }
 
-struct SincKernel<T> {
+#[derive(Default)]
+pub struct SincKernel<T> {
     m: usize,
     log_m: u32,
     offset: usize,
@@ -105,7 +106,7 @@ impl<T: MyReal> SincKernel<T> {
     #[inline]
     pub fn new(m: usize) -> Self {
         assert!(m.is_power_of_two());
-        Self { m, δ: T::zero(), γ: T::zero(), sin_cos: vec![], log_m: 0, w: 0.0, offset: 0 }
+        Self { m, ..Default::default() }
     }
 }
 
@@ -113,15 +114,20 @@ impl<T: MyReal> Kernel<T> for SincKernel<T> {
     type Cache = (T, usize, (T, T));
 
     fn init(&mut self, δ: T, γ: T, atol: f64) {
-        let r = δ * γ / self.m as f64;
+        assert!(atol < 1.0);
+
+        self.m = (-atol.ln() as usize).next_power_of_two();
         self.δ = δ;
         self.γ = γ;
+        let atol = atol / 10.0;  // TODO: this is an arbitrary constant...
+
+        let r = δ * γ / self.m as f64;
         self.log_m = self.m.trailing_zeros();
-        self.w = (atol / 10.0).powf(-1.0 / self.m as f64) * self.m as f64 / γ.fp() * 1.2;
+        self.w = atol.powf(-1.0 / self.m as f64) * self.m as f64 / γ.fp() * 1.2;
         debug!(
-            "[SincKernel] w = {:.3e}, δ = {:.3e}, est # intervals = {:.0}",
+            "[SincKernel] est m = {}, w = {:.3e}, est # intervals = {:.0}",
+            self.m,
             self.w,
-            δ.fp(),
             (self.w / δ.fp()).round()
         );
         assert!(self.w <= 80.0);
@@ -154,12 +160,11 @@ impl<T: MyReal> Kernel<T> for SincKernel<T> {
             sinc = sinc * sinc
         }
         sinc
-        // sinc.powi(self.m as i32)
     }
 }
 
 #[derive(Default)]
-struct SinhKernel<T> {
+pub struct SinhKernel<T> {
     δ: T,
     γ: T,
     c: T,
@@ -200,7 +205,7 @@ impl<T: MyReal> Kernel<T> for SinhKernel<T> {
 
 /// TODO: refactor: this should only include bandwithinterp, no how parameters
 /// should  be selected.
-impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
+impl<T: MyReal + Sinc + ExpPolyApprox + Signed, K: Kernel<T>> BandwidthInterp<T, K> {
     /// tau = ln(k1/k0)
     /// precompute = O((c + k1 eps)(tau/gap + 2))
     /// query = O(k0 + c (tau/gap + 1))
@@ -227,7 +232,7 @@ impl<T: MyReal + Sinc + ExpPolyApprox + Signed> BandwidthInterp<T> {
             .collect();
         // debug!("precompute {} terms", m);
         // let mut h = SinhKernel::default();
-        let mut h = SincKernel::new(64);
+        let mut h = K::default();
         h.init(delta, gap * 2.0, eps);
 
         Self { k0: k0_int, k1: k, tau, sigma, alpha, beta, data, gap, t0, delta, h }
