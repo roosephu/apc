@@ -34,7 +34,7 @@ where
         const N: usize = 20;
         let mut z = *self;
 
-        assert!(z.re > T::mp(-20.0f64), "beyond impl {:?}", z);
+        assert!(z.re.fp() > -20.0, "beyond impl {:?}", z);
         let mut result = Complex::zero();
         while z.re < T::from_usize(N).unwrap() {
             result -= z.ln();

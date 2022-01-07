@@ -86,12 +86,12 @@ impl<T: MyReal> Kernel<T> for SincKernel<T> {
         let r = δ * γ / self.m as f64;
         self.log_m = self.m.trailing_zeros();
         self.w = atol.powf(-1.0 / self.m as f64) * self.m as f64 / γ.fp() * 1.2;
-        debug!(
-            "[SincKernel] est m = {}, w = {:.3e}, est # intervals = {:.0}",
-            self.m,
-            self.w,
-            (self.w / δ.fp()).round()
-        );
+        // debug!(
+        //     "[SincKernel] est m = {}, w = {:.3e}, est # intervals = {:.0}",
+        //     self.m,
+        //     self.w,
+        //     (self.w / δ.fp()).round()
+        // );
         assert!(self.w <= 80.0);
         self.offset = (self.w / δ.fp()) as usize + 10;
         self.sin_cos = (0..=2 * self.offset)

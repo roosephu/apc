@@ -35,7 +35,7 @@ impl<T: MyReal + RiemannSiegelThetaCoeffs> RiemannSiegelTheta for T {
     fn rs_theta(&self, atol: f64) -> T {
         let t = *self;
 
-        assert!(t.fp() >= 30.0 && atol > 1e-33);
+        assert!(t.fp() >= 25.0 && atol > 1e-33);
         let eps = atol / 7.93;
 
         // needs high precision base computation here.

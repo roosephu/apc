@@ -155,35 +155,20 @@ impl<T: MyReal> Lounge<T> {
     }
 }
 
-/// Compute Lambert W function $W(x)$, which is the solution to $t e^t = x$ for
-/// positive $x$.
-#[inline]
-fn approx_lambert_w(x: f64) -> f64 {
-    assert!(x >= f64::E());
-    let r = x.ln();
-    let l = r - r.ln();
-    let f = |t: f64| t.exp() * t - x;
-    let result = Brentq::new(EvalPoint::new(l, f), EvalPoint::new(r, f), 1e-11, 0.0).solve(f, 20);
-    assert!(result.status == BrentqStatus::Converged);
-    result.x
-}
-
 /// computes the Gram point $g_n$ with accuracy $\epsilon$.
 #[inline(never)]
-fn gram_point<T: MyReal + RiemannSiegelTheta>(n: usize, eps: f64) -> T {
+fn gram_point<T: MyReal + RiemannSiegelTheta>(n: usize, atol: f64) -> T {
     assert!(n <= (1usize << 52), "`n as f64` has rounding error");
 
-    let gram = |x: T| x.rs_theta(eps) - T::PI() * n as f64;
+    let gram = |x: T| x.rs_theta(atol) - T::PI() * n as f64;
     let t = (T::mp(n as f64) + 0.125) / T::E();
-    assert!(t >= T::E());
-    let w = approx_lambert_w(t.fp());
+    let w = rgsl::lambert_w::lambert_W0(t.fp());
     let x0 = T::PI() * 2.0 * T::E() * t / w;
     let a = x0 - 1.0;
     let b = x0 + 1.0;
     let result =
-        Brentq::new(EvalPoint::new(a, gram), EvalPoint::new(b, gram), eps, 0.0).solve(gram, 100);
-    assert!(result.status != BrentqStatus::SignError);
-    // assert!(result.status == BrentqStatus::Converged, "{:?}", result); // TODO: find good stop criterion
+        Brentq::new(EvalPoint::new(a, gram), EvalPoint::new(b, gram), atol, 0.0).solve(gram, 100);
+    // assert!(result.status == BrentqStatus::Converged, "{:?}, n = {}, atol = {:?}", result, n, atol); // TODO: find good stop criterion
     result.x
 }
 
@@ -205,7 +190,7 @@ fn next_rosser_block<T: MyReal + RiemannSiegelTheta>(
     let mut ret = vec![g];
     loop {
         n += 1;
-        let x = T::mp(gram_point::<f64>(n, 1e-13));
+        let x = T::mp(gram_point::<f64>(n, 1e-12));
         let g = EvalPoint::new(x, &mut f);
         ret.push(g);
         if is_good_gram_point(n, &g) {
@@ -273,6 +258,12 @@ pub struct HardyZ<T: RiemannSiegelZReq> {
     pub eps: f64,
     pub levels: Vec<(f64, usize)>,
     pub euler_maclaurin: EulerMaclaurinMethod<T>,
+
+    // for memory management
+    timestep: usize,
+    visit: Vec<usize>,
+    cur_mem: usize,
+    max_mem: usize,
 }
 
 /// TODO: mixed precision
@@ -283,7 +274,18 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
         let (levels, em_height) = Self::get_plans(max_height, max_order, eps);
         debug!("levels = {:?}, em height = {:.3e}", levels, em_height);
         let euler_maclaurin = EulerMaclaurinMethod::new(em_height as usize, eps);
-        Self { dirichlet, eps, levels, euler_maclaurin }
+
+        let max_mem = n * 3; // default: we save 10 sets of precomputed results.
+        Self {
+            dirichlet,
+            eps,
+            levels,
+            euler_maclaurin,
+            timestep: 0,
+            visit: vec![0; n],
+            cur_mem: 0,
+            max_mem,
+        }
     }
 
     fn get_plans(max_height: f64, max_order: usize, atol: f64) -> (Vec<(f64, usize)>, f64) {
@@ -311,10 +313,14 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
     }
 
     fn get(&mut self, n: usize) -> &BandwidthInterp<T> {
+        self.timestep += 1;
+        self.visit[n] = self.timestep;
+
         if self.dirichlet[n].is_none() {
             let min_t = T::mp(f64::PI() * 2.0 * (n as f64).powi(2));
             let max_t = T::mp(f64::PI() * 2.0 * (n as f64 + 1.0).powi(2));
             self.dirichlet[n] = Some(BandwidthInterp::new(n, min_t, max_t, T::mp(0.5), self.eps));
+            self.cur_mem += n;
         }
         self.dirichlet[n].as_ref().unwrap()
     }
@@ -339,7 +345,26 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
         self.euler_maclaurin.query(x)
     }
 
-    pub fn purge(&mut self) { todo!() }
+    pub fn purge(&mut self) {
+        if self.cur_mem > self.max_mem {
+            let mut indices = (0..self.visit.len()).collect::<Vec<_>>();
+            indices.sort_unstable_by_key(|&x| self.visit[x]);
+            let goal = self.max_mem / 2;
+
+            let mut released = vec![];
+            for i in indices {
+                if self.cur_mem <= goal {
+                    break;
+                }
+                if self.dirichlet[i].is_some() {
+                    self.dirichlet[i] = None;
+                    self.cur_mem -= i;
+                    released.push(i);
+                }
+            }
+            debug!("[HardyZ] released: {:?}", released);
+        }
+    }
 }
 
 pub struct HybridPrecHardyZ<T: RiemannSiegelZReq> {
@@ -364,6 +389,11 @@ impl<T: RiemannSiegelZReq> HybridPrecHardyZ<T> {
         } else {
             self.hi.query(x)
         }
+    }
+
+    pub fn purge(&mut self) {
+        self.lo.purge();
+        self.hi.purge();
     }
 }
 
@@ -444,7 +474,7 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
         n += n_zeros;
         g = block[block.len() - 1];
     }
-    // rsz.purge();
+    hardy_z.purge();
     (roots, stats)
 }
 
