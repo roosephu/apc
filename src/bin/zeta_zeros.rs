@@ -6,8 +6,12 @@ use F64x2::f64x2;
 fn main() {
     apc::init();
 
-    let mut hardy_z = HybridPrecHardyZ::<f64x2>::new(1e6, 10, 1e-18);
-    let (roots, stats) = try_isolate(&mut hardy_z, 3, 1000000, 1e-18, 1e-30);
+    let t = 1.5e5;
+    const PI: f64 = std::f64::consts::PI;
+    let mut hardy_z = HybridPrecHardyZ::<f64x2>::new(t, 10, 1e-18);
+    let n1 = t / 2.0 / PI * (t / 2.0 / PI).ln() - (0.112 * t.ln() + 0.278 * t.ln().ln() + 3.385 + 0.2 / t);
+    let n1 = n1 as usize;
+    let (roots, stats) = try_isolate(&mut hardy_z, 3, n1, 1e-18, 1e-30);
     for i in 0..10 {
         println!("{}", roots[i]);
     }

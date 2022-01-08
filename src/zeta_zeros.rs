@@ -233,11 +233,10 @@ impl<T: RiemannSiegelZReq> EulerMaclaurinMethod<T> {
         let ln_n = n_t.ln();
         let n_pow_minus_s = (-s * ln_n).exp();
         let mut zeta = self.dirichlet.query(x)
-            + n_pow_minus_s * T::mp(0.5)
-            + n_pow_minus_s * n_t / (s - T::one()); // TODO: merge two
+            + n_pow_minus_s * (T::mp(0.5) + n_t / (s - T::one()));
 
         let mut term = n_pow_minus_s / n_t * s;
-        let n_sqr = T::mp((n * n) as f64);
+        let n_sqr = T::mp(n as f64 * n as f64);
         for k in 1..=n {
             let value = term * T::bernoulli(2 * k) / T::factorial(2 * k);
             let error = value * (s + T::mp((2 * k + 1) as f64)) / T::mp((2 * k + 1) as f64 + 0.5);
@@ -266,7 +265,6 @@ pub struct HardyZ<T: RiemannSiegelZReq> {
     max_mem: usize,
 }
 
-/// TODO: mixed precision
 impl<T: RiemannSiegelZReq> HardyZ<T> {
     pub fn new(max_height: f64, max_order: usize, eps: f64) -> Self {
         let n = (max_height / 2.0 / f64::PI()).sqrt().ceil() as usize + 10;
@@ -275,7 +273,7 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
         debug!("levels = {:?}, em height = {:.3e}", levels, em_height);
         let euler_maclaurin = EulerMaclaurinMethod::new(em_height as usize, eps);
 
-        let max_mem = n * 3; // default: we save 10 sets of precomputed results.
+        let max_mem = n * 10; // default: we save 10 sets of precomputed results.
         Self {
             dirichlet,
             eps,
@@ -473,8 +471,8 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
 
         n += n_zeros;
         g = block[block.len() - 1];
+        hardy_z.purge();
     }
-    hardy_z.purge();
     (roots, stats)
 }
 
