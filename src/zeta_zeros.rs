@@ -64,13 +64,13 @@ impl<T: MyReal> Bracket<T> {
 struct Lounge<T: MyReal> {
     brackets: Vec<Bracket<T>>,
     variations: usize,
-    xtol: f64,
+    atol: f64,
     rtol: f64,
 }
 
 impl<T: MyReal> Lounge<T> {
-    pub fn new(xtol: f64, rtol: f64) -> Self {
-        Self { brackets: vec![], variations: 0, xtol, rtol }
+    pub fn new(atol: f64, rtol: f64) -> Self {
+        Self { brackets: vec![], variations: 0, atol, rtol }
     }
 
     pub fn add(&mut self, xa: EvalPoint<T>, xb: EvalPoint<T>) {
@@ -408,11 +408,11 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
     hardy_z: &mut HybridPrecHardyZ<T>,
     n0: usize,
     n1: usize,
-    xtol: f64,
+    atol: f64,
     _rtol: f64,
 ) -> (Vec<T>, IsolationStats) {
     let mut n = n0;
-    let x = gram_point(n, xtol);
+    let x = gram_point(n, atol);
     let mut stats = IsolationStats { count: [0, 0] };
     let mut g = EvalPoint::new(x, |x: T| {
         stats.count[0] += 1;
@@ -431,7 +431,7 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
         let initial_block = block.clone();
         let n_zeros = block.len() - 1;
 
-        let mut lounge = Lounge::new(xtol, 0.0);
+        let mut lounge = Lounge::new(atol, 0.0);
         for i in 0..n_zeros {
             lounge.add(block[i], block[i + 1]);
         }
@@ -449,7 +449,7 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
             // yeah!
             for bracket in lounge.brackets {
                 if let BracketMaintainer::DiffSign(x) = bracket.entry {
-                    let result = Brentq::new(x.xa, x.xb, xtol, 0.0).solve(
+                    let result = Brentq::new(x.xa, x.xb, atol, 0.0).solve(
                         |x: T| {
                             stats.count[1] += 1;
                             hardy_z.query(x)
