@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, collections::VecDeque};
 
 use super::brentq::EvalPoint;
 use log::debug;
@@ -64,13 +64,14 @@ impl<T: MyReal> Bracket<T> {
 struct Lounge<T: MyReal> {
     brackets: Vec<Bracket<T>>,
     variations: usize,
+    n_zeros: usize,
     atol: f64,
     rtol: f64,
 }
 
 impl<T: MyReal> Lounge<T> {
-    pub fn new(atol: f64, rtol: f64) -> Self {
-        Self { brackets: vec![], variations: 0, atol, rtol }
+    pub fn new(n_zeros: usize, atol: f64, rtol: f64) -> Self {
+        Self { brackets: vec![], variations: 0, n_zeros, atol, rtol }
     }
 
     pub fn add(&mut self, xa: EvalPoint<T>, xb: EvalPoint<T>) {
@@ -109,14 +110,9 @@ impl<T: MyReal> Lounge<T> {
         self.brackets.remove(cur_idx)
     }
 
-    pub fn try_isolate(
-        &mut self,
-        n_zeros: usize,
-        n_iters: usize,
-        mut f: impl FnMut(T) -> T,
-    ) -> bool {
+    pub fn try_isolate(&mut self, n_iters: usize, mut f: impl FnMut(T) -> T) {
         for _ in 0..n_iters {
-            if self.variations == n_zeros {
+            if self.variations == self.n_zeros {
                 break;
             }
             // select the one bracket
@@ -151,7 +147,15 @@ impl<T: MyReal> Lounge<T> {
                 }
             }
         }
-        self.variations == n_zeros
+    }
+
+    #[inline]
+    pub fn separated(&self) -> bool { self.variations == self.n_zeros }
+
+    pub fn merge(&mut self, l: Self) {
+        self.brackets.extend(l.brackets.into_iter());
+        self.variations += l.variations;
+        self.n_zeros += l.n_zeros;
     }
 }
 
@@ -232,8 +236,8 @@ impl<T: RiemannSiegelZReq> EulerMaclaurinMethod<T> {
         let n_t = T::mp(n as f64);
         let ln_n = n_t.ln();
         let n_pow_minus_s = (-s * ln_n).exp();
-        let mut zeta = self.dirichlet.query(x)
-            + n_pow_minus_s * (T::mp(0.5) + n_t / (s - T::one()));
+        let mut zeta =
+            self.dirichlet.query(x) + n_pow_minus_s * (T::mp(0.5) + n_t / (s - T::one()));
 
         let mut term = n_pow_minus_s / n_t * s;
         let n_sqr = T::mp(n as f64 * n as f64);
@@ -399,18 +403,37 @@ pub struct IsolationStats {
     pub count: [usize; 2],
 }
 
-/// Sketch of the algorithm
-/// 1. We focus on Gram points
-/// 2. Each time we find a Rosser block, and assume it satisfies Rosser's rule
-/// 3. If it contains one Gram interval: done isolating
-/// 4. Otherwise, we find one
+/// Given the current height, determine the number of good Rosser blocks to
+/// ensure that all roots are accounted. More specifically, Theorem 3.2 in
+/// [Brent79] and Corollary 2.3 in [Trudgan09] provides a lower bound and upper
+/// bound for some $g_k$. By applying the theorem twices and trying to close the
+/// gap between the lower bound and the upper bound, we can conclude that $g_k =
+/// k + 1$.
+fn calc_n_good_rosser_blocks_bound(t: f64) -> usize {
+    let log_t = t.ln();
+    let n1 = 0.0061 * log_t * log_t + 0.08 * log_t; // Theorem 3.2 in [Brent79]
+    let n2 = 0.0031 * log_t * log_t + 0.11 * log_t; // Corollary 2.3 in [Trudgan09]
+    n1.min(n2).ceil() as usize
+}
+
+/// We first find a Rosser block and try to isolate the number of zeros with
+/// moderate efforts. Then a block is put into a ``pending'' zone. We check the
+/// pending zone frequently, and apply Turing's method to determine if all roots
+/// are accounted. Once a Rosser leaves the pending zone, we have to make sure
+/// that all roots inside the Rosser block have been identified.
+///
+/// Requirement: $N(g_{n_0}) = n_0 + 1.$
 pub fn try_isolate<T: RiemannSiegelZReq>(
     hardy_z: &mut HybridPrecHardyZ<T>,
     n0: usize,
     n1: usize,
     atol: f64,
-    _rtol: f64,
+    rtol: f64,
 ) -> (Vec<T>, IsolationStats) {
+    let init_budget = 1000;
+    let huge_budget = 10000;
+    let n_iters_to_locate = 100;
+
     let mut n = n0;
     let x = gram_point(n, atol);
     let mut stats = IsolationStats { count: [0, 0] };
@@ -423,55 +446,76 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
     let mut max_n_intervals = 0;
 
     let mut roots = vec![];
+    let mut pending = VecDeque::new();
+    let mut n_last_good_rooser_blocks = 0;
     while n < n1 {
         let block = next_rosser_block(n, g, |x: T| {
             stats.count[0] += 1;
             hardy_z.query(x)
         });
-        let initial_block = block.clone();
         let n_zeros = block.len() - 1;
 
-        let mut lounge = Lounge::new(atol, 0.0);
+        let mut lounge = Lounge::new(n_zeros, atol, rtol);
         for i in 0..n_zeros {
             lounge.add(block[i], block[i + 1]);
         }
-        let separated = lounge.try_isolate(n_zeros, 1000, |x: T| {
+        lounge.try_isolate(init_budget, |x: T| {
             stats.count[0] += 1;
             hardy_z.query(x)
         });
-        let n_blocks_evaled = lounge.brackets.len();
+        if lounge.separated() {
+            n_last_good_rooser_blocks += 1;
+        } else {
+            n_last_good_rooser_blocks = 0;
+        }
 
+        let n_blocks_evaled = lounge.brackets.len();
         if n_blocks_evaled > max_n_intervals {
             max_n_intervals = n_blocks_evaled;
             debug!("{max_n_intervals} blocks!");
         }
-        if separated {
-            // yeah!
+
+        n += n_zeros;
+        g = block[block.len() - 1];
+
+        pending.push_back(lounge);
+        let k = calc_n_good_rosser_blocks_bound(g.x.fp());
+        if n_last_good_rooser_blocks >= 2 * k {
+            // ready to identify zeros!
+
+            // This time we have to identify all roots at all costs. The last
+            // $k$ Rosser blocks can't be verified by Turing's method.
+            let mut lounge = Lounge::new(0, atol, rtol);
+            while pending.len() > k {
+                lounge.merge(pending.pop_front().unwrap());
+            }
+            // We can check if there is a violation of Rosser's rule here.
+
+            lounge.try_isolate(huge_budget, |x: T| {
+                stats.count[0] += 1;
+                hardy_z.query(x)
+            });
+            assert!(lounge.separated(), "huge budget = {} is not enough!", huge_budget);
+
+            // All roots are separaed. Locate the roots with high precision now!
             for bracket in lounge.brackets {
                 if let BracketMaintainer::DiffSign(x) = bracket.entry {
-                    let result = Brentq::new(x.xa, x.xb, atol, 0.0).solve(
+                    let result = Brentq::new(x.xa, x.xb, atol, rtol).solve(
                         |x: T| {
                             stats.count[1] += 1;
                             hardy_z.query(x)
                         },
-                        100,
+                        n_iters_to_locate,
                     );
                     assert!(result.status == BrentqStatus::Converged);
                     roots.push(result.x);
                 }
             }
-        } else {
-            panic!(
-                "Exception of Rosser's rule! n = {n}, block = {:?}, expect variations = {}, found = {}",
-                initial_block,
-                n_zeros,
-                count_variations(&block),
-            );
-        }
 
-        n += n_zeros;
-        g = block[block.len() - 1];
-        hardy_z.purge();
+            // Clean the memory. Probably we won't need to compute $Z(t)$ for a
+            // small $t$ any more.
+            hardy_z.purge();
+        }
     }
     (roots, stats)
 }
