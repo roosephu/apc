@@ -27,22 +27,24 @@ impl<T: MyReal + RiemannSiegelThetaCoeffs> RiemannSiegelTheta for T {
     /// See On asymptotic approximations to the log-Gamma and Riemann-Siegel
     /// theta functions, by Richard Brent.
     ///
-    /// We use an asymptotic expansion, which has an error term of $exp(-\pi t)$.
-    /// So we can't deal with too small atol for a small $t$.
     /// Cutting off at k-th term has error of $exp(-\pi t) / 2 + \eta_k
     /// \sqrt{\pi t} T_k$. For k <= 20, we have $\eta_k \sqrt{\pi k} ≤ 7.93$.
     #[inline]
     fn rs_theta(&self, atol: f64) -> T {
         let t = *self;
 
-        assert!(t.fp() >= 25.0 && atol > 1e-33);
         let eps = atol / 7.93;
 
         // needs high precision base computation here.
         let mut ret = t / 2.0 * (t / 2.0 / T::PI() / T::E()).ln() - T::FRAC_PI_8();
+        if t.fp() <= 25.0 || atol < 1e-33 {
+            // When both fails, we simply ignore the $arctan(exp(-\pi t)) / 2$ term,
+            // because it's too small ( $< 8 × 10^{-35}$) compared to atol.
+            ret += (-t * T::PI()).exp().atan() / 2.0;
+        }
         let mut tpow_inv = t.recip();
         let tsqr_inv = tpow_inv * tpow_inv;
-        for k in 1..=20 {
+        for k in 1..=30 {
             let term = T::rs_theta_coeff(k) * tpow_inv;
             ret += term;
 
@@ -79,7 +81,12 @@ mod test {
         let eps = 1e-27;
         let gt = f64x2::new(2034.5464280380315, 7.28690383001782e-14);
         let output = t.rs_theta(eps);
+        assert_close(output, gt, eps, 0.0);
 
+        let t = f64x2::new(10.0, 0.0);
+        let gt = f64x2::new(-3.0670743962898954, 1.2987254263207872e-16);
+        let eps = 1e-27;
+        let output = t.rs_theta(eps);
         assert_close(output, gt, eps, 0.0);
     }
 }
