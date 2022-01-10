@@ -43,7 +43,7 @@ primesieve-sys = "0.2.3"
 libc = "0.2.94"
 cfg-if = "1.0.0"
 paste = "1.0.6"
-rug = { version = "1.14.0", default-features = false, features = ["integer", "float", "complex", "serde"] }
+# rug = { version = "1.14.0", default-features = false, features = ["integer", "float", "complex", "serde"] }
 
 [features]
 default = ["zeta"]

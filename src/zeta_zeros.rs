@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::VecDeque};
+use std::{borrow::Borrow, cmp::Ordering, collections::VecDeque};
 
 use super::brentq::EvalPoint;
 use log::debug;
@@ -153,7 +153,7 @@ impl<T: MyReal> Lounge<T> {
     pub fn separated(&self) -> bool { self.variations == self.n_zeros }
 
     pub fn merge(&mut self, l: Self) {
-        self.brackets.extend(l.brackets.into_iter());
+        self.brackets.extend(l.brackets);
         self.variations += l.variations;
         self.n_zeros += l.n_zeros;
     }
@@ -179,7 +179,7 @@ fn gram_point<T: MyReal + RiemannSiegelTheta>(n: usize, atol: f64) -> T {
 /// (-1)^n Z(g_n) > 0
 #[inline]
 fn is_good_gram_point<T: Copy + Signed>(n: usize, g: &EvalPoint<T>) -> bool {
-    g.f.is_positive() == (n % 2 == 0)
+    g.f.is_negative() == (n % 2 == 1)
 }
 
 /// Returns whether if g_n is a good Gram point. Note that the
@@ -203,7 +203,7 @@ fn next_rosser_block<T: MyReal + RiemannSiegelTheta>(
     }
 }
 
-pub trait RiemannSiegelZReq =
+pub trait HardyZDep =
     MyReal + Sinc + ExpPolyApprox + RiemannSiegelTheta + GabckeSeries + Bernoulli + Factorial;
 
 /// Apply Euler-Maclaurin formula to compute $\zeta(1/2 + i t)$.
@@ -220,7 +220,7 @@ pub struct EulerMaclaurinMethod<T: MyReal> {
     atol: f64,
 }
 
-impl<T: RiemannSiegelZReq> EulerMaclaurinMethod<T> {
+impl<T: HardyZDep> EulerMaclaurinMethod<T> {
     pub fn new(n: usize, atol: f64) -> Self {
         let dirichlet =
             BandwidthInterp::<T>::new(n - 1, T::zero(), T::mp(n as f64), T::mp(0.5), atol);
@@ -256,7 +256,7 @@ impl<T: RiemannSiegelZReq> EulerMaclaurinMethod<T> {
 
 /// Compute HardyZ function by different methods: Euler-Maclaurin method
 /// or Riemann-Siegel method.
-pub struct HardyZ<T: RiemannSiegelZReq> {
+pub struct HardyZ<T: HardyZDep> {
     pub dirichlet: Vec<Option<BandwidthInterp<T>>>,
     pub eps: f64,
     pub levels: Vec<(f64, usize)>,
@@ -269,7 +269,7 @@ pub struct HardyZ<T: RiemannSiegelZReq> {
     max_mem: usize,
 }
 
-impl<T: RiemannSiegelZReq> HardyZ<T> {
+impl<T: HardyZDep> HardyZ<T> {
     pub fn new(max_height: f64, max_order: usize, eps: f64) -> Self {
         let n = (max_height / 2.0 / f64::PI()).sqrt().ceil() as usize + 10;
         let dirichlet = (0..=n).map(|_| None).collect::<Vec<_>>();
@@ -369,13 +369,13 @@ impl<T: RiemannSiegelZReq> HardyZ<T> {
     }
 }
 
-pub struct HybridPrecHardyZ<T: RiemannSiegelZReq> {
+pub struct HybridPrecHardyZ<T: HardyZDep> {
     lo: HardyZ<f64>,
     hi: HardyZ<T>,
     lo_eps: f64,
 }
 
-impl<T: RiemannSiegelZReq> HybridPrecHardyZ<T> {
+impl<T: HardyZDep> HybridPrecHardyZ<T> {
     pub fn new(max_height: f64, max_order: usize, eps: f64) -> Self {
         // TODO: need analysis
         let lo_eps = 1e-3;
@@ -399,8 +399,12 @@ impl<T: RiemannSiegelZReq> HybridPrecHardyZ<T> {
     }
 }
 
-pub struct IsolationStats {
-    pub count: [usize; 2],
+#[derive(Default)]
+pub struct IsolationStats<T> {
+    pub count_locate: usize,
+    pub count_separate: usize,
+    pub roots: Vec<T>,
+    pub height: f64,
 }
 
 /// Given the current height, determine the number of good Rosser blocks to
@@ -423,44 +427,43 @@ fn calc_n_good_rosser_blocks_bound(t: f64) -> usize {
 /// that all roots inside the Rosser block have been identified.
 ///
 /// Requirement: $N(g_{n_0}) = n_0 + 1.$
-pub fn try_isolate<T: RiemannSiegelZReq>(
+pub fn try_isolate<T: HardyZDep>(
     hardy_z: &mut HybridPrecHardyZ<T>,
     n0: usize,
     n1: usize,
     atol: f64,
     rtol: f64,
-) -> (Vec<T>, IsolationStats) {
+) -> IsolationStats<T> {
     let init_budget = 1000;
     let huge_budget = 10000;
     let n_iters_to_locate = 100;
 
     let mut n = n0;
     let x = gram_point(n, atol);
-    let mut stats = IsolationStats { count: [0, 0] };
+    let mut stats = IsolationStats::default();
     let mut g = EvalPoint::new(x, |x: T| {
-        stats.count[0] += 1;
+        stats.count_locate += 1;
         hardy_z.query(x)
     });
     assert!(is_good_gram_point(n, &g));
 
     let mut max_n_intervals = 0;
 
-    let mut roots = vec![];
     let mut pending = VecDeque::new();
     let mut n_last_good_rooser_blocks = 0;
     while n < n1 {
         let block = next_rosser_block(n, g, |x: T| {
-            stats.count[0] += 1;
+            stats.count_locate += 1;
             hardy_z.query(x)
         });
-        let n_zeros = block.len() - 1;
+        let n_gram_points = block.len() - 1;
 
-        let mut lounge = Lounge::new(n_zeros, atol, rtol);
-        for i in 0..n_zeros {
+        let mut lounge = Lounge::new(n_gram_points, atol, rtol);
+        for i in 0..n_gram_points {
             lounge.add(block[i], block[i + 1]);
         }
         lounge.try_isolate(init_budget, |x: T| {
-            stats.count[0] += 1;
+            stats.count_locate += 1;
             hardy_z.query(x)
         });
         if lounge.separated() {
@@ -475,12 +478,12 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
             debug!("{max_n_intervals} blocks!");
         }
 
-        n += n_zeros;
+        n += n_gram_points;
         g = block[block.len() - 1];
 
         pending.push_back(lounge);
         let k = calc_n_good_rosser_blocks_bound(g.x.fp());
-        if n_last_good_rooser_blocks >= 2 * k {
+        if n_last_good_rooser_blocks >= 2 * k && pending.len() > k {
             // ready to identify zeros!
 
             // This time we have to identify all roots at all costs. The last
@@ -492,17 +495,20 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
             // We can check if there is a violation of Rosser's rule here.
 
             lounge.try_isolate(huge_budget, |x: T| {
-                stats.count[0] += 1;
+                stats.count_locate += 1;
                 hardy_z.query(x)
             });
             assert!(lounge.separated(), "huge budget = {} is not enough!", huge_budget);
 
+            stats.height = lounge.brackets.last().unwrap().get_interval().1.x.fp();
+
             // All roots are separaed. Locate the roots with high precision now!
+            let mut roots = vec![];
             for bracket in lounge.brackets {
                 if let BracketMaintainer::DiffSign(x) = bracket.entry {
                     let result = Brentq::new(x.xa, x.xb, atol, rtol).solve(
                         |x: T| {
-                            stats.count[1] += 1;
+                            stats.count_separate += 1;
                             hardy_z.query(x)
                         },
                         n_iters_to_locate,
@@ -511,13 +517,17 @@ pub fn try_isolate<T: RiemannSiegelZReq>(
                     roots.push(result.x);
                 }
             }
+            roots.sort_by(
+                |&a, &b| if (a - b).is_positive() { Ordering::Greater } else { Ordering::Less },
+            );
+            stats.roots.extend(roots);
 
             // Clean the memory. Probably we won't need to compute $Z(t)$ for a
             // small $t$ any more.
             hardy_z.purge();
         }
     }
-    (roots, stats)
+    stats
 }
 
 #[cfg(test)]
@@ -540,9 +550,9 @@ mod tests {
     fn test_root_find() {
         crate::init();
         type T = f64x2;
-        let mut rsz = HardyZ::<T>::new(1e8, 10, 1e-18);
+        let mut hardy_z = HardyZ::<T>::new(1e8, 10, 1e-18);
 
-        let mut f = |x: T| rsz.query(x);
+        let mut f = |x: T| hardy_z.query(x);
         let center = T::mp(74929.812159119);
         let xa = EvalPoint::new(center - 0.4, &mut f);
         let xb = EvalPoint::new(center + 0.3, &mut f);
@@ -552,6 +562,10 @@ mod tests {
         println!("status = {:?}, x = {},f = {}", result.status, result.x, result.f);
         let x = result.x;
         assert_close(x, f64x2::new(74929.812159119, -4.328667942455271e-13), 0.0, rtol);
+
+        // let x = f64x2::new(2669.25374488818, 1.3356510478335532e-13);
+        // let z = hardy_z.query(x);
+        // assert!
     }
 
     #[test]

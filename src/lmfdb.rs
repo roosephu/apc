@@ -8,13 +8,14 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 // Actually, I think it's better not to take a function as input, but return an Iterator.
 // However, I'm too lazy to convert it to an iterator. Wish Generator was stablized.
-pub(crate) fn LMFDB_reader<T: MyReal, F: FnMut(T)>(
-    data_path: &Path,
+pub(crate) fn read_LMFDB<T: MyReal>(
+    data_path: impl AsRef<Path>,
     limit: f64,
-    mut f: F,
+    mut f: impl FnMut(T),
 ) -> Result<(), std::io::Error> {
     info!("Loading zeta zeros up to {}", limit);
 
+    let data_path = data_path.as_ref();
     let file = std::fs::File::open(data_path.join("md5.txt")).expect("Missing md5.txt");
     let reader = std::io::BufReader::new(file);
     let mut indices = vec![];
@@ -43,6 +44,7 @@ pub(crate) fn LMFDB_reader<T: MyReal, F: FnMut(T)>(
             let _ = reader.read_f64::<LittleEndian>()?;
             let n0 = reader.read_u64::<LittleEndian>()?;
             let n1 = reader.read_u64::<LittleEndian>()?;
+            debug!("n0 = {n0}, n1 = {n1}");
 
             let t0 = T::mp(t0);
             let mut z = 0u128;

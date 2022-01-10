@@ -1,6 +1,6 @@
 use F64x2::f64x2;
 
-use super::{lazy_static::UninitCell, utils::*};
+use super::lazy_static::UninitCell;
 use crate::traits::MyReal;
 
 pub trait GabckeSeries {

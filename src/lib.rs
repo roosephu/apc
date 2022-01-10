@@ -72,6 +72,7 @@ I also briefly summarized these papers [here](https://www.roosephu.xyz/2021/03/0
 #![allow(clippy::approx_constant)]
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
+#![feature(explicit_generic_args_with_impl_trait)]
 
 #[cfg(test)]
 mod test_utils;
@@ -113,10 +114,12 @@ cfg_if::cfg_if! {
     }
 }
 
+mod apcdb;
 pub mod brentq;
 mod cache_stat;
 mod fast_phi;
 mod lmfdb;
+
 mod platt;
 mod platt_integral;
 mod power_series;

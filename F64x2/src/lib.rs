@@ -12,8 +12,8 @@
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default)]
 pub struct f64x2 {
-    pub(crate) hi: f64,
-    pub(crate) lo: f64,
+    pub hi: f64,
+    pub lo: f64,
 }
 
 pub mod blocks;
