@@ -114,7 +114,7 @@ cfg_if::cfg_if! {
     }
 }
 
-mod apcdb;
+pub mod apcdb;
 pub mod brentq;
 mod cache_stat;
 mod fast_phi;

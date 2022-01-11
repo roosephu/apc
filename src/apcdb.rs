@@ -1,6 +1,6 @@
 use crate::traits::MyReal;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use log::info;
+use log::{debug, info};
 use std::{
     io::{BufReader, BufWriter},
     path::Path,
@@ -8,7 +8,7 @@ use std::{
 use F64x2::f64x2;
 
 #[allow(non_snake_case)]
-fn write_APCDB(
+pub fn write_APCDB(
     roots: &[f64x2],
     file_path: impl AsRef<Path>,
     n0: usize,
@@ -30,7 +30,7 @@ fn write_APCDB(
 }
 
 #[allow(non_snake_case)]
-fn read_APCDB<T: MyReal>(
+pub fn read_APCDB<T: MyReal>(
     data_path: impl AsRef<Path>,
     limit: f64,
     mut f: impl FnMut(T),
