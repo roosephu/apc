@@ -543,9 +543,7 @@ pub fn try_isolate<T: HardyZDep>(
                     roots.push(result.x);
                 }
             }
-            roots.sort_by(
-                |&a, &b| if (a - b).is_positive() { Ordering::Greater } else { Ordering::Less },
-            );
+            roots.sort_by(|a, b| a.partial_cmp(b).unwrap());
             stats.roots.extend(roots);
 
             // Clean the memory. Probably we won't need to compute $Z(t)$ for a
