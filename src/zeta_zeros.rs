@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cmp::Ordering, collections::VecDeque};
+use std::{borrow::Borrow, cmp::Ordering, collections::VecDeque, ops::Range};
 
 use super::brentq::EvalPoint;
 use log::debug;
@@ -102,17 +102,12 @@ impl<T: MyReal> Lounge<T> {
                 cur_idx = i;
             }
         }
-        // debug!(
-        //     "selected interval = {:?}, priority = {}",
-        //     self.brackets[cur_idx].get_interval(),
-        //     cur_priority
-        // );
         self.brackets.remove(cur_idx)
     }
 
     pub fn try_isolate(&mut self, n_iters: usize, mut f: impl FnMut(T) -> T) {
         for _ in 0..n_iters {
-            if self.variations == self.n_zeros {
+            if self.separated() {
                 break;
             }
             // select the one bracket
@@ -157,6 +152,13 @@ impl<T: MyReal> Lounge<T> {
         self.variations += l.variations;
         self.n_zeros += l.n_zeros;
     }
+
+    pub fn bounds(&self) -> Range<f64> {
+        self.brackets.iter().fold(f64::MAX..f64::MIN, |r, x| {
+            let interval = x.get_interval();
+            r.start.min(interval.0.x.fp())..r.end.max(interval.1.x.fp())
+        })
+    }
 }
 
 /// computes the Gram point $g_n$ with accuracy $\epsilon$.
@@ -184,12 +186,11 @@ fn is_good_gram_point<T: Copy + Signed>(n: usize, g: &EvalPoint<T>) -> bool {
 
 /// Returns whether if g_n is a good Gram point. Note that the
 /// Gram points are not accurate: we don't need them to be accurate.
-fn next_rosser_block<T: MyReal + RiemannSiegelTheta>(
+fn next_good_gram_point<T: MyReal + RiemannSiegelTheta>(
     mut n: usize,
     g: EvalPoint<T>,
     mut f: impl FnMut(T) -> T,
 ) -> Vec<EvalPoint<T>> {
-    assert!(is_good_gram_point(n, &g));
     // assume g_n is a good Gram point
     let mut ret = vec![g];
     loop {
@@ -274,7 +275,7 @@ impl<T: HardyZDep> HardyZ<T> {
         let n = (max_height / 2.0 / f64::PI()).sqrt().ceil() as usize + 10;
         let dirichlet = (0..=n).map(|_| None).collect::<Vec<_>>();
         let (levels, em_height) = Self::get_plans(max_height, max_order, eps);
-        debug!("levels = {:?}, em height = {:.3e}", levels, em_height);
+        debug!("levels = {:?}, Euler-Maclaurin height = {:.3e}", levels, em_height);
         let euler_maclaurin = EulerMaclaurinMethod::new(em_height as usize, eps);
 
         let max_mem = n * 10; // default: we save 10 sets of precomputed results.
@@ -364,7 +365,7 @@ impl<T: HardyZDep> HardyZ<T> {
                     released.push(i);
                 }
             }
-            debug!("[HardyZ] released: {:?}", released);
+            debug!("[HardyZ] drop cache: {:?}", released);
         }
     }
 }
@@ -404,7 +405,8 @@ pub struct IsolationStats<T> {
     pub count_locate: usize,
     pub count_separate: usize,
     pub roots: Vec<T>,
-    pub height: f64,
+    pub gram_start: (usize, f64),
+    pub gram_end: (usize, f64),
 }
 
 /// Given the current height, determine the number of good Rosser blocks to
@@ -420,6 +422,15 @@ fn calc_n_good_rosser_blocks_bound(t: f64) -> usize {
     n1.min(n2).ceil() as usize
 }
 
+macro_rules! make_closure {
+    ($z: ident, $stats: ident, $mode: ident) => {
+        |x| {
+            $stats.$mode += 1;
+            $z.query(x)
+        }
+    };
+}
+
 /// We first find a Rosser block and try to isolate the number of zeros with
 /// moderate efforts. Then a block is put into a ``pending'' zone. We check the
 /// pending zone frequently, and apply Turing's method to determine if all roots
@@ -433,49 +444,55 @@ pub fn try_isolate<T: HardyZDep>(
     n1: usize,
     atol: f64,
     rtol: f64,
+    certified_n0: bool, // whether g(n0) is a regular Gram point.
 ) -> IsolationStats<T> {
     let init_budget = 1000;
     let huge_budget = 10000;
     let n_iters_to_locate = 100;
+    let mut stats = IsolationStats::default();
+
+    let mut certified_start = certified_n0;
+    if n0 == 0 {
+        log::warn!("n = 0 can be certified");
+        certified_start = true;
+    }
 
     let mut n = n0;
-    let x = gram_point(n, atol);
-    let mut stats = IsolationStats::default();
-    let mut g = EvalPoint::new(x, |x: T| {
-        stats.count_locate += 1;
-        hardy_z.query(x)
-    });
-    assert!(is_good_gram_point(n, &g));
+    let mut g;
 
-    let mut max_n_intervals = 0;
+    if certified_start {
+        g = EvalPoint::new(gram_point(n, atol), make_closure!(hardy_z, stats, count_separate));
+        assert!(is_good_gram_point(n, &g));
+        stats.gram_start = (n, g.x.fp());
+    } else {
+        // find the next good Gram point
+        let mut block = next_good_gram_point(
+            n - 1,
+            EvalPoint { x: T::zero(), f: T::zero() },
+            make_closure!(hardy_z, stats, count_separate),
+        );
+        if block.len() != 1 {
+            n += block.len() - 1;
+            debug!("g({n0}) is not good... the next good Gram point is g({})", n);
+        }
+        g = block.pop().unwrap();
+    }
 
     let mut pending = VecDeque::new();
     let mut n_last_good_rooser_blocks = 0;
     while n < n1 {
-        let block = next_rosser_block(n, g, |x: T| {
-            stats.count_locate += 1;
-            hardy_z.query(x)
-        });
+        let block = next_good_gram_point(n, g, make_closure!(hardy_z, stats, count_separate));
         let n_gram_points = block.len() - 1;
 
         let mut lounge = Lounge::new(n_gram_points, atol, rtol);
         for i in 0..n_gram_points {
             lounge.add(block[i], block[i + 1]);
         }
-        lounge.try_isolate(init_budget, |x: T| {
-            stats.count_locate += 1;
-            hardy_z.query(x)
-        });
+        lounge.try_isolate(init_budget, make_closure!(hardy_z, stats, count_separate));
         if lounge.separated() {
             n_last_good_rooser_blocks += 1;
         } else {
             n_last_good_rooser_blocks = 0;
-        }
-
-        let n_blocks_evaled = lounge.brackets.len();
-        if n_blocks_evaled > max_n_intervals {
-            max_n_intervals = n_blocks_evaled;
-            debug!("{max_n_intervals} blocks!");
         }
 
         n += n_gram_points;
@@ -492,27 +509,36 @@ pub fn try_isolate<T: HardyZDep>(
             while pending.len() > k {
                 lounge.merge(pending.pop_front().unwrap());
             }
-            // We can check if there is a violation of Rosser's rule here.
 
-            lounge.try_isolate(huge_budget, |x: T| {
-                stats.count_locate += 1;
-                hardy_z.query(x)
-            });
+            // the last Gram point in `lounge`
+            let n_gram_end = n - pending.iter().map(|x| x.n_zeros).sum::<usize>();
+
+            if !certified_start {
+                // OK... We're not sure if all zeros below g(n0) are listed. So
+                // we simply ignore all of them and start from the minimum
+                // height of $t$ which we're able to certify via Turing's
+                // method.
+                certified_start = true;
+                stats.gram_start = (n_gram_end, lounge.bounds().end);
+                debug!(
+                    "Gram point g({}) = {:.3} can be certified regular. ",
+                    n_gram_end, stats.gram_start.1
+                );
+                continue;
+            }
+            stats.gram_end = (n_gram_end, lounge.bounds().end);
+
+            // TODO: check if there is a violation of Rosser's rule here.
+
+            lounge.try_isolate(huge_budget, make_closure!(hardy_z, stats, count_locate));
             assert!(lounge.separated(), "huge budget = {} is not enough!", huge_budget);
 
-            stats.height = lounge.brackets.last().unwrap().get_interval().1.x.fp();
-
-            // All roots are separaed. Locate the roots with high precision now!
+            // All roots are separated. Locate the roots with high precision now!
             let mut roots = vec![];
             for bracket in lounge.brackets {
                 if let BracketMaintainer::DiffSign(x) = bracket.entry {
-                    let result = Brentq::new(x.xa, x.xb, atol, rtol).solve(
-                        |x: T| {
-                            stats.count_separate += 1;
-                            hardy_z.query(x)
-                        },
-                        n_iters_to_locate,
-                    );
+                    let result = Brentq::new(x.xa, x.xb, atol, rtol)
+                        .solve(make_closure!(hardy_z, stats, count_locate), n_iters_to_locate);
                     assert!(result.status == BrentqStatus::Converged);
                     roots.push(result.x);
                 }

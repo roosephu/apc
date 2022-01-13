@@ -1,5 +1,5 @@
 use crate::traits::MyReal;
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use log::{debug, info};
 use std::{
     io::{BufReader, BufWriter},
@@ -13,17 +13,21 @@ pub fn write_APCDB(
     file_path: impl AsRef<Path>,
     n0: usize,
     n1: usize,
+    atol: f64,
+    rtol: f64,
 ) -> Result<(), std::io::Error> {
     let file_path = file_path.as_ref();
     info!("Writing zeta zeros to {}", file_path.display());
     let file = std::fs::File::create(file_path)?;
     let mut buf_writer = BufWriter::new(file);
-    buf_writer.write_u64::<BigEndian>(n0 as u64)?;
-    buf_writer.write_u64::<BigEndian>(n1 as u64)?;
+    buf_writer.write_u64::<LittleEndian>(n0 as u64)?;
+    buf_writer.write_u64::<LittleEndian>(n1 as u64)?;
+    buf_writer.write_f64::<LittleEndian>(atol)?;
+    buf_writer.write_f64::<LittleEndian>(rtol)?;
     assert!(roots.len() == n1 - n0);
     for &root in roots {
-        buf_writer.write_f64::<BigEndian>(root.hi)?;
-        buf_writer.write_f64::<BigEndian>(root.lo)?;
+        buf_writer.write_f64::<LittleEndian>(root.hi)?;
+        buf_writer.write_f64::<LittleEndian>(root.lo)?;
     }
 
     Ok(())
@@ -39,11 +43,13 @@ pub fn read_APCDB<T: MyReal>(
     info!("Writing zeta zeros to {}", file_path.display());
     let file = std::fs::File::open(file_path)?;
     let mut buf_reader = BufReader::new(file);
-    let n0 = buf_reader.read_u64::<BigEndian>()?;
-    let n1 = buf_reader.read_u64::<BigEndian>()?;
+    let n0 = buf_reader.read_u64::<LittleEndian>()?;
+    let n1 = buf_reader.read_u64::<LittleEndian>()?;
+    let _atol = buf_reader.read_f64::<LittleEndian>()?;
+    let _rtol = buf_reader.read_f64::<LittleEndian>()?;
     for _ in n0..n1 {
-        let hi = buf_reader.read_f64::<BigEndian>()?;
-        let lo = buf_reader.read_f64::<BigEndian>()?;
+        let hi = buf_reader.read_f64::<LittleEndian>()?;
+        let lo = buf_reader.read_f64::<LittleEndian>()?;
         let z = T::zero() + hi + lo;
         if z.fp() > limit {
             break;
@@ -62,18 +68,18 @@ mod tests {
     use log::debug;
     use F64x2::{f64x2, test_utils::assert_close};
 
-    fn all_zeta_zeros_upto(t: f64) -> Vec<f64x2> {
+    fn all_zeta_zeros_upto(t: f64, atol: f64, rtol: f64) -> Vec<f64x2> {
         // well, technically g_{-1} = 0 but I was too lazy to do that...
         let mut roots = vec![f64x2::new(14.134725141734695, -8.407109157053214e-16)];
 
         const PI: f64 = std::f64::consts::PI;
-        let mut hardy_z = HybridPrecHardyZ::<f64x2>::new(t, 10, 1e-18);
+        let mut hardy_z = HybridPrecHardyZ::<f64x2>::new(t, 10, atol);
         let n0 = 0;
         let n1 = t / 2.0 / PI * (t / 2.0 / PI).ln()
             - (0.112 * t.ln() + 0.278 * t.ln().ln() + 3.385 + 0.2 / t);
         let n1 = n1 as usize + 200;
-        let stats = try_isolate(&mut hardy_z, n0, n1, 1e-18, 1e-30);
-        assert!(stats.height >= t);
+        let stats = try_isolate(&mut hardy_z, n0, n1, atol, rtol, false);
+        assert!(stats.gram_end.1 >= t);
         roots.extend(stats.roots.iter().copied().filter(|&x| x.fp() <= t));
         let n_calls_separate = stats.count_separate;
         let n_calls_locate = stats.count_locate;
@@ -96,8 +102,10 @@ mod tests {
     #[test]
     fn check_write_apcdb() {
         crate::init();
-        let roots = all_zeta_zeros_upto(1e4);
-        let _ = write_APCDB(&roots, "data/apcdb/height_100000.dat", 0, roots.len());
+        let atol = 1e-18;
+        let rtol = 1e-18;
+        let roots = all_zeta_zeros_upto(1e4, atol, rtol);
+        let _ = write_APCDB(&roots, "data/apcdb/height_100000.dat", 0, roots.len(), atol, rtol);
     }
 
     #[test]
