@@ -163,8 +163,8 @@ impl<T: MyReal> Lounge<T> {
 
 /// computes the Gram point $g_n$ with accuracy $\epsilon$.
 #[inline(never)]
-fn gram_point<T: MyReal + RiemannSiegelTheta>(n: usize, atol: f64) -> T {
-    assert!(n <= (1usize << 52), "`n as f64` has rounding error");
+fn gram_point<T: MyReal + RiemannSiegelTheta>(n: i64, atol: f64) -> T {
+    assert!(-1 <= n && n <= (1i64 << 52), "`n as f64` has rounding error");
 
     let gram = |x: T| x.rs_theta(atol) - T::PI() * n as f64;
     let t = (T::mp(n as f64) + 0.125) / T::E();
@@ -180,14 +180,14 @@ fn gram_point<T: MyReal + RiemannSiegelTheta>(n: usize, atol: f64) -> T {
 
 /// (-1)^n Z(g_n) > 0
 #[inline]
-fn is_good_gram_point<T: Copy + Signed>(n: usize, g: &EvalPoint<T>) -> bool {
-    g.f.is_negative() == (n % 2 == 1)
+fn is_good_gram_point<T: Copy + Signed>(n: i64, g: &EvalPoint<T>) -> bool {
+    g.f.is_negative() == (n.rem_euclid(2) == 1)
 }
 
 /// Returns whether if g_n is a good Gram point. Note that the
 /// Gram points are not accurate: we don't need them to be accurate.
 fn next_good_gram_point<T: MyReal + RiemannSiegelTheta>(
-    mut n: usize,
+    mut n: i64,
     g: EvalPoint<T>,
     mut f: impl FnMut(T) -> T,
 ) -> Vec<EvalPoint<T>> {
@@ -405,8 +405,8 @@ pub struct IsolationStats<T> {
     pub count_locate: usize,
     pub count_separate: usize,
     pub roots: Vec<T>,
-    pub gram_start: (usize, f64),
-    pub gram_end: (usize, f64),
+    pub gram_start: (i64, f64),
+    pub gram_end: (i64, f64),
 }
 
 /// Given the current height, determine the number of good Rosser blocks to
@@ -437,30 +437,31 @@ macro_rules! make_closure {
 /// are accounted. Once a Rosser leaves the pending zone, we have to make sure
 /// that all roots inside the Rosser block have been identified.
 ///
+/// The function finds all zeros in $[L, R]$ where $R \geq goal_height$ and $L$
+/// is slightly larger than g(n).
+///
 /// Requirement: $N(g_{n_0}) = n_0 + 1.$
 pub fn try_isolate<T: HardyZDep>(
     hardy_z: &mut HybridPrecHardyZ<T>,
-    n0: usize,
-    n1: usize,
+    mut n: i64,
+    goal_height: f64,
     atol: f64,
     rtol: f64,
-    certified_n0: bool, // whether g(n0) is a regular Gram point.
+    mut certified_n: bool, // whether g(n0) is a regular Gram point.
 ) -> IsolationStats<T> {
     let init_budget = 1000;
     let huge_budget = 10000;
     let n_iters_to_locate = 100;
     let mut stats = IsolationStats::default();
 
-    let mut certified_start = certified_n0;
-    if n0 == 0 {
-        log::warn!("n = 0 can be certified");
-        certified_start = true;
+    if n == -1 && !certified_n {
+        log::warn!("n = -1 can be certified");
+        certified_n = true;
     }
 
-    let mut n = n0;
     let mut g;
 
-    if certified_start {
+    if certified_n {
         g = EvalPoint::new(gram_point(n, atol), make_closure!(hardy_z, stats, count_separate));
         assert!(is_good_gram_point(n, &g));
         stats.gram_start = (n, g.x.fp());
@@ -472,7 +473,8 @@ pub fn try_isolate<T: HardyZDep>(
             make_closure!(hardy_z, stats, count_separate),
         );
         if block.len() != 1 {
-            n += block.len() - 1;
+            let n0 = n;
+            n += (block.len() - 1) as i64;
             debug!("g({n0}) is not good... the next good Gram point is g({})", n);
         }
         g = block.pop().unwrap();
@@ -480,7 +482,7 @@ pub fn try_isolate<T: HardyZDep>(
 
     let mut pending = VecDeque::new();
     let mut n_last_good_rooser_blocks = 0;
-    while n < n1 {
+    while stats.gram_end.1 < goal_height {
         let block = next_good_gram_point(n, g, make_closure!(hardy_z, stats, count_separate));
         let n_gram_points = block.len() - 1;
 
@@ -495,7 +497,7 @@ pub fn try_isolate<T: HardyZDep>(
             n_last_good_rooser_blocks = 0;
         }
 
-        n += n_gram_points;
+        n += n_gram_points as i64;
         g = block[block.len() - 1];
 
         pending.push_back(lounge);
@@ -511,14 +513,14 @@ pub fn try_isolate<T: HardyZDep>(
             }
 
             // the last Gram point in `lounge`
-            let n_gram_end = n - pending.iter().map(|x| x.n_zeros).sum::<usize>();
+            let n_gram_end = n - pending.iter().map(|x| x.n_zeros).sum::<usize>() as i64;
 
-            if !certified_start {
+            if !certified_n {
                 // OK... We're not sure if all zeros below g(n0) are listed. So
                 // we simply ignore all of them and start from the minimum
                 // height of $t$ which we're able to certify via Turing's
                 // method.
-                certified_start = true;
+                certified_n = true;
                 stats.gram_start = (n_gram_end, lounge.bounds().end);
                 debug!(
                     "Gram point g({}) = {:.3} can be certified regular. ",
@@ -568,6 +570,7 @@ mod tests {
         let eps1 = 1e-11;
         let eps2 = 1e-9;
         assert_close(gram_point(100, eps1), 238.5825905145, eps2, 0.0);
+        assert_close(gram_point(-1, eps1), 9.666908056130259, eps2, 0.0);
     }
 
     #[test]
