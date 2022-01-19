@@ -65,9 +65,9 @@ impl<T: MyReal> ExpansionIntegrator<T> {
         PowerSeries::from_vec(order, data)
     }
 
-    /// See Readme
-    /// Expand f(w h) = exp(-λ^2 h^2 / 2 + i h λ^2 s_0) / (1 + i h / s_0) with w = i ln x.
-    /// another option is to expand f(w h) = exp(-λ^2 h^2 / 2) / (1 + i h / s_0) with w = i (λ^2 s_0 + ln x).
+    /// See Readme Expand f(w h) = exp(-λ^2 h^2 / 2 + i h λ^2 s_0) / (1 + i h /
+    /// s_0) with w = i ln x.  another option is to expand f(w h) = exp(-λ^2 h^2
+    /// / 2) / (1 + i h / s_0) with w = i (λ^2 s_0 + ln x).
     fn expand_at(s0: Complex<T>, ln_x: T, λ: T, order: usize) -> (T, PowerSeries<Complex<T>>) {
         let w = ln_x;
         let a = λ * λ / 2.0 / w / w;
@@ -80,10 +80,10 @@ impl<T: MyReal> ExpansionIntegrator<T> {
         (w, ps_exp)
     }
 
-    /// we want to evaluate $$ \sum_i poly_i (w h)^i$$ for a real $h$, however, poly_i c^i might grow too fast...
-    /// Complex operations are slow.
-    /// trick: we prepare poly'_i = poly_i (c/|c|)^i, so it becomes $$\sum_i poly'_i (|c| h)^i$$
-    /// so it's numerically more stable.
+    /// we want to evaluate $$ \sum_i poly_i (w h)^i$$ for a real $h$, however,
+    /// poly_i c^i might grow too fast...  Complex operations are slow.  trick:
+    /// we prepare poly'_i = poly_i (c/|c|)^i, so it becomes $$\sum_i poly'_i
+    /// (|c| h)^i$$ so it's numerically more stable.
     fn normalize_(poly: &mut PowerSeries<Complex<T>>, w: Complex<T>) -> (T, Complex<T>) {
         let w_norm = w.norm();
         let w_dir = w / w_norm;

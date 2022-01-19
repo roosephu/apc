@@ -1,8 +1,8 @@
 #![feature(explicit_generic_args_with_impl_trait)]
 
-use std::{num::ParseIntError, path::PathBuf};
+use std::num::ParseIntError;
 
-use apc::{LMFDB, APCDB};
+use apc::{APCDB, LMFDB};
 use clap::{AppSettings, Parser, Subcommand};
 use log::info;
 
@@ -51,12 +51,12 @@ enum Commands {
         #[clap(long, name = "seg", default_value = "2^32", help = "Segment size in sieve")]
         sieve_segment: String,
 
-        #[clap(long, name = "dir", help = "Directory to LMFDB ζ zeros. Override `APCDB`.")]
+        #[clap(long, name = "lmfdb", help = "Directory to LMFDB ζ zeros. Override `APCDB`.")]
         lmfdb: Option<String>,
 
         #[clap(
             long,
-            name = "dir",
+            name = "apcdb",
             help = "Directory to APCDB ζ zeros. If both `LMFDB` and `APCDB` are unset, generate zeros online."
         )]
         apcdb: Option<String>,
@@ -65,10 +65,10 @@ enum Commands {
         #[clap(name = "t", help = "To which height we compute the zeros of Riemann ζ function")]
         height: f64,
 
-        #[clap(long, name = "eps", default_value = "1e-18", help = "Absolute tolerance")]
+        #[clap(long, name = "atol", default_value = "1e-18", help = "Absolute tolerance")]
         atol: f64,
 
-        #[clap(long, name = "eps", default_value = "1e-18", help = "Relative tolerance")]
+        #[clap(long, name = "rtol", default_value = "1e-18", help = "Relative tolerance")]
         rtol: f64,
 
         #[clap(long, name = "k", default_value_t = 10, help = "Max Riemann-Siegel formula order")]
@@ -106,7 +106,7 @@ fn main() {
             let ans = match (lmfdb, apcdb) {
                 (Some(p), _) => platt.compute::<f64x2>(LMFDB::<f64x2>::directory(p)),
                 (None, Some(p)) => platt.compute::<f64x2>(APCDB::<f64x2>::directory(p)),
-                (None, None) => unreachable!(),  // TODO: generate it online
+                (None, None) => unreachable!(), // TODO: generate it online
             };
 
             println!("{}", ans);

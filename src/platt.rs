@@ -33,13 +33,7 @@ pub struct Platt {
 }
 
 impl Default for PlattBuilder {
-    fn default() -> Self {
-        Self {
-            hint_λ: 10.0,
-            poly_order: 15,
-            segment: 1u64 << 32,
-        }
-    }
+    fn default() -> Self { Self { hint_λ: 10.0, poly_order: 15, segment: 1u64 << 32 } }
 }
 
 impl PlattBuilder {
@@ -205,7 +199,7 @@ fn plan_ζ_zeros(λ: f64, x: f64, eps: f64) -> f64 {
 
     let maxT = (x.ln() + x.ln().ln()).sqrt() / λ * 2.0;
     let ln_eps = eps.ln();
-    let T = brentq(|t| ln_err(t) - ln_eps, 1.0, maxT, 0.0, 0.0, 30).unwrap();
+    let T = brentq(|t| ln_err(t) - ln_eps, 3.0, maxT, 0.0, 0.0, 30).unwrap();
     let err = ln_err(T).exp();
 
     info!("[plan ζ zeros] T = {:.6e}, trunc error = {:.6}, maxT = {:.6e}", T, err, maxT);
@@ -222,8 +216,7 @@ impl Platt {
         let t0 = Instant::now();
 
         let integral_offline = integrate_offline::<T>(x, λ, max_order);
-        let integral_critical =
-            Self::integrate_critical::<T>(x, λ, max_order, self.max_height, db);
+        let integral_critical = Self::integrate_critical::<T>(x, λ, max_order, self.max_height, db);
 
         let t1 = Instant::now();
         let Δ = calc_Δ_f64(x, 0.5, λ, self.x1, self.x2, self.segment);

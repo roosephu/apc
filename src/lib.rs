@@ -172,10 +172,10 @@ mod power_series;
 mod sieve;
 pub mod traits;
 
+pub use apcdb::{write_APCDB, APCDB};
 pub use fast_phi::LittlePhiSum;
-pub use platt::PlattBuilder;
-pub use apcdb::{APCDB, write_APCDB};
 pub use lmfdb::LMFDB;
+pub use platt::PlattBuilder;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "doc")] {

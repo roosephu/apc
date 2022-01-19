@@ -1,6 +1,6 @@
 [package]
 name = "apc"
-version = "0.2.8"
+version = "0.3.0"
 authors = ["Yuping Luo <roosephu@gmail.com>"]
 edition = "2021"
 license = "MIT"
