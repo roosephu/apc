@@ -107,7 +107,6 @@
 //! [here](https://www.roosephu.xyz/2021/03/08/analytic-pi/) and
 //! [here](https://www.roosephu.xyz/2021/03/08/analytic-pi-2/) (in Chinese).
 
-
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(confusable_idents)]
@@ -161,7 +160,7 @@ cfg_if::cfg_if! {
     }
 }
 
-pub mod apcdb;
+mod apcdb;
 pub mod brentq;
 mod cache_stat;
 mod fast_phi;
@@ -175,6 +174,8 @@ pub mod traits;
 
 pub use fast_phi::LittlePhiSum;
 pub use platt::PlattBuilder;
+pub use apcdb::{APCDB, write_APCDB};
+pub use lmfdb::LMFDB;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "doc")] {

@@ -14,7 +14,6 @@ pub struct PlattBuilder {
     hint_λ: f64,
     poly_order: usize,
     segment: u64,
-    ζ_zeros: PathBuf,
 }
 
 /// The algorihtm described in David Platt, “Computing $\pi(x)$ Analytically.”
@@ -30,7 +29,6 @@ pub struct Platt {
     x1: u64,
     x2: u64,
     max_order: usize,
-    ζ_zeros: PathBuf,
     hint_λ: f64,
 }
 
@@ -40,7 +38,6 @@ impl Default for PlattBuilder {
             hint_λ: 10.0,
             poly_order: 15,
             segment: 1u64 << 32,
-            ζ_zeros: PathBuf::from("./data/zeros"),
         }
     }
 }
@@ -69,7 +66,6 @@ impl PlattBuilder {
             x1,
             x2,
             max_order: self.poly_order,
-            ζ_zeros: self.ζ_zeros.clone(),
             hint_λ: self.hint_λ,
         }
     }
@@ -81,11 +77,6 @@ impl PlattBuilder {
 
     pub fn poly_order(&mut self, poly_order: usize) -> &mut Self {
         self.poly_order = poly_order;
-        self
-    }
-
-    pub fn ζ_zeros_path(&mut self, path: PathBuf) -> &mut Self {
-        self.ζ_zeros = path;
         self
     }
 
@@ -223,7 +214,7 @@ fn plan_ζ_zeros(λ: f64, x: f64, eps: f64) -> f64 {
 }
 
 impl Platt {
-    pub fn compute<T: MyReal>(&mut self) -> u64 {
+    pub fn compute<T: MyReal>(&mut self, db: impl ZetaZerosDatabase<T>) -> u64 {
         let max_order = self.max_order;
         let x = self.x;
         let λ = self.λ;
@@ -232,7 +223,7 @@ impl Platt {
 
         let integral_offline = integrate_offline::<T>(x, λ, max_order);
         let integral_critical =
-            Self::integrate_critical::<T>(x, λ, max_order, self.max_height, &self.ζ_zeros);
+            Self::integrate_critical::<T>(x, λ, max_order, self.max_height, db);
 
         let t1 = Instant::now();
         let Δ = calc_Δ_f64(x, 0.5, λ, self.x1, self.x2, self.segment);
@@ -363,7 +354,7 @@ impl Platt {
         λ: f64,
         max_order: usize,
         max_height: f64,
-        ζ_zeros: impl AsRef<Path>,
+        ζ_zeros: impl ZetaZerosDatabase<T>,
     ) -> T {
         let mut integrator = HybridPrecIntegrator::new(
             T::from_u64(x).unwrap(),
@@ -375,14 +366,13 @@ impl Platt {
         let mut result = T::zero();
         let mut last_contribution = T::zero();
 
-        let work = |root| {
+        // TODO: check error
+        info!("Computing ∑ Φ̂(ρ) for 0 < ℑρ < T.");
+        for root in ζ_zeros.map_while(|(x, _)| if x.fp() <= max_height { Some(x) } else { None }) {
             let integral = integrator.query(root).im;
             result += integral;
             last_contribution = integral;
-        };
-
-        info!("Computing ∑ Φ̂(ρ) for 0 < ℑρ < T.");
-        crate::lmfdb::read_LMFDB::<T>(ζ_zeros, max_height, work).unwrap();
+        }
 
         let max_err = integrator.max_err;
         info!(
@@ -400,6 +390,8 @@ impl Platt {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+
+    use crate::lmfdb::LMFDB;
 
     use super::{calc_Δ1_f64, Platt};
     use log::info;
@@ -439,9 +431,9 @@ mod tests {
         let x = 1_000_000_000_000_000u64;
         let λ = 3.324516e-7;
         let max_height = 19130220.241455;
-        let ζ_zeros = PathBuf::from("./data/zeros");
+        let db = LMFDB::directory("./data/lmfdb");
 
-        let b = Platt::integrate_critical::<f64x2>(x, λ, 15, max_height, &ζ_zeros);
+        let b = Platt::integrate_critical::<f64x2>(x, λ, 15, max_height, db);
         println!("b = {}", b);
         // panic!();
     }

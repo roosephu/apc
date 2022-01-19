@@ -1,5 +1,8 @@
+#![feature(explicit_generic_args_with_impl_trait)]
+
 use std::{num::ParseIntError, path::PathBuf};
 
+use apc::{LMFDB, APCDB};
 use clap::{AppSettings, Parser, Subcommand};
 use log::info;
 
@@ -90,9 +93,6 @@ fn main() {
             use apc::PlattBuilder;
             use F64x2::f64x2;
 
-            // TODO: incorporate apcdb and lmfdb. Need to check precision.
-            let _ = apcdb;
-
             let x = parse_int(&x).unwrap();
             info!("======= computing π({}) ======", x);
             // assert!(n >= 100000);
@@ -101,14 +101,18 @@ fn main() {
                 .hint_λ(lambda_hint)
                 .sieve_segment(parse_int(&sieve_segment).unwrap())
                 .poly_order(poly_order)
-                .ζ_zeros_path(PathBuf::from(lmfdb.unwrap()))
                 .build(x);
 
-            let ans = platt.compute::<f64x2>();
+            let ans = match (lmfdb, apcdb) {
+                (Some(p), _) => platt.compute::<f64x2>(LMFDB::<f64x2>::directory(p)),
+                (None, Some(p)) => platt.compute::<f64x2>(APCDB::<f64x2>::directory(p)),
+                (None, None) => unreachable!(),  // TODO: generate it online
+            };
+
             println!("{}", ans);
         }
         Commands::Zero { height: t, atol, rtol, max_rs_order, apcdb } => {
-            use apc::apcdb::write_APCDB;
+            use apc::write_APCDB;
             use apc::zeta_zeros::{try_isolate, HybridPrecHardyZ};
             use F64x2::f64x2;
 
