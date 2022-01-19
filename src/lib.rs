@@ -73,6 +73,7 @@ I also briefly summarized these papers [here](https://www.roosephu.xyz/2021/03/0
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
 #![feature(explicit_generic_args_with_impl_trait)]
+#![feature(try_blocks)]
 
 #[cfg(test)]
 mod test_utils;
