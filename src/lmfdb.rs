@@ -112,8 +112,6 @@ impl<T: MyReal> LMFDB<T> {
     }
 }
 
-pub trait ZetaZeros<T> = Iterator<Item = (T, f64)>;
-
 impl<T: MyReal> Iterator for LMFDB<T> {
     type Item = (T, f64);
 

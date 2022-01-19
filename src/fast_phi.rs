@@ -1,41 +1,42 @@
 use crate::cache_stat::CacheStat;
 
-/**
-Compute $∑_{u} \phi(u)$ given a list of $u$.
-
-
-To avoid precision loss of converting `u64` to `f64`, we calculate $\tilde \phi(t) = \phi(x + t)$, with $t = O(\lambda x)$.
-
-To calculate $\tilde \phi(t)$ fast, we simply use the order-2 Taylor polynomial at $t_0$.
-$$
-    g(t) = \tilde \phi(t_0) + (t - t_0) \tilde \phi'(t_0) + \frac{1}{2}(t - t_0)^2 \tilde \phi''(t_0).
-$$
-where
-$$
-    \begin{aligned}
-    \tilde \phi'(t) \& = -\frac{C}{x + t}\lambda^{-1}, \\
-    \tilde \phi''(t) \& = \frac{C}{(x+t)^2} (\lambda^{-1} + \rho \lambda^{-2}), \\
-    \end{aligned}
-$$
-for $\rho = \lambda^{-1} \ln (1+t/x), C = \frac{\exp(-\rho^2 /2)}{\sqrt{2 \pi}}$. Note that we sometimes find a new $t_0$ and build a new order-2 Taylor polynomial. So we need to determine when the approximation is good. More specifically, we'd like to know what's the maximum $w > 0$, such that, it hold that have $\left|g(t) - \tilde \phi(t)\right| \leq \epsilon$ for all $t$ in $[t_0 - w, t_0 + w]$. By using the Lagrange remainder, we have
-$$
-|g(t) - \tilde \phi(t)| \leq \frac{1}{6} w^3 \max_t |\tilde \phi'''(t)|,
-$$
-where
-$$
-\tilde \phi'''(t) = -\frac{C}{(x+t)^3} (2 \lambda^{-1} + 3 \rho \lambda^{-2} - (1 - \rho^2) \lambda^{-3}).
-$$
-Note that $\exp(-\rho^2 / 2) \rho \geq -0.63$ and $\exp(-\rho^2 / 2) \rho^2 \geq 0$ for every $\rho$, we can then bound $|\tilde \phi'''(t)|$ (for most $\lambda$):
-$$
-|\tilde \phi'''(t)| \leq \frac{-2 \lambda^{-1} + 1.8 \lambda^{-2} + \lambda^{-3}}{x^3 \sqrt{2 \pi}}.
-$$
-
-We limit $w$ to be smaller than $2^{21}$, so that for all primes $p$ in $[t_0, t_0 + w)$, the sum of $(p - t_0)^2$ fits into a 64-bit integer:
-$$
-\sum_{t_0 \leq p < t_0 + w} (p - t_0)^2 \leq \frac{1}{3} w^3 < 2^{63},
-$$
-so that we don't need 128-bit integers. Making most operations in integer type slightly increase the speed of calculating $\phi$ (10%), although the bottleneck is sieving primes. It turns out that it's fine to use high-precision data type to compute $\Delta$, as most operations are integer operations. High-precision data type is only used to compute the coefficients $\tilde \phi(t_0), \tilde \phi'(t_0), \tilde \phi''(t_0)$, which are re-computed once per nearly 25k primes (when $x = 10^{18}$ and $\lambda \approx 4.55 \times 10^{-8}$).
- */
+/// Compute $∑_{u} \phi(u)$ given a list of $u$.
+///
+///
+/// To avoid precision loss of converting `u64` to `f64`, we calculate $\tilde
+/// \phi(t) = \phi(x + t)$, with $t = O(\lambda x)$.
+///
+/// To calculate $\tilde \phi(t)$ fast, we simply use the order-2 Taylor
+/// polynomial at $t_0$.  $$ g(t) = \tilde \phi(t_0) + (t - t_0) \tilde
+/// \phi'(t_0) + \frac{1}{2}(t - t_0)^2 \tilde \phi''(t_0).  $$ where $$
+/// \begin{aligned} \tilde \phi'(t) \& = -\frac{C}{x + t}\lambda^{-1}, \\ \tilde
+/// \phi''(t) \& = \frac{C}{(x+t)^2} (\lambda^{-1} + \rho \lambda^{-2}), \\
+/// \end{aligned} $$ for $\rho = \lambda^{-1} \ln (1+t/x), C =
+/// \frac{\exp(-\rho^2 /2)}{\sqrt{2 \pi}}$. Note that we sometimes find a new
+/// $t_0$ and build a new order-2 Taylor polynomial. So we need to determine
+/// when the approximation is good. More specifically, we'd like to know what's
+/// the maximum $w > 0$, such that, it hold that have $\left|g(t) - \tilde
+/// \phi(t)\right| \leq \epsilon$ for all $t$ in $[t_0 - w, t_0 + w]$. By using
+/// the Lagrange remainder, we have $$ |g(t) - \tilde \phi(t)| \leq \frac{1}{6}
+/// w^3 \max_t |\tilde \phi'''(t)|, $$ where $$ \tilde \phi'''(t) =
+/// -\frac{C}{(x+t)^3} (2 \lambda^{-1} + 3 \rho \lambda^{-2} - (1 - \rho^2)
+/// \lambda^{-3}).  $$ Note that $\exp(-\rho^2 / 2) \rho \geq -0.63$ and
+/// $\exp(-\rho^2 / 2) \rho^2 \geq 0$ for every $\rho$, we can then bound
+/// $|\tilde \phi'''(t)|$ (for most $\lambda$): $$ |\tilde \phi'''(t)| \leq
+/// \frac{-2 \lambda^{-1} + 1.8 \lambda^{-2} + \lambda^{-3}}{x^3 \sqrt{2 \pi}}.
+/// $$
+///
+/// We limit $w$ to be smaller than $2^{21}$, so that for all primes $p$ in
+/// $[t_0, t_0 + w)$, the sum of $(p - t_0)^2$ fits into a 64-bit integer: $$
+/// \sum_{t_0 \leq p < t_0 + w} (p - t_0)^2 \leq \frac{1}{3} w^3 < 2^{63}, $$ so
+/// that we don't need 128-bit integers. Making most operations in integer type
+/// slightly increase the speed of calculating $\phi$ (10%), although the
+/// bottleneck is sieving primes. It turns out that it's fine to use
+/// high-precision data type to compute $\Delta$, as most operations are integer
+/// operations. High-precision data type is only used to compute the
+/// coefficients $\tilde \phi(t_0), \tilde \phi'(t_0), \tilde \phi''(t_0)$,
+/// which are re-computed once per nearly 25k primes (when $x = 10^{18}$ and
+/// $\lambda \approx 4.55 \times 10^{-8}$).
 pub struct LittlePhiSum {
     radius: i64,
     eps: f64,

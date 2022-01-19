@@ -29,3 +29,5 @@ pub trait MyReal = Float
     + Sync
     + Send
     + 'static;
+
+pub trait ZetaZerosDatabase<T> = Iterator<Item = (T, f64)>;

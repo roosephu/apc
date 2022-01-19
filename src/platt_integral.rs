@@ -3,32 +3,36 @@ use crate::{power_series::PowerSeries, traits::MyReal};
 use log::{debug, info};
 use num::Complex;
 
-/**
-
-Computing $\hat\Phi(s)$
-
-Here we'd like to integrate $\hat\phi(s) = \frac{x^s}{s} \exp(\lambda^2 s^2 / 2)$. We basically follow the method in [Section 6, Platt] but with a small modification. We refer the readers to [Platt] for more details.
-
-Recall the high level idea in [Platt]: We express $\hat\phi(s_0 + ih) = \hat\phi(s_0) f(z) \exp(z)$ for some complex number $z = wh$ and function $f(z)$, and find a polynomial $P(z)$ to approximate $f(z)$ locally, then we apply integration by parts repeatedly:
-$$
-\int P(z) \exp(z) \d z = \exp(z) \sum_{k=0}^\infty P^{(k)}(z) (-1)^k = \exp(z) Q(z), \quad Q(z):=\sum_{k=0}^\infty P^{(k)}(z)(-1)^k.
-$$
-[Platt] chooses the following form
-$$
-\begin{aligned}
-\hat\phi(s_0 + ih) & = \frac{x^{s_0 + ih}}{s_0 + ih} \exp(\lambda^2 (s_0 + ih)^2 / 2) \\
-& = \hat\phi(s_0) \frac{x^{ih}}{1 + \frac{ih}{s0}} \exp(\lambda^2 (-h^2+2ihs_0)/2) \\
-& = \hat\phi(s_0) \frac{\exp(-\lambda^2 h^2/2)}{1 + \frac{i}{s_0}h} \exp(ih (\lambda^2 s_0 + \ln x)),
-\end{aligned}
-$$
-while we choose
-$$
-\hat\phi(s_0 + ih)  = \hat\phi(s_0) \frac{\exp(-\lambda^2 h^2/2 + ih \lambda^2 s_0)}{1 + \frac{i}{s_0}h} \exp(ih \ln x).
-$$
-The benefit of ours is that $ih\ln x$ has only imaginary part, so it's faster to compute the exponential function. This can speed it up a little bit (5% perhaps) when $x$ is not too large that LMFDB has enough zeros of $\zeta(s)$.
-
-We pick up $\hat t_{1, \dots, m}$ such that for any $t$ of interest, we can find a $\hat t_j$ *around* it. More specifically, each $\hat t_j$ can work for $t \in [\hat t_j - r_j, \hat t_j + r_j]$, so we just want to make sure that $\bigcup [\hat t_j - r_j, \hat t_j + r_j]$ covers $[0, U]$ where $U$ is the upper limit of integral. To achieve the same approximation error, the radius $r_i$ is proportional to $|\hat t_j|$, so we only need $m = O(\log U)$.
-*/
+/// Computing $\hat\Phi(s)$
+///
+/// Here we'd like to integrate $\hat\phi(s) = \frac{x^s}{s} \exp(\lambda^2 s^2
+/// / 2)$. We basically follow the method in [Section 6, Platt] but with a small
+/// modification. We refer the readers to [Platt] for more details.
+///
+/// Recall the high level idea in [Platt]: We express $\hat\phi(s_0 + ih) =
+/// \hat\phi(s_0) f(z) \exp(z)$ for some complex number $z = wh$ and function
+/// $f(z)$, and find a polynomial $P(z)$ to approximate $f(z)$ locally, then we
+/// apply integration by parts repeatedly: $$ \int P(z) \exp(z) \d z = \exp(z)
+/// \sum_{k=0}^\infty P^{(k)}(z) (-1)^k = \exp(z) Q(z), \quad
+/// Q(z):=\sum_{k=0}^\infty P^{(k)}(z)(-1)^k.  $$ [Platt] chooses the following
+/// form $$ \begin{aligned} \hat\phi(s_0 + ih) & = \frac{x^{s_0 + ih}}{s_0 + ih}
+/// \exp(\lambda^2 (s_0 + ih)^2 / 2) \\ & = \hat\phi(s_0) \frac{x^{ih}}{1 +
+/// \frac{ih}{s0}} \exp(\lambda^2 (-h^2+2ihs_0)/2) \\ & = \hat\phi(s_0)
+/// \frac{\exp(-\lambda^2 h^2/2)}{1 + \frac{i}{s_0}h} \exp(ih (\lambda^2 s_0 +
+/// \ln x)), \end{aligned} $$ while we choose $$ \hat\phi(s_0 + ih)  =
+/// \hat\phi(s_0) \frac{\exp(-\lambda^2 h^2/2 + ih \lambda^2 s_0)}{1 +
+/// \frac{i}{s_0}h} \exp(ih \ln x).  $$ The benefit of ours is that $ih\ln x$
+/// has only imaginary part, so it's faster to compute the exponential function.
+/// This can speed it up a little bit (5% perhaps) when $x$ is not too large
+/// that LMFDB has enough zeros of $\zeta(s)$.
+///
+/// We pick up $\hat t_{1, \dots, m}$ such that for any $t$ of interest, we can
+/// find a $\hat t_j$ *around* it. More specifically, each $\hat t_j$ can work
+/// for $t \in [\hat t_j - r_j, \hat t_j + r_j]$, so we just want to make sure
+/// that $\bigcup [\hat t_j - r_j, \hat t_j + r_j]$ covers $[0, U]$ where $U$ is
+/// the upper limit of integral. To achieve the same approximation error, the
+/// radius $r_i$ is proportional to $|\hat t_j|$, so we only need $m = O(\log
+/// U)$.
 pub struct ExpansionIntegrator<T> {
     t: T, // center
     radius: T,
@@ -122,7 +126,7 @@ impl<T: MyReal> ExpansionIntegrator<T> {
         Self { t, radius, w, coeff, poly }
     }
 
-    // TODO: calculate a conservative radius so that we can use small order.
+    /// TODO: calculate a conservative radius so that we can use small order.
     fn calc_radius(coeffs: &[Complex<T>], eps: T) -> T {
         for (idx, &coeff) in coeffs.iter().enumerate().rev() {
             if !coeff.norm_sqr().is_zero() {
@@ -217,47 +221,65 @@ struct HybridPrecItem<T> {
     t: T,
 }
 
-/**
-Hybrid precision computation of $\hat\Phi(s)$. Used to compute $\sum_\rho \hat\Phi(\rho)$
+/// Hybrid precision computation of $\hat\Phi(s)$. Used to compute $\sum_\rho
+/// \hat\Phi(\rho)$
+///
+/// Here, we'd like to use low precision data types to speed up the term
+/// $\sum_\rho \hat\Phi(\rho)$.
+///
+/// Assume each $\hat\Phi(\sigma + it)$ is calculated with an relative error at
+/// most $\delta$, the absolute error of the summation is then bounded by $$
+/// \delta \sum_{0 < \Im \rho < T}  |\hat\Phi(\rho)|, $$ which turns out to to
+/// be $O(\delta x^{1/2} \ln x)$: By [Lemma A.2, Platt], for $\rho = \sigma +
+/// it$ with $t > 1$, $$ |\hat\Phi(\rho)| \leq B(\sigma, t) \leq
+/// \frac{x^\sigma}{t \ln x} + \frac{1}{\lambda^2 t^2 x}, $$ so we approximate
+/// $\sum_{1 < \Im \rho < T} |\hat\Phi(\rho)|$ by an integral, considering the
+/// density of $\zeta$ zeros at height $t$ is $O(\ln t)$ and $T =
+/// \softO(\sqrt{x})$, $$ \sum_{1 < \Im \rho < T} |\hat\Phi(\rho)| \leq
+/// \int_{1}^T \left( \frac{x^\sigma}{t \ln x} + \frac{1}{\lambda^2 t^2 x}
+/// \right) \d N(t) = \frac{x^\sigma}{\ln x} \int_1^T \frac{1}{t} \d N(t) +
+/// \frac{1}{\lambda^2 x} \int_1^T \frac{1}{t^2} \d N(t) = O(x^{1/2} \ln x).  $$
+/// More rigorous result can be obtained similar to [Lemma A.3, Platt].
+///
+/// In practice, the term $$ \sum_{\Im \rho > 0} |\hat \Phi(\rho)| \approx 5.5
+/// \times 10^8, $$ when $x = 10^{18}, \lambda = 5 \times 10^{-8}$, so it's
+/// totally fine for `f64`.
+///
+/// So we pick $\hat t_{1, \dots, m}$ and compute $\hat\Phi(\sigma + i \hat
+/// t_{j})$ for every  $j$ using high precision. Then we approximate
+/// $\hat\phi(s_0 + ih)$ locally as mentioned before, for each $s_0 = \sigma + i
+/// \hat t_j$ using `f64`. When we want to query $\hat\Phi(\sigma + it)$ for any
+/// $t$, we find the last $\hat t_j \leq t$ and use the relationship: $$ \hat
+/// \Phi(\sigma + it) = \hat\Phi(\sigma + i\hat t_j) + \int_t^{\hat t_j}
+/// \hat\phi(\sigma + i h) \d h, $$ the latter of which is computed as before,
+/// but with `f64`. In practice, this method often leads to a 8x speedup when
+/// computing the integral.
+///
+/// ## Reducing relative error
+///
+/// The bottleneck of reducing the relative error $\delta$ is trigonometric
+/// functions: $\sin(x)$ has a relative error of $O(|x|)$. So we simply first
+/// reduce any $z$ to $z \bmod 2\pi$ in high precision, and then compute
+/// $\exp(iz)$ in `f64`. Numerical experiment shows that the simple trick can
+/// reduce $\delta$ to $10^{-14}$ (in a different scenario).
+///
+/// The small relative error might sound unrealistic at first, as the derivative
+/// of $\hat\Phi(s)$ is $\hat\phi(s)$, which has norm of $O(x^{1/2})$, so when
+/// we truncate a $z$ into `f64`, the error should be $2^{-53}x^{1/2}$, which is
+/// way larger than $10^{-14}$. The reason is that the approximation of the
+/// integral has the form of $Q(z) \exp(z)$, and truncating $z$ to `f64` leads
+/// to large relative error in $\exp(z)$, especially when $z$ is pure imaginary,
+/// i.e., $\exp(z + \delta z)$ might different a lot from $(1 + \delta)
+/// \exp(z)$. However, $Q(z)$ is much numerical stable in most cases: $$ Q(z +
+/// \delta z) = \sum_{k=0}^\infty P^{(k)}(z + \delta z)(-1)^k \approx
+/// \sum_{k=0}^\infty (-1)^k \left( P^{(k)} (z) + \delta z P^{(k+1)}(z) \right)
+/// = Q(z) + \delta z (P(z) - Q(z)).  $$ I guess $P(z)$ dominates other terms in
+/// $Q(z)$ as the function it approximates has fast converging power series, so
+/// $P(z) \approx Q(z)$ and $Q(z + \delta z) \approx Q(z)$, which means unlike
+/// $\exp$, $Q$ doesn't magnify the relative error. Note that this doesn't
+/// conflict with the fact that we need high precision of $\zeta$ zeros, as
+/// $\exp$ requires so.
 
-Here, we'd like to use low precision data types to speed up the term $\sum_\rho \hat\Phi(\rho)$.
-
-Assume each $\hat\Phi(\sigma + it)$ is calculated with an relative error at most $\delta$, the absolute error of the summation is then bounded by
-$$
-\delta \sum_{0 < \Im \rho < T}  |\hat\Phi(\rho)|,
-$$
-which turns out to to be $O(\delta x^{1/2} \ln x)$: By [Lemma A.2, Platt], for $\rho = \sigma + it$ with $t > 1$,
-$$
-|\hat\Phi(\rho)| \leq B(\sigma, t) \leq \frac{x^\sigma}{t \ln x} + \frac{1}{\lambda^2 t^2 x},
-$$
-so we approximate $\sum_{1 < \Im \rho < T} |\hat\Phi(\rho)|$ by an integral, considering the density of $\zeta$ zeros at height $t$ is $O(\ln t)$ and $T = \softO(\sqrt{x})$,
-$$
-\sum_{1 < \Im \rho < T} |\hat\Phi(\rho)| \leq \int_{1}^T \left( \frac{x^\sigma}{t \ln x} + \frac{1}{\lambda^2 t^2 x} \right) \d N(t) = \frac{x^\sigma}{\ln x} \int_1^T \frac{1}{t} \d N(t) + \frac{1}{\lambda^2 x} \int_1^T \frac{1}{t^2} \d N(t) = O(x^{1/2} \ln x).
-$$
-More rigorous result can be obtained similar to [Lemma A.3, Platt].
-
-In practice, the term
-$$
-\sum_{\Im \rho > 0} |\hat \Phi(\rho)| \approx 5.5 \times 10^8,
-$$
-when $x = 10^{18}, \lambda = 5 \times 10^{-8}$, so it's totally fine for `f64`.
-
-So we pick $\hat t_{1, \dots, m}$ and compute $\hat\Phi(\sigma + i \hat t_{j})$ for every  $j$ using high precision. Then we approximate $\hat\phi(s_0 + ih)$ locally as mentioned before, for each $s_0 = \sigma + i \hat t_j$ using `f64`. When we want to query $\hat\Phi(\sigma + it)$ for any $t$, we find the last $\hat t_j \leq t$ and use the relationship:
-$$
-\hat \Phi(\sigma + it) = \hat\Phi(\sigma + i\hat t_j) + \int_t^{\hat t_j} \hat\phi(\sigma + i h) \d h,
-$$
-the latter of which is computed as before, but with `f64`. In practice, this method often leads to a 8x speedup when computing the integral.
-
-## Reducing relative error
-
-The bottleneck of reducing the relative error $\delta$ is trigonometric functions: $\sin(x)$ has a relative error of $O(|x|)$. So we simply first reduce any $z$ to $z \bmod 2\pi$ in high precision, and then compute $\exp(iz)$ in `f64`. Numerical experiment shows that the simple trick can reduce $\delta$ to $10^{-14}$ (in a different scenario).
-
-The small relative error might sound unrealistic at first, as the derivative of $\hat\Phi(s)$ is $\hat\phi(s)$, which has norm of $O(x^{1/2})$, so when we truncate a $z$ into `f64`, the error should be $2^{-53}x^{1/2}$, which is way larger than $10^{-14}$. The reason is that the approximation of the integral has the form of $Q(z) \exp(z)$, and truncating $z$ to `f64` leads to large relative error in $\exp(z)$, especially when $z$ is pure imaginary, i.e., $\exp(z + \delta z)$ might different a lot from $(1 + \delta) \exp(z)$. However, $Q(z)$ is much numerical stable in most cases:
-$$
-Q(z + \delta z) = \sum_{k=0}^\infty P^{(k)}(z + \delta z)(-1)^k \approx \sum_{k=0}^\infty (-1)^k \left( P^{(k)} (z) + \delta z P^{(k+1)}(z) \right) = Q(z) + \delta z (P(z) - Q(z)).
-$$
-I guess $P(z)$ dominates other terms in $Q(z)$ as the function it approximates has fast converging power series, so $P(z) \approx Q(z)$ and $Q(z + \delta z) \approx Q(z)$, which means unlike $\exp$, $Q$ doesn't magnify the relative error. Note that this doesn't conflict with the fact that we need high precision of $\zeta$ zeros, as $\exp$ requires so.
- */
 pub struct HybridPrecIntegrator<T> {
     items: Vec<HybridPrecItem<T>>,
     w: T,

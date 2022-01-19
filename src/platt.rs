@@ -17,11 +17,10 @@ pub struct PlattBuilder {
     ζ_zeros: PathBuf,
 }
 
-/**
-The algorihtm described in David Platt, “Computing $\pi(x)$ Analytically.”
-
-Also see [ExpansionIntegrator] to compute $\hat\Phi(s)$ and [HybridPrecIntegrator] for speedup.
- */
+/// The algorihtm described in David Platt, “Computing $\pi(x)$ Analytically.”
+///
+/// Also see [ExpansionIntegrator] to compute $\hat\Phi(s)$ and
+/// [HybridPrecIntegrator] for speedup.
 #[derive(Default)]
 pub struct Platt {
     x: u64,
@@ -47,9 +46,9 @@ impl Default for PlattBuilder {
 }
 
 impl PlattBuilder {
-    /// During planning, these hyperparameters (λ, sigma, h, x1, x2, integral_limits)
-    /// doesn't need to be very accurate
-    /// as long as they satisfy the error bound.
+    /// During planning, these hyperparameters (λ, sigma, h, x1, x2,
+    /// integral_limits) doesn't need to be very accurate as long as they
+    /// satisfy the error bound.
     pub fn build(&self, x: u64) -> Platt {
         let x_ = x as f64;
         let λ = (self.hint_λ * x_.ln() / x_).sqrt();
@@ -258,47 +257,55 @@ impl Platt {
         n_ans as u64
     }
 
-    /**
-    We might shorten the interval by applying some heuristics based on Cramér's random model.
-
-    For brevity, we define $f(u) = \phi(u) - [u \leq x]$, i.e., $f(u) = \phi(u)$ for $u > x$ and $f(u) = \phi(u) - 1$ for $u \leq x$.
-
-    Given a real $d > 0$,  define $U_L = [1, xe^{-d\lambda}], U_R = [xe^{d \lambda}, \infty)$ and $U = U_L \cup U_R$. We'd like to sieve all primes in $(xe^{-d\lambda}, xe^{d \lambda})$ to compute $\Delta$ and estimate the truncation error $S = \sum_{p \in U}f(p)$. Note that $\lambda = \tilde O(x^{-1/2})$ and $d = \tilde O(1)$, so $x e^{d\lambda} = x - \tilde O(x^{1/2})$ and $x e^{d\lambda} = x + \tilde O(x^{1/2})$.
-
-    By Cramér's random model, we assume
-    $$
-    S = \sum_{p \in U} f(p) \approx  \sum_{u \in U} \frac{f(u)}{\ln u},
-    $$
-    One way to improve the approximation is to add an error bar, which is done by studying the behavior of a stochastic estimation $\hat S$:
-    $$
-    \hat S = \sum_{u \in U} X_u f(u), \quad X_u \sim \text{Bernoulli}(1/\ln u).
-    $$
-    We use Bernstein's inequality to approximate $S = \mathbb{E} [\hat S] + t$ by solving $t$ for $\epsilon = \exp(-20)$ in
-    $$
-    \exp\left( -\frac{\frac{1}{2} t^2}{\text{Var}[\hat S] + \frac{1}{3} M t} \right) \leq \epsilon, \quad M := \max_{u \in U} |f(u)| = \Phi(d).
-    $$
-    Let $q = 1/\ln x$, so $q \approx 1/\ln u$ for reasonable $u \in U$, i.e., those with not-too-small $f(u)$.
-
-    Next, we approximate $\mathbb{E}[\hat S]$:
-    $$
-    \mathbb{E}[\hat S] = \sum_{u \in U} \frac{f(u)}{\ln u} \approx \sum_{u \in U} q f(u) \approx q (I_r - I_l),
-    $$
-    where
-    $$
-    I_r = x \lambda \int_{d}^{\infty} \Phi(t) e^{t\lambda} \d t, \quad I_l = x \lambda \int_{d}^\infty \Phi(t) e^{-t\lambda} \d t.
-    $$
-    The last approximation is similar to [Section 3.2, Galway] and both $I_l$ and $I_r$ have a closed form solution. Unlike [Galway], we are making use of the fact that $f(u) < 0$ for $u < x$ and $f(u) > 0$ for $u > x$ and the sum of them might cancel.
-
-    The variance of $\hat S$ can be approximated by:
-    $$
-    \text{Var}[\hat S] = \sum_{u \in U} f(u)^2 \frac{1}{\ln u} (1 - 1/\ln u) \approx q(1-q) \sum_{u \in U} f(u)^2 \leq q(1-q) M \sum_{u \in U} |f(u)| \approx M q(1-q) (I_l + I_r).
-    $$
-    Finally, we minimize $d$ so that $S \leq 0.24$. In this way, we can get a shorter interval to sieve at a loss of guarantee.
-
-    In practice, when $x = 10^{11}$ and $\lambda = 3 \times 10^{-5}$, [Galway] predicts an interval of length 3e7 while this predicts an interval of length 2e7, while the difference between two sums is around 0.0112.
-
-    [Büthe] provides a rigorous way to reduce the interval, but I don't understand... [Theorem 4.3, Büthe2] seems pretty interesting and might be related to the heuristics I used.
-    */
+    /// We might shorten the interval by applying some heuristics based on
+    /// Cramér's random model.
+    ///
+    /// For brevity, we define $f(u) = \phi(u) - [u \leq x]$, i.e., $f(u) =
+    /// \phi(u)$ for $u > x$ and $f(u) = \phi(u) - 1$ for $u \leq x$.
+    ///
+    /// Given a real $d > 0$,  define $U_L = [1, xe^{-d\lambda}], U_R = [xe^{d
+    /// \lambda}, \infty)$ and $U = U_L \cup U_R$. We'd like to sieve all primes
+    /// in $(xe^{-d\lambda}, xe^{d \lambda})$ to compute $\Delta$ and estimate
+    /// the truncation error $S = \sum_{p \in U}f(p)$. Note that $\lambda =
+    /// \tilde O(x^{-1/2})$ and $d = \tilde O(1)$, so $x e^{d\lambda} = x -
+    /// \tilde O(x^{1/2})$ and $x e^{d\lambda} = x + \tilde O(x^{1/2})$.
+    ///
+    /// By Cramér's random model, we assume $$ S = \sum_{p \in U} f(p) \approx
+    /// \sum_{u \in U} \frac{f(u)}{\ln u}, $$ One way to improve the
+    /// approximation is to add an error bar, which is done by studying the
+    /// behavior of a stochastic estimation $\hat S$: $$ \hat S = \sum_{u \in U}
+    /// X_u f(u), \quad X_u \sim \text{Bernoulli}(1/\ln u).  $$ We use
+    /// Bernstein's inequality to approximate $S = \mathbb{E} [\hat S] + t$ by
+    /// solving $t$ for $\epsilon = \exp(-20)$ in $$ \exp\left(
+    /// -\frac{\frac{1}{2} t^2}{\text{Var}[\hat S] + \frac{1}{3} M t} \right)
+    /// \leq \epsilon, \quad M := \max_{u \in U} |f(u)| = \Phi(d).  $$ Let $q =
+    /// 1/\ln x$, so $q \approx 1/\ln u$ for reasonable $u \in U$, i.e., those
+    /// with not-too-small $f(u)$.
+    ///
+    /// Next, we approximate $\mathbb{E}[\hat S]$: $$ \mathbb{E}[\hat S] =
+    /// \sum_{u \in U} \frac{f(u)}{\ln u} \approx \sum_{u \in U} q f(u) \approx
+    /// q (I_r - I_l), $$ where $$ I_r = x \lambda \int_{d}^{\infty} \Phi(t)
+    /// e^{t\lambda} \d t, \quad I_l = x \lambda \int_{d}^\infty \Phi(t)
+    /// e^{-t\lambda} \d t.  $$ The last approximation is similar to [Section
+    /// 3.2, Galway] and both $I_l$ and $I_r$ have a closed form solution.
+    /// Unlike [Galway], we are making use of the fact that $f(u) < 0$ for $u <
+    /// x$ and $f(u) > 0$ for $u > x$ and the sum of them might cancel.
+    ///
+    /// The variance of $\hat S$ can be approximated by: $$ \text{Var}[\hat S] =
+    /// \sum_{u \in U} f(u)^2 \frac{1}{\ln u} (1 - 1/\ln u) \approx q(1-q)
+    /// \sum_{u \in U} f(u)^2 \leq q(1-q) M \sum_{u \in U} |f(u)| \approx M
+    /// q(1-q) (I_l + I_r).  $$ Finally, we minimize $d$ so that $S \leq 0.24$.
+    /// In this way, we can get a shorter interval to sieve at a loss of
+    /// guarantee.
+    ///
+    /// In practice, when $x = 10^{11}$ and $\lambda = 3 \times 10^{-5}$,
+    /// [Galway] predicts an interval of length 3e7 while this predicts an
+    /// interval of length 2e7, while the difference between two sums is around
+    /// 0.0112.
+    ///
+    /// [Büthe] provides a rigorous way to reduce the interval, but I don't
+    /// understand... [Theorem 4.3, Büthe2] seems pretty interesting and might
+    /// be related to the heuristics I used.
     pub fn plan_Δ_bounds_heuristic(λ: f64, x: f64, eps: f64) -> (u64, u64) {
         let τ = 20.0;
         let err = |d: f64| {
