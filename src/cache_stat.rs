@@ -15,8 +15,7 @@ impl CacheStat {
 
     pub fn show(&self, tag: &str) {
         info!(
-            "[Cache] tag = {}, hit = {}, miss = {}, miss ratio = {:.6e}",
-            tag,
+            "[Cache] tag = {tag}, hit = {}, miss = {}, miss ratio = {:.6e}",
             self.hit,
             self.miss,
             self.miss as f64 / (self.miss + self.hit) as f64,

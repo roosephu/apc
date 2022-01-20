@@ -106,14 +106,13 @@ impl<T: MyReal> Iterator for APCDB<T> {
     type Item = (T, f64);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let reader = &mut self.reader;
         let mut inner = || {
             if self.n_zeros == 0 {
                 return None;
             }
-            let hi = reader.read_f64::<LittleEndian>().ok()?;
-            let lo = reader.read_f64::<LittleEndian>().ok()?;
-            let z = T::zero() + hi + lo;
+            let hi = self.reader.read_f64::<LittleEndian>().ok()?;
+            let lo = self.reader.read_f64::<LittleEndian>().ok()?;
+            let z = T::mp(hi) + lo;
 
             self.n_zeros -= 1;
             Some((z, z.fp() * self.rtol + self.atol))

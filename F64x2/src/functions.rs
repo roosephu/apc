@@ -148,7 +148,7 @@ impl f64x2 {
             return self;
         }
         let fp = self.fp();
-        assert!(self.hi >= 0.0, "self = {:?}", self);
+        assert!(fp >= 0.0, "self = {self:?}");
         let x = fp.sqrt().recip();
         let y = fp * x;
         Self::from(two_add(y, (self - Self::from(two_mul(y, y))).hi * (x * 0.5)))
@@ -215,16 +215,16 @@ impl f64x2 {
     /// libm uses 7/16 for thresholding. I guess its due to the precision limit of variable `ix`
     /// here we just partition them equally.
     pub fn atan(self) -> Self {
-        let approx = self.hi;
-        if approx < 0.0 {
+        let fp = self.fp();
+        if fp < 0.0 {
             -(-self).atan()
         } else {
             let base;
             let tan_base;
 
-            if approx <= 1.0 {
+            if fp <= 1.0 {
                 // atan(x) < PI/4
-                if approx < 0.41421356237309503 {
+                if fp < 0.41421356237309503 {
                     // tan(PI / 8)
                     // atan(x) < PI/8 => base = PI / 16
                     (base, tan_base) = (
@@ -238,7 +238,7 @@ impl f64x2 {
                 }
             } else {
                 // another division
-                if approx < 2.414213562373095 {
+                if fp < 2.414213562373095 {
                     // tan(3 PI / 8)
                     // PI/4 <= atan(x) < 3PI/8 => base = 5PI / 16
                     (base, tan_base) =
@@ -256,22 +256,22 @@ impl f64x2 {
 
     pub fn atan2(self, other: Self) -> Self {
         // y = self, x = rhs
-        if self.hi < 0.0 {
+        if self.fp() < 0.0 {
             // y < 0
             -(-self).atan2(other)
         } else if self.is_zero() {
             // y == 0
-            if other.hi > 0.0 {
+            if other.fp() > 0.0 {
                 // x > 0, y = 0
                 Self::zero()
             } else {
                 // x <= 0, y = 0
                 Self::PI()
             }
-        } else if other.hi < 0.0 {
+        } else if other.fp() < 0.0 {
             // y > 0, x < 0
             Self::PI() - (-self / other).atan()
-        } else if other.hi > 0.0 {
+        } else if other.fp() > 0.0 {
             // y > 0, x > 0
             (self / other).atan()
         } else {
@@ -285,7 +285,7 @@ impl f64x2 {
 
     #[inline]
     pub fn abs(self) -> Self {
-        if self.hi < 0.0 {
+        if self.fp() < 0.0 {
             -self
         } else {
             self
@@ -297,12 +297,12 @@ impl f64x2 {
     fn erfc_1(self) -> Self { self.erfc_1_remez() + 1.0 }
 
     fn erfc_1_5(self) -> Self {
-        debug_assert!(self.hi >= 0.0);
+        debug_assert!(self.fp() >= 0.0);
         self.erfc_1_5_remez() / self.square().exp()
     }
 
     fn erfc_5_10(self) -> Self {
-        debug_assert!(self.hi >= 0.0);
+        debug_assert!(self.fp() >= 0.0);
         self.erfc_5_10_remez() / self.square().exp() / self
     }
 
@@ -326,7 +326,7 @@ impl f64x2 {
     fn erfc_eps_small(self, eps: f64) -> Self {
         let s;
         let z;
-        if self.hi >= 0.0 {
+        if self.fp() >= 0.0 {
             s = 1;
             z = self;
         } else {
@@ -343,7 +343,7 @@ impl f64x2 {
         loop {
             let ds = t / (2 * k + 1) as f64;
             S += ds;
-            if ds.abs().hi < eps0 {
+            if ds.abs().fp() < eps0 {
                 break;
             }
             k += 1;
@@ -358,7 +358,7 @@ impl f64x2 {
     }
 
     fn erfc_eps_old(self, eps: f64) -> Self {
-        if self.hi.abs() < 2.0 {
+        if self.fp().abs() < 2.0 {
             self.erfc_eps_small(eps)
         } else {
             self.erfc_eps_large(eps)
@@ -369,21 +369,21 @@ impl f64x2 {
         let x = self;
         let x_abs = x.abs();
 
-        let ret = if x_abs.hi < 1.0 {
+        let ret = if x_abs.fp() < 1.0 {
             self.erfc_1()
         } else {
             let y;
-            if x_abs.hi < 2.0 {
+            if x_abs.fp() < 2.0 {
                 y = x_abs.erfc_eps_small(eps)
-            } else if x_abs.hi < 5.0 {
+            } else if x_abs.fp() < 5.0 {
                 y = x_abs.erfc_1_5()
-            } else if x_abs.hi < 10.0 {
+            } else if x_abs.fp() < 10.0 {
                 y = x_abs.erfc_5_10()
             } else {
                 y = Self::zero()
             }
 
-            if x.hi > 0.0 {
+            if x.fp() > 0.0 {
                 y
             } else {
                 Self { hi: 2.0, lo: 0.0 } - y

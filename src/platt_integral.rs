@@ -304,9 +304,9 @@ impl<T: MyReal> HybridPrecIntegrator<T> {
         Self { items, w: x.ln(), max_err: 0.0 }
     }
 
-    // We don't use the ExpansionIntegrator to build low precision expansion,
-    // the `ExpansionIntegrator.coeff` involves exp(ln(x) t), which might lose
-    // precision if computed in f64.
+    /// We don't use the ExpansionIntegrator to build low precision expansion,
+    /// the `ExpansionIntegrator.coeff` involves exp(ln(x) t), which might lose
+    /// precision if computed in f64.
     fn calc_low_prec_expansion(high_prec: &ExpansionIntegrator<T>) -> ExpansionIntegrator<f64> {
         let t = high_prec.t.fp();
         let radius = high_prec.radius.fp();

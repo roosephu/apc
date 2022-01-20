@@ -26,17 +26,17 @@ fn count_variations<T: Copy + Signed>(block: &[EvalPoint<T>]) -> usize {
     variations
 }
 
-pub struct SameSign<T: MyReal> {
+struct SameSign<T: MyReal> {
     xa: EvalPoint<T>,
     xb: EvalPoint<T>,
 }
 
-pub enum BracketMaintainer<T: MyReal> {
+enum BracketMaintainer<T: MyReal> {
     DiffSign(Illinois<T>),
     SameSign(SameSign<T>),
 }
 
-pub struct Bracket<T: MyReal> {
+struct Bracket<T: MyReal> {
     entry: BracketMaintainer<T>,
     priority: f64,
 }
@@ -214,8 +214,7 @@ pub trait HardyZDep =
 /// Although Euler-Maclaurin method requires O(t) time, the $n$ we used is
 /// fixed as we only apply Euler-Maclaurin to small $t$ where Riemann-Siegel
 /// can't provide enough precision, and larger $n$ always works better.
-
-pub struct EulerMaclaurinMethod<T: MyReal> {
+struct EulerMaclaurinMethod<T: MyReal> {
     dirichlet: BandwidthInterp<T>,
     n: usize,
     atol: f64,
@@ -261,7 +260,7 @@ pub struct HardyZ<T: HardyZDep> {
     pub dirichlet: Vec<Option<BandwidthInterp<T>>>,
     pub eps: f64,
     pub levels: Vec<(f64, usize)>,
-    pub euler_maclaurin: EulerMaclaurinMethod<T>,
+    euler_maclaurin: EulerMaclaurinMethod<T>,
 
     // for memory management
     timestep: usize,
@@ -365,7 +364,7 @@ impl<T: HardyZDep> HardyZ<T> {
                     released.push(i);
                 }
             }
-            debug!("[HardyZ] drop cache: {:?}", released);
+            debug!("[HardyZ] drop cache: {released:?}");
         }
     }
 }
@@ -437,8 +436,8 @@ macro_rules! make_closure {
 /// are accounted. Once a Rosser leaves the pending zone, we have to make sure
 /// that all roots inside the Rosser block have been identified.
 ///
-/// The function finds all zeros in $[L, R]$ where $R \geq goal_height$ and $L$
-/// is slightly larger than g(n).
+/// The function finds all zeros in $[L, R]$ where $R \geq \textnormal{goal_{height}}$ and $L$
+/// is slightly larger than $g(n)$.
 ///
 /// Requirement: $N(g_{n_0}) = n_0 + 1.$
 pub fn try_isolate<T: HardyZDep>(

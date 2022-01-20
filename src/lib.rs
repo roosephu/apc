@@ -135,7 +135,7 @@ pub fn init() {
 
 cfg_if::cfg_if! {
     if #[cfg(any(feature = "zeta", feature = "galway"))] {
-        mod context;
+        // mod context;
     }
 }
 

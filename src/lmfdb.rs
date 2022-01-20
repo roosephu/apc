@@ -162,10 +162,7 @@ mod tests {
 
         let db = LMFDB::<f64>::directory(path);
         let mut lmfdb2 = vec![];
-        for (x, _) in db {
-            if x > limit {
-                break;
-            }
+        for x in db.map_while(|(x, _)| (x <= limit).then(|| x)) {
             lmfdb2.push(x)
         }
         println!("len = {}, {}", lmfdb.len(), lmfdb2.len());

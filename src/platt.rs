@@ -115,7 +115,7 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64, segment: u64) -> f6
     let n_intervals = (x2 - x1) / segment + 1;
     for k in 1..=n_intervals {
         let y1 = std::cmp::min(x2, x1 + segment - 1);
-        info!("sieving {}/{}: [{}, {}]", k, n_intervals, x1, y1);
+        info!("sieving {k}/{n_intervals}: [{x1}, {y1}]");
         let sieve_result = crate::sieve::sieve_primesieve(x1, y1);
         for &p in sieve_result.iter() {
             n_primes += 1;
@@ -123,7 +123,7 @@ fn calc_Δ1_f64(x: u64, eps: f64, λ: f64, x1: u64, x2: u64, segment: u64) -> f6
         }
         x1 = y1 + 1;
     }
-    info!("found {} primes in the interval", n_primes);
+    info!("found {n_primes} primes in the interval");
 
     ϕ.stat().show("Fast ϕ");
     let Δ_1 = n_primes_less_than_x as f64 - ϕ.sum();
@@ -225,15 +225,13 @@ impl Platt {
         info!("Δ = {}", Δ);
         let ans = integral_offline - integral_critical * 2.0 - 2.0.ln() + Δ;
         let n_ans = ans.round().to_u64().unwrap();
-        info!("ans = {}, rounding error = {}", ans, ans - T::from_u64(n_ans).unwrap());
+        info!("ans = {ans}, rounding error = {}", ans - T::from_u64(n_ans).unwrap());
 
         let time_integral = (t1 - t0).as_secs_f64();
         let time_sieve = (t2 - t1).as_secs_f64();
 
         info!(
-            "Time: ζ zeros = {:.3} sec, sieve = {:.3} sec, ratio = {:.3}",
-            time_integral,
-            time_sieve,
+            "Time: ζ zeros = {time_integral:.3} sec, sieve = {time_sieve:.3} sec, ratio = {:.3}",
             time_integral / time_sieve
         );
         info!("Suggested: --lambda-hint {:.3}", self.hint_λ * time_integral / time_sieve);
@@ -305,12 +303,9 @@ impl Platt {
         assert!(residue <= 0.3);
 
         info!(
-            "Δ range = [{:.0}, {:.0}], length = {:.0}, trunc error = {:.6}, d = {:.6}",
-            x1,
-            x2,
+            "Δ range = [{x1:.0}, {x2:.0}], length = {:.0}, trunc error = {:.6}, d = {d:.6}",
             x2 - x1,
             err(d),
-            d,
         );
 
         (x1 as u64, x2 as u64)
@@ -329,11 +324,8 @@ impl Platt {
         debug!("t1 = {}, t2 = {}", t1, t2);
         let delta_est = 2.0 * λ * x * (2.0 * (λ * x).ln()).sqrt();
         info!(
-            "Δ range = [{}, {}], length = {}, est = {:.0}, residue = ({:.6}, {:.6})",
-            x1,
-            x2,
+            "Δ range = [{x1}, {x2}], length = {}, est = {delta_est:.0}, residue = ({:.6}, {:.6})",
             x2 - x1,
-            delta_est,
             err_l(t1, x, λ),
             err_r(t2, x, λ)
         );
@@ -361,7 +353,7 @@ impl Platt {
 
         // TODO: check error
         info!("Computing ∑ Φ̂(ρ) for 0 < ℑρ < T.");
-        for root in ζ_zeros.map_while(|(x, _)| if x.fp() <= max_height { Some(x) } else { None }) {
+        for root in ζ_zeros.map_while(|(x, _)| (x.fp() <= max_height).then(|| x)) {
             let integral = integrator.query(root).im;
             result += integral;
             last_contribution = integral;
@@ -369,10 +361,8 @@ impl Platt {
 
         let max_err = integrator.max_err;
         info!(
-            "∑ Φ̂(ρ) = {}, Φ̂(ρ_max) = {:.6e}, max_err/f64::eps = {:.6e}",
-            result,
+            "∑ Φ̂(ρ) = {result}, Φ̂(ρ_max) = {:.6e}, max_err/f64::eps = {max_err:.6e}",
             last_contribution.fp(),
-            max_err
         );
         assert!(max_err < 1e13, "possible loss of precision! use PlattIntegrator instead");
 
@@ -412,7 +402,7 @@ mod tests {
             diff += calc_Δ1_f64(x as u64, eps, λ, d2, w2, segment);
         }
         let diff = diff.abs();
-        info!("diff = {}", diff);
+        info!("diff = {diff}");
 
         assert!(diff < 0.1);
     }

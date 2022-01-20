@@ -5,7 +5,6 @@ mod exp_poly_approx;
 mod factorial;
 mod gabcke_series;
 mod gamma;
-mod lazy_static;
 mod loggamma;
 mod riemann_siegel_theta;
 // mod riemann_siegel_theta_integral;

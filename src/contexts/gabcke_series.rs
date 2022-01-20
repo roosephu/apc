@@ -1,6 +1,5 @@
 use F64x2::f64x2;
 
-use super::lazy_static::UninitCell;
 use crate::traits::MyReal;
 
 pub trait GabckeSeries {
@@ -11,8 +10,8 @@ pub trait GabckeSeriesCoeffs: Sized {
     fn gabcke_series_coeffs(k: usize) -> &'static [Self];
 }
 
-const GABCKE_SERIES_F64X2: [[f64x2; 26]; 11] = include!("../../const_table/gabcke_series_f64x2.rs");
-const GABCKE_SERIES_F64: [[f64; 26]; 11] = include!("../../const_table/gabcke_series_f64.rs");
+const GABCKE_SERIES_F64X2: &[[f64x2; 26]] = &include!("../../const_table/gabcke_series_f64x2.rs");
+const GABCKE_SERIES_F64: &[[f64; 26]] = &include!("../../const_table/gabcke_series_f64.rs");
 
 impl GabckeSeriesCoeffs for f64 {
     fn gabcke_series_coeffs(k: usize) -> &'static [f64] { &GABCKE_SERIES_F64[k] }
@@ -23,9 +22,9 @@ impl GabckeSeriesCoeffs for f64x2 {
 }
 
 impl<T: MyReal + GabckeSeriesCoeffs> GabckeSeries for T {
-    /// See [Gabcke] Section 2.2. See also Theorem 2.1.6.
-    /// For numerical stability, we use the Chebyshev's version (Eq 2.38)
-    /// instead of polynomial version (Eq 2.34, 2.35).
+    /// See [Gabcke] Section 2.2. See also Theorem 2.1.6.  For numerical
+    /// stability, we use the Chebyshev's version (Eq 2.38) instead of
+    /// polynomial version (Eq 2.34, 2.35).
     #[inline(never)]
     fn gabcke_series(&self, order: usize, atol: f64) -> Self {
         let t = *self;

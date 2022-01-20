@@ -1,5 +1,5 @@
 use num::{Complex, Signed};
-use num_traits::{Float, FloatConst, FromPrimitive, NumAssignOps, Pow};
+use num_traits::{Float, FloatConst, FromPrimitive, Num, NumAssignOps, NumOps, Pow};
 use std::{
     fmt::{Debug, Display, LowerExp},
     ops::{Add, Div, Mul, Sub},
@@ -12,22 +12,20 @@ pub trait ComplexOps = Float
     + Mul<Complex<Self>, Output = Complex<Self>>
     + Div<Complex<Self>, Output = Complex<Self>>;
 
-pub trait ErgonomicOps = NumAssignOps
-    + Display // might not need
-    + Debug // might not need
-    + LowerExp // might not need
-    + Default;
-
-pub trait MyReal = Float
-    + FloatConst
-    + Signed
-    + FromPrimitive
+pub trait BaseReal = Copy
+    + Clone
     + FpOps
-    + ComplexOps
-    + ErgonomicOps
-    + Pow<i32, Output = Self>
+    + NumAssignOps
+    + Signed
+    + Num
     + Sync
     + Send
-    + 'static;
+    + 'static
+    + Display
+    + Debug
+    + Default;
+
+pub trait MyReal =
+    BaseReal + Float + FloatConst + FromPrimitive + ComplexOps + Pow<i32, Output = Self>;
 
 pub trait ZetaZerosDatabase<T> = Iterator<Item = (T, f64)>;

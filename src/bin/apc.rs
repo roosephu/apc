@@ -94,7 +94,7 @@ fn main() {
             use F64x2::f64x2;
 
             let x = parse_int(&x).unwrap();
-            info!("======= computing π({}) ======", x);
+            info!("======= computing π({x}) ======");
             // assert!(n >= 100000);
 
             let mut platt = PlattBuilder::default()
@@ -138,9 +138,9 @@ fn main() {
 
             let r1 = roots[0];
             let rn = roots[n_zeros - 1];
-            info!("the first zero is {}, and the last zero is {}", r1, rn);
+            info!("the first zero is {r1}, and the last zero is {rn}");
 
-            let file_path = format!("{}/height_100000.dat", apcdb);
+            let file_path = format!("{apcdb}/height_100000.dat");
             let _ = write_APCDB(&roots, file_path, 0, roots.len(), atol, rtol);
         }
     }
