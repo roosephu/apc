@@ -2,7 +2,7 @@
 
 use std::num::ParseIntError;
 
-use apc::{APCDB, LMFDB};
+use apc::{OnlineZetaZeros, APCDB, LMFDB};
 use clap::{AppSettings, Parser, Subcommand};
 use log::info;
 
@@ -104,9 +104,18 @@ fn main() {
                 .build(x);
 
             let ans = match (lmfdb, apcdb) {
-                (Some(p), _) => platt.compute::<f64x2>(LMFDB::<f64x2>::directory(p)),
-                (None, Some(p)) => platt.compute::<f64x2>(APCDB::<f64x2>::directory(p)),
-                (None, None) => unreachable!(), // TODO: generate it online
+                (Some(p), _) => {
+                    log::info!("Engine: LMFDB");
+                    platt.compute::<f64x2>(LMFDB::<f64x2>::directory(p))
+                }
+                (None, Some(p)) => {
+                    log::info!("Engine: APCDB");
+                    platt.compute::<f64x2>(APCDB::<f64x2>::directory(p))
+                }
+                (None, None) => {
+                    log::info!("Engine: Online");
+                    platt.compute::<f64x2>(OnlineZetaZeros::new(1e9, 1e-18, 1e-18))
+                }
             };
 
             println!("{}", ans);

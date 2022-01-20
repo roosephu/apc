@@ -134,12 +134,6 @@ pub fn init() {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(any(feature = "zeta", feature = "galway"))] {
-        // mod context;
-    }
-}
-
-cfg_if::cfg_if! {
     if #[cfg(feature = "zeta")] {
         mod sum_trunc_dirichlet;
         pub mod bandwidth_interp;
@@ -176,6 +170,7 @@ pub use apcdb::{write_APCDB, APCDB};
 pub use fast_phi::LittlePhiSum;
 pub use lmfdb::LMFDB;
 pub use platt::PlattBuilder;
+pub use zeta_zeros::OnlineZetaZeros;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "doc")] {

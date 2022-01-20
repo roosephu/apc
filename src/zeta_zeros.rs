@@ -61,7 +61,7 @@ impl<T: MyReal> Bracket<T> {
 }
 
 /// A `Lounge` is a place where roots are waiting to be separated.
-struct Lounge<T: MyReal> {
+struct Workspace<T: MyReal> {
     brackets: Vec<Bracket<T>>,
     variations: usize,
     n_zeros: usize,
@@ -69,7 +69,7 @@ struct Lounge<T: MyReal> {
     rtol: f64,
 }
 
-impl<T: MyReal> Lounge<T> {
+impl<T: MyReal> Workspace<T> {
     pub fn new(n_zeros: usize, atol: f64, rtol: f64) -> Self {
         Self { brackets: vec![], variations: 0, n_zeros, atol, rtol }
     }
@@ -485,7 +485,7 @@ pub fn try_isolate<T: HardyZDep>(
         let block = next_good_gram_point(n, g, make_closure!(hardy_z, stats, count_separate));
         let n_gram_points = block.len() - 1;
 
-        let mut lounge = Lounge::new(n_gram_points, atol, rtol);
+        let mut lounge = Workspace::new(n_gram_points, atol, rtol);
         for i in 0..n_gram_points {
             lounge.add(block[i], block[i + 1]);
         }
@@ -506,7 +506,7 @@ pub fn try_isolate<T: HardyZDep>(
 
             // This time we have to identify all roots at all costs. The last
             // $k$ Rosser blocks can't be verified by Turing's method.
-            let mut lounge = Lounge::new(0, atol, rtol);
+            let mut lounge = Workspace::new(0, atol, rtol);
             while pending.len() > k {
                 lounge.merge(pending.pop_front().unwrap());
             }
@@ -553,6 +553,53 @@ pub fn try_isolate<T: HardyZDep>(
         }
     }
     stats
+}
+
+pub struct OnlineZetaZeros<T: HardyZDep> {
+    max_height: f64,
+    roots: Vec<T>,
+    hardy_z: HybridPrecHardyZ<T>,
+    n: i64,
+    height: f64,
+    atol: f64,
+    rtol: f64,
+}
+
+impl<T: HardyZDep> OnlineZetaZeros<T> {
+    pub fn new(max_height: f64, atol: f64, rtol: f64) -> Self {
+        let hardy_z = HybridPrecHardyZ::new(max_height, 10, rtol);
+        Self { roots: vec![], n: -1, atol, rtol, height: 9.0, max_height, hardy_z }
+    }
+}
+
+impl<T: HardyZDep> Iterator for OnlineZetaZeros<T> {
+    type Item = (T, f64);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.roots.is_empty() {
+            assert!(self.height < self.max_height);
+            let goal_height = self.height + (self.height / self.height.ln() * 5.0).clamp(1e3, 1e5);
+            let goal_height = goal_height.min(self.max_height);
+
+            let stats =
+                try_isolate(&mut self.hardy_z, self.n, goal_height, self.atol, self.rtol, true);
+            self.roots = stats.roots;
+            self.roots.reverse(); // we're popping each elements
+
+            self.n = stats.gram_end.0;
+            self.height = stats.gram_end.1;
+            let n_zeros = self.roots.len();
+            log::info!(
+                "Certified: [g({}), g({}))] = [{:.3}, {:.3}]. {} zeros located. {:.3} calls to separate, {:.3} calls to locate, total = {:.3}",
+                stats.gram_start.0, stats.gram_end.0, stats.gram_start.1, stats.gram_end.1, n_zeros,
+                stats.count_separate as f64 / n_zeros as f64,
+                stats.count_locate as f64 / n_zeros as f64,
+                (stats.count_locate + stats.count_separate) as f64 / n_zeros as f64,
+            );
+        }
+        let x = self.roots.pop().unwrap();
+        Some((x, x.fp() * self.rtol + self.atol))
+    }
 }
 
 #[cfg(test)]

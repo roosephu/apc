@@ -1,6 +1,6 @@
 # apc
 
-This program counts the number of primes under $x$ using analytic method for $x \leq 10^{18}$ **assuming access to a table of non-trivial zeros of Riemann $\zeta(s)$ function**, based on the paper [Platt].
+This program counts the number of primes under $x$ using analytic method for $x \leq 10^{18}$ based on the paper [Platt].
 
 This is a side project. I'm new to analytic number theory and can't understand most of the equations in the reference papers. I know little computer architecture so the program is also highly-unoptimized. The program hasn't been tested so it might produce incorrect numbers or even fail to produce reasonable results. Use at your own risk.
 
@@ -14,13 +14,9 @@ This is a side project. I'm new to analytic number theory and can't understand m
    rustup toolchain install nightly
    ```
 
-2. Download the files of zeros of $\zeta(s)$ from [LMFDB](https://beta.lmfdb.org/data/riemann-zeta-zeros/). To compute $\pi(10^{18})$, you might need all zeros up to $1.4 \times 10^8$.
+2. Install [primesieve](https://github.com/kimwalisch/primesieve) which `apc` uses to sieve prime numbers.
 
-   The directory should at least contain `md5.txt`. Also put data files (e.g.,`zeros_14.dat`) in this folder.
-
-3. Install [primesieve](https://github.com/kimwalisch/primesieve) which `apc` uses to sieve prime numbers.
-
-4. Build: `cargo +nightly build --bin apc --release`.
+3. Build: `cargo +nightly build --bin apc --release`.
 
 To build the doc:
 
@@ -30,11 +26,41 @@ RUSTDOCFLAGS="--html-in-header `pwd`/src/latex.html" cargo doc --features doc --
 
 # Usage
 
-1. Run: `target/release/apc 10^15 --lambda-hint 10`. Time might vary, but probably it should finish under 1min. As a reference, it's ~8s in Macbook Pro 13-inch (2017).
+You may first try
 
-   1. Add ` --zeta-zeros-path <your-LMFDB-path>` if you didn't put the LMFDB data under `data/zeros/`.
+```bash
+target/release/apc pi "10^13" --lambda-hint 5000
+```
 
-You may try different `--lambda-hint` value. Larger value sieves more and use fewer $\zeta(s)$ zeros, while smaller value does the opposite. The program also suggests `--lambda-hint` if you pass `--verbose` to the command line.
+which takes about 10s. There are two possible improvement to speed it up, by providing it a table of nontrivial roots of Riemann $\zeta$ function (see next subsection).
 
-You may also want to try `target/release/apc 10^18 --lambda-hint 50`, which takes about 8.5min in Macbook Pro 13-inch (2017). Using more $\zeta$ zeros (and then reducing `--lambad-hint`) can reduce the time.
+You may try different `--lambda-hint` value. Larger value sieves more and use fewer $\zeta$ zeros, vice versa. `apc` also suggests `--lambda-hint` if you export `RUST_LOG=info`.
+
+Here are a few other settings that I've tried (if you have LMFDB under `./data/lmfdb`):
+
+```bash
+target/release/apc pi "10^15" --lambda-hint 10 --lmfdb ./data/lmfdb  # 10s
+target/release/apc pi "10^18" --lambda-hint 50 --lmfdb ./data/lmfdb  # 8.5min
+```
+
+The time is measured in a Macbook Pro (either in 2017 version or M1 Pro version).
+
+## Zeros of Riemann $\zeta$ function
+
+As the algorithm uses the nontrivial roots of Riemann $\zeta$ function, which are expensive to compute. `apc` provides three methods to do so:
+1. Computing them online. This is the default behavior.
+2. Reading from [LMFDB](https://beta.lmfdb.org/data/riemann-zeta-zeros/) by `--lmfdb path/to/LMFDB`.
+3. Reading from cached result by `--apcdb path/to/APCDB`.
+
+In the last two methods, please make sure that the file `md5.txt` exists as `apc` uses it to index the database. However, you don't need the whole database. To generate the database by `apc`, use the following commands:
+
+```bash
+mkdir -p ./data/apcdb
+target/release/apc zero "10^15" --apcdb ./data/apcdb
+cd ./data/apcdb
+md5sum *.dat > md5.txt
+cd ../..
+```
+
+Please be aware that computing the table of nontrivial roots of Riemann $\zeta$ function can be quite slow (12k zeros per second).
 
